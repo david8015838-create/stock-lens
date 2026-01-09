@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>StockLens Owen</title>
+    
+    <!-- PWA 與 行動裝置優化 Meta -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="StockLens">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2422/2422796.png">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --neon: #00f2ff; --bg: #0b0f1a; --card: #161c2d; }
+        body { 
+            background-color: var(--bg); 
+            color: #e2e8f0; 
+            font-family: 'Inter', -apple-system, sans-serif; 
+            padding-bottom: env(safe-area-inset-bottom);
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .neon-border { border: 1px solid rgba(0, 242, 255, 0.2); }
+        .neon-text { color: var(--neon); text-shadow: 0 0 10px rgba(0, 242, 255, 0.4); }
+        .glass-card { background: rgba(22, 28, 45, 0.8); backdrop-filter: blur(10px); }
+        
+        input { 
+            transition: all 0.2s; 
+            background-color: rgba(30, 41, 59, 0.5) !important; 
+            border: 1px solid #334155; 
+            color: white; 
+            font-size: 14px !important; 
+        }
+        input:focus { border-color: var(--neon) !important; outline: none; }
+        
+        .btn-action:active { transform: scale(0.96); opacity: 0.8; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .scroll-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+        #addModal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        th { white-space: nowrap; font-size: 8px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 800; }
+        td { white-space: nowrap; }
+    </style>
+</head>
+<body class="p-3">
+    <!-- 新增標的彈窗 -->
+    <div id="addModal">
+        <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-cyan-500/30 p-8 shadow-2xl">
+            <h3 class="text-xl font-black text-cyan-400 italic mb-6 uppercase tracking-widest">Add Asset</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">標的代碼 (例: 2330 / VOO)</label>
+                    <input type="text" id="modalSymbol" placeholder="SYMBOL" class="w-full rounded-2xl p-4 font-black uppercase">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">購入股數</label>
+                        <input type="number" id="modalShares" placeholder="0" class="w-full rounded-2xl p-4 font-mono">
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">購入單價</label>
+                        <input type="number" id="modalCost" placeholder="0.00" class="w-full rounded-2xl p-4 font-mono">
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-8">
+                <button onclick="closeModal()" class="flex-1 bg-slate-800 text-slate-400 py-4 rounded-2xl font-bold btn-action uppercase text-xs">取消</button>
+                <button onclick="processAddAsset()" class="flex-1 bg-cyan-500 text-black py-4 rounded-2xl font-black btn-action uppercase text-xs shadow-lg shadow-cyan-500/20">確認加入</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-md mx-auto pb-10">
+        <header class="flex items-start justify-between mb-6 pt-4">
+            <div class="flex flex-col">
+                <h1 class="text-2xl font-black neon-text italic tracking-tighter uppercase flex items-baseline">
+                    StockLens 
+                </h1>
+                <div class="flex items-center mt-0.5">
+                    <span class="text-[9px] not-italic text-slate-500 font-bold opacity-80 uppercase">by Owen</span>
+                    <span class="text-[7px] tracking-[0.2em] text-cyan-500/40 font-black border-l border-cyan-500/20 ml-2 pl-2 uppercase">V4.0 Mobile</span>
+                </div>
+            </div>
+
+            <!-- 數據概覽 -->
+            <div class="glass-card px-4 py-2 rounded-2xl border border-slate-800 shadow-xl flex flex-col items-end min-w-[140px]">
+                <div class="flex flex-col items-end mb-1">
+                    <span class="text-[8px] text-slate-500 uppercase font-bold tracking-tighter">總市值 (TWD)</span>
+                    <span id="totalDisplay" class="text-sm font-mono font-bold text-cyan-400 leading-none">0</span>
+                </div>
+                <div class="flex items-center gap-2 border-t border-slate-800/50 pt-1 w-full justify-end">
+                    <span id="totalProfitPctDisplay" class="text-[9px] font-bold">0%</span>
+                    <span id="totalProfitDisplay" class="text-[9px] font-mono font-bold opacity-80">0</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- 組合管理 -->
+        <div class="glass-card rounded-[2rem] neon-border overflow-hidden mb-6">
+            <div class="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+                <h2 class="font-bold text-sm text-cyan-400 uppercase tracking-widest italic">Portfolio</h2>
+                <div class="flex gap-2">
+                    <button onclick="fetchAllPrices()" class="bg-cyan-500/10 text-cyan-400 text-[10px] px-3 py-2 rounded-lg font-bold border border-cyan-500/30 btn-action uppercase">更新</button>
+                    <button onclick="openModal()" class="bg-cyan-500 text-black text-[10px] px-3 py-2 rounded-lg font-black btn-action uppercase">+ 新增</button>
+                </div>
+            </div>
+            
+            <div class="scroll-container no-scrollbar">
+                <table class="w-full text-left border-separate border-spacing-0">
+                    <thead>
+                        <tr class="bg-slate-900/30">
+                            <th class="px-3 py-3 text-center">目標%</th>
+                            <th class="px-3 py-3">標的</th>
+                            <th class="px-2 py-3">持股</th>
+                            <th class="px-2 py-3">成本</th>
+                            <th class="px-2 py-3 text-right">市價</th>
+                            <th class="px-2 py-3 text-right">市值</th>
+                            <th class="px-3 py-3 text-right">損益</th>
+                            <th class="px-2 py-3"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+                <div id="emptyState" class="p-10 text-center text-slate-600 italic text-xs hidden">尚未加入任何標的</div>
+            </div>
+        </div>
+
+        <!-- 圖表區塊 -->
+        <div class="grid grid-cols-1 gap-6 mb-6">
+            <div class="glass-card p-6 rounded-[2rem] border border-slate-800">
+                <h3 class="text-[10px] uppercase font-bold text-slate-500 mb-4 text-center tracking-widest">Asset Allocation</h3>
+                <div class="h-[300px] relative">
+                    <canvas id="mainChart"></canvas>
+                </div>
+            </div>
+            <div class="glass-card p-6 rounded-[2rem] border border-slate-800">
+                <h3 class="text-[10px] uppercase font-bold text-cyan-400 mb-4 text-center tracking-widest italic">Target Gap Analysis</h3>
+                <div class="h-[200px] relative">
+                    <canvas id="targetChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 資金投入 -->
+        <div class="glass-card p-6 rounded-[2rem] border border-slate-800 mb-20">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h2 class="font-bold text-xs uppercase tracking-widest text-slate-400">Rebalance Optimization</h2>
+                    <p class="text-[9px] text-slate-600 uppercase italic">投入閒置資金 (TWD)</p>
+                </div>
+                <input type="number" id="extraCash" oninput="saveAndRefresh()" value="0" class="w-24 rounded-xl py-2 px-3 text-right text-sm font-mono text-emerald-400 font-bold">
+            </div>
+            <div id="adviceContainer" class="space-y-3 min-h-[50px]"></div>
+            <button onclick="triggerAdvice()" class="mt-6 w-full bg-cyan-500 text-black text-xs py-4 rounded-2xl font-black uppercase italic btn-action">Execute Optimization</button>
+            <p class="text-[8px] text-slate-600 mt-4 text-center uppercase tracking-tighter">* 計算僅包含「目標 % > 0」的項目與閒置資金</p>
+        </div>
+    </div>
+
+    <script>
+        Chart.register(ChartDataLabels);
+
+        // 預設從 localStorage 讀取資料，如果沒有則為空陣列
+        let portfolio = JSON.parse(localStorage.getItem('stocklens_portfolio')) || [];
+        let globalFxRate = 32.50;
+        let mainChart = null;
+        let targetChart = null;
+
+        function saveToStorage() {
+            localStorage.setItem('stocklens_portfolio', JSON.stringify(portfolio));
+            const extraCash = document.getElementById('extraCash').value;
+            localStorage.setItem('stocklens_extra_cash', extraCash);
+        }
+
+        function loadFromStorage() {
+            const savedCash = localStorage.getItem('stocklens_extra_cash');
+            if (savedCash !== null) {
+                document.getElementById('extraCash').value = savedCash;
+            }
+        }
+
+        function openModal() { document.getElementById('addModal').style.display = 'flex'; }
+        function closeModal() {
+            document.getElementById('addModal').style.display = 'none';
+            document.getElementById('modalSymbol').value = '';
+            document.getElementById('modalShares').value = '';
+            document.getElementById('modalCost').value = '';
+        }
+
+        async function processAddAsset() {
+            const sym = document.getElementById('modalSymbol').value.trim().toUpperCase();
+            const shares = parseFloat(document.getElementById('modalShares').value) || 0;
+            const cost = parseFloat(document.getElementById('modalCost').value) || 0;
+            if (!sym || shares <= 0 || cost <= 0) return;
+
+            const existingIndex = portfolio.findIndex(p => p.symbol === sym);
+            if (existingIndex !== -1) {
+                const p = portfolio[existingIndex];
+                const oldTotalCost = p.shares * p.cost;
+                const newTotalCost = shares * cost;
+                p.shares += shares;
+                p.cost = (oldTotalCost + newTotalCost) / p.shares;
+            } else {
+                const info = getCategoryInfo(sym);
+                const newId = portfolio.length > 0 ? Math.max(...portfolio.map(i => i.id)) + 1 : 1;
+                const newItem = { id: newId, symbol: sym, category: info.cat, currency: info.cur, shares, cost, target: 0, price: 0 };
+                portfolio.push(newItem);
+                await fetchPrice(newItem);
+            }
+            saveToStorage();
+            render(); 
+            closeModal();
+        }
+
+        async function fetchPrice(item) {
+            const rawSymbol = item.symbol.trim().toUpperCase();
+            let tickers = /^\d/.test(rawSymbol) ? [`${rawSymbol}.TW`, `${rawSymbol}.TWO`] : [rawSymbol];
+            for (let t of tickers) {
+                try {
+                    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d`;
+                    const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
+                    const data = await res.json();
+                    if (data.chart?.result?.[0]) {
+                        item.price = data.chart.result[0].meta.regularMarketPrice;
+                        if (item.price > 0) break;
+                    }
+                } catch (e) { console.warn(e); }
+            }
+            finalizeUpdate();
+        }
+
+        async function fetchAllPrices() {
+            for (let item of portfolio) { await fetchPrice(item); await new Promise(r => setTimeout(r, 100)); }
+            saveToStorage();
+        }
+
+        async function fetchFX() {
+            try {
+                const url = 'https://query1.finance.yahoo.com/v8/finance/chart/USDTWD=X';
+                const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
+                const data = await response.json();
+                globalFxRate = data.chart.result[0].meta.regularMarketPrice || 32.5;
+            } catch (e) { globalFxRate = 32.5; }
+        }
+
+        function getCategoryInfo(symbol) {
+            const s = symbol.toUpperCase().trim();
+            const bondKeywords = ['BND', 'TLT', 'AGG', '00937B', '00687B', '00679B'];
+            if (bondKeywords.some(k => s.includes(k)) || /^\d+B$/.test(s)) return { cat: 'BOND', cur: (/^[A-Z]/.test(s) ? 'USD' : 'TWD') };
+            if (/^\d/.test(s)) return { cat: 'TW', cur: 'TWD' };
+            return { cat: 'US', cur: 'USD' };
+        }
+
+        function updateVal(id, field, val) {
+            const item = portfolio.find(i => i.id === id);
+            if (item) { 
+                item[field] = parseFloat(val) || 0; 
+                saveToStorage();
+                finalizeUpdate(); 
+            }
+        }
+
+        function removeRow(id) {
+            portfolio = portfolio.filter(p => p.id !== id);
+            saveToStorage();
+            render();
+        }
+
+        function saveAndRefresh() {
+            saveToStorage();
+            finalizeUpdate();
+        }
+
+        function finalizeUpdate() {
+            let totalMarketTWD = 0;
+            let totalCostTWD = 0;
+            const extraCash = parseFloat(document.getElementById('extraCash').value) || 0;
+
+            portfolio.forEach(item => {
+                const fx = item.currency === 'USD' ? globalFxRate : 1;
+                item.currentValTWD = (item.shares || 0) * (item.price || 0) * fx;
+                item.costValTWD = (item.shares || 0) * (item.cost || 0) * fx;
+                totalMarketTWD += item.currentValTWD;
+                totalCostTWD += item.costValTWD;
+
+                const priEl = document.getElementById(`pri-${item.id}`);
+                const mktEl = document.getElementById(`mkt-${item.id}`);
+                const prfEl = document.getElementById(`prf-${item.id}`);
+                
+                if (priEl) priEl.innerText = (item.price || 0).toLocaleString(undefined, {minimumFractionDigits: 1});
+                if (mktEl) mktEl.innerText = Math.round(item.currentValTWD).toLocaleString();
+                if (prfEl && item.price > 0 && item.cost > 0) {
+                    const diff = item.currentValTWD - item.costValTWD;
+                    const pct = (diff / item.costValTWD * 100).toFixed(1);
+                    const isUp = diff >= 0;
+                    prfEl.innerHTML = `
+                        <div class="${isUp ? 'text-rose-500' : 'text-emerald-500'} font-black text-[10px] leading-none">${isUp ? '+' : ''}${Math.round(diff).toLocaleString()}</div>
+                        <div class="${isUp ? 'text-rose-500' : 'text-emerald-500'} font-bold text-[8px] mt-0.5 opacity-80">${isUp ? '+' : ''}${pct}%</div>
+                    `;
+                }
+            });
+
+            const grandTotal = totalMarketTWD + extraCash;
+            const totalProfit = totalMarketTWD - totalCostTWD;
+            const totalProfitPct = totalCostTWD > 0 ? (totalProfit / totalCostTWD * 100).toFixed(1) : 0;
+            
+            document.getElementById('totalDisplay').innerText = Math.round(grandTotal).toLocaleString();
+            const tpEl = document.getElementById('totalProfitDisplay');
+            const tppEl = document.getElementById('totalProfitPctDisplay');
+            
+            tpEl.innerText = (totalProfit > 0 ? '+' : '') + Math.round(totalProfit).toLocaleString();
+            tpEl.className = `text-[9px] font-mono font-bold ${totalProfit >= 0 ? 'text-rose-500' : 'text-emerald-500'}`;
+            
+            tppEl.innerText = (totalProfit > 0 ? '+' : '') + totalProfitPct + '%';
+            tppEl.className = `text-[9px] font-bold ${totalProfit >= 0 ? 'text-rose-500' : 'text-emerald-500'}`;
+            
+            drawMainChart(grandTotal, extraCash);
+            drawTargetChart();
+        }
+
+        function render() {
+            const tbody = document.getElementById('tableBody');
+            const emptyState = document.getElementById('emptyState');
+            tbody.innerHTML = '';
+            
+            if (portfolio.length === 0) {
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            const cats = { TW: '台股市場', US: '美股市場', BOND: '債券資產' };
+            for (let k in cats) {
+                const items = portfolio.filter(i => i.category === k);
+                if (items.length === 0) continue;
+                tbody.innerHTML += `<tr><td colspan="8" class="px-3 py-2 bg-slate-800/60 text-[8px] font-black text-cyan-400 uppercase tracking-widest border-y border-slate-800">${cats[k]}</td></tr>`;
+                items.forEach(item => {
+                    tbody.innerHTML += `
+                        <tr class="bg-slate-800/10 border-b border-slate-800/50">
+                            <td class="px-3 py-5 text-center">
+                                <input type="number" oninput="updateVal(${item.id}, 'target', this.value)" value="${item.target}" class="w-10 py-1 text-center text-[10px] text-cyan-300 font-black rounded bg-slate-900 border border-slate-700">
+                            </td>
+                            <td class="px-2 py-5">
+                                <div class="text-[11px] font-black uppercase text-white leading-tight">${item.symbol}</div>
+                                <div class="text-[7px] text-slate-600 font-bold uppercase italic">${item.currency}</div>
+                            </td>
+                            <td class="px-2 py-5 text-[10px] font-mono text-slate-300 font-bold">${item.shares.toLocaleString()}</td>
+                            <td class="px-2 py-5 text-[9px] font-mono text-amber-500/80">${item.cost.toLocaleString(undefined, {maximumFractionDigits:1})}</td>
+                            <td class="px-2 py-5 text-right text-[10px] font-mono text-cyan-400 font-black" id="pri-${item.id}">--</td>
+                            <td class="px-2 py-5 text-right text-[10px] font-mono text-slate-200 font-bold" id="mkt-${item.id}">0</td>
+                            <td class="px-2 py-5 text-right" id="prf-${item.id}"></td>
+                            <td class="px-2 py-5 text-center">
+                                <button onclick="removeRow(${item.id})" class="text-slate-800 hover:text-rose-500 transition-colors text-xs">✕</button>
+                            </td>
+                        </tr>`;
+                });
+            }
+            finalizeUpdate();
+        }
+
+        function drawMainChart(total, extraCash) {
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            if (total === 0) { if (mainChart) mainChart.destroy(); return; }
+
+            let innerData = [], innerLabels = [], innerColors = [];
+            let outerData = [], outerLabels = [], outerColors = [];
+
+            const config = [
+                { id: 'TW', l: '台股', c: 'rgba(6, 182, 212, 0.8)' },
+                { id: 'US', l: '美股', c: 'rgba(59, 130, 246, 0.8)' },
+                { id: 'BOND', l: '債券', c: 'rgba(168, 85, 247, 0.8)' }
+            ];
+
+            config.forEach(cat => {
+                const items = portfolio.filter(i => i.category === cat.id);
+                let catVal = items.reduce((a, b) => a + (b.currentValTWD || 0), 0);
+                if (cat.id === 'TW') catVal += extraCash;
+
+                if (catVal > 0) {
+                    innerData.push(catVal);
+                    innerLabels.push(cat.l);
+                    innerColors.push(cat.c);
+
+                    items.forEach(item => {
+                        if (item.currentValTWD > 0) {
+                            outerData.push(item.currentValTWD);
+                            outerLabels.push(item.symbol);
+                            outerColors.push(cat.c.replace('0.8', '0.4'));
+                        }
+                    });
+                    if (cat.id === 'TW' && extraCash > 0) {
+                        outerData.push(extraCash);
+                        outerLabels.push('CASH');
+                        outerColors.push('rgba(16, 185, 129, 0.4)');
+                    }
+                }
+            });
+
+            if (mainChart) mainChart.destroy();
+            mainChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    datasets: [
+                        {
+                            data: outerData,
+                            backgroundColor: outerColors,
+                            weight: 1,
+                            borderWidth: 1.5,
+                            borderColor: '#0b0f1a',
+                            datalabels: {
+                                anchor: 'end', align: 'start', offset: -5, color: '#fff',
+                                font: { size: 9, weight: '900' },
+                                formatter: (val, ctx) => {
+                                    const pct = (val / total * 100).toFixed(0);
+                                    return pct > 3 ? `${outerLabels[ctx.dataIndex]}\n${pct}%` : '';
+                                }
+                            }
+                        },
+                        {
+                            data: innerData,
+                            backgroundColor: innerColors,
+                            weight: 0.6,
+                            borderWidth: 2,
+                            borderColor: '#0b0f1a',
+                            datalabels: {
+                                color: '#00f2ff', font: { size: 10, weight: 'bold' },
+                                formatter: (val, ctx) => {
+                                    const pct = (val / total * 100).toFixed(0);
+                                    return pct > 10 ? `${innerLabels[ctx.dataIndex]}` : '';
+                                }
+                            }
+                        }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+        }
+
+        function drawTargetChart() {
+            const ctx = document.getElementById('targetChart').getContext('2d');
+            const targets = portfolio.filter(i => i.target > 0);
+            if (targets.length === 0) { if (targetChart) targetChart.destroy(); return; }
+
+            const totalMkt = portfolio.reduce((a, b) => a + (b.currentValTWD || 0), 0);
+            const extraCash = parseFloat(document.getElementById('extraCash').value) || 0;
+            const grandTotal = totalMkt + extraCash;
+
+            const labels = targets.map(i => i.symbol);
+            const currentPcts = targets.map(i => grandTotal > 0 ? ((i.currentValTWD / grandTotal) * 100).toFixed(1) : 0);
+            const targetSum = targets.reduce((a, b) => a + b.target, 0);
+            const targetPcts = targets.map(i => ((i.target / targetSum) * 100).toFixed(1));
+
+            if (targetChart) targetChart.destroy();
+            targetChart = new Chart(ctx, {
+                type: 'bar',
+                data: { 
+                    labels, 
+                    datasets: [
+                        { label: '目前%', data: currentPcts, backgroundColor: 'rgba(0, 242, 255, 0.6)', borderRadius: 4 },
+                        { label: '目標%', data: targetPcts, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: 4, borderColor: 'rgba(255, 255, 255, 0.2)', borderWidth: 1 }
+                    ] 
+                },
+                options: { 
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { 
+                        x: { ticks: { color: '#64748b', font: { size: 9, weight: 'bold' } }, grid: { display: false } },
+                        y: { beginAtZero: true, max: 100, display: false } 
+                    },
+                    plugins: { 
+                        legend: { position: 'bottom', labels: { color: '#475569', font: { size: 8 }, boxWidth: 8 } },
+                        datalabels: { color: (c) => c.datasetIndex === 0 ? '#00f2ff' : '#64748b', anchor: 'end', align: 'top', font: { size: 8, weight: 'bold' }, formatter: (v) => v + '%' } 
+                    }
+                }
+            });
+        }
+
+        function triggerAdvice() {
+            const container = document.getElementById('adviceContainer');
+            const extraCash = parseFloat(document.getElementById('extraCash').value) || 0;
+            const targets = portfolio.filter(i => i.target > 0);
+            const targetSum = targets.reduce((a, b) => a + b.target, 0);
+            const activeMarketVal = targets.reduce((a, b) => a + (b.currentValTWD || 0), 0);
+            const rebalanceBudget = activeMarketVal + extraCash;
+
+            if (rebalanceBudget <= 0 || targetSum === 0) return;
+            container.innerHTML = '';
+
+            targets.forEach(item => {
+                const fx = item.currency === 'USD' ? globalFxRate : 1;
+                const idealVal = rebalanceBudget * (item.target / targetSum);
+                const gap = idealVal - (item.currentValTWD || 0);
+
+                if (Math.abs(gap) > 500) {
+                    const isBuy = gap > 0;
+                    const units = item.price > 0 ? Math.floor(Math.abs(gap) / (item.price * fx)) : 0;
+                    
+                    if (units > 0) {
+                        const div = document.createElement('div');
+                        div.className = `p-3 rounded-xl border ${isBuy ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-rose-500/20 bg-rose-500/5'} flex justify-between items-center`;
+                        div.innerHTML = `
+                            <div>
+                                <span class="text-[10px] font-black text-white uppercase">${item.symbol}</span>
+                                <div class="text-[8px] text-slate-500">GAP: ${Math.round(gap).toLocaleString()} TWD</div>
+                            </div>
+                            <span class="font-black ${isBuy?'text-emerald-400':'text-rose-400'} text-xs">${isBuy?'買入':'賣出'} ${units} 股</span>
+                        `;
+                        container.appendChild(div);
+                    }
+                }
+            });
+
+            if (container.innerHTML === '') {
+                container.innerHTML = `<p class="text-[10px] text-slate-500 text-center italic">目前比例完美，無需調整</p>`;
+            }
+        }
+
+        window.onload = async () => { 
+            loadFromStorage();
+            render(); 
+            await fetchFX(); 
+            await fetchAllPrices(); 
+        };
+    </script>
+</body>
+</html>
