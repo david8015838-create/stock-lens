@@ -5,10 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>StockLens Owen</title>
     
-    <!-- PWA 與 行動裝置優化 Meta -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="StockLens">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2422/2422796.png">
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -24,10 +22,19 @@
             user-select: none;
             -webkit-tap-highlight-color: transparent;
         }
-        .neon-border { border: 1px solid rgba(0, 242, 255, 0.2); }
-        .neon-text { color: var(--neon); text-shadow: 0 0 10px rgba(0, 242, 255, 0.4); }
+        .neon-text { 
+            color: var(--neon); 
+            text-shadow: 0 0 20px rgba(0, 242, 255, 0.5); 
+            font-weight: 950; 
+        }
         .glass-card { background: rgba(22, 28, 45, 0.8); backdrop-filter: blur(10px); }
         
+        .brand-area {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
         input { 
             transition: all 0.2s; 
             background-color: rgba(30, 41, 59, 0.5) !important; 
@@ -41,7 +48,7 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .scroll-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
-        #addModal {
+        #addModal, #infoModal {
             display: none;
             position: fixed;
             inset: 0;
@@ -53,18 +60,31 @@
             padding: 20px;
         }
 
-        th { white-space: nowrap; font-size: 8px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 800; }
+        th { white-space: nowrap; font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 800; }
         td { white-space: nowrap; }
+
+        .badge-lvrg {
+            background: rgba(244, 63, 94, 0.15);
+            color: #f43f5e;
+            border: 1px solid rgba(244, 63, 94, 0.3);
+            padding: 1px 4px;
+            border-radius: 4px;
+            font-size: 8px;
+            font-weight: 900;
+            margin-left: 4px;
+            vertical-align: middle;
+            text-transform: uppercase;
+        }
     </style>
 </head>
 <body class="p-4">
-    <!-- 新增標的彈窗 -->
+    <!-- Modals -->
     <div id="addModal">
         <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-cyan-500/30 p-8 shadow-2xl">
             <h3 class="text-xl font-black text-cyan-400 italic mb-6 uppercase tracking-widest">Add Asset</h3>
             <div class="space-y-4">
                 <div>
-                    <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">標的代碼 (例: 2330 / VOO)</label>
+                    <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">標的代碼</label>
                     <input type="text" id="modalSymbol" placeholder="SYMBOL" class="w-full rounded-2xl p-4 font-black uppercase">
                 </div>
                 <div class="grid grid-cols-2 gap-4">
@@ -85,44 +105,70 @@
         </div>
     </div>
 
+    <div id="infoModal">
+        <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-white/10 p-8 shadow-2xl">
+            <h3 class="text-xl font-black text-white italic mb-4 uppercase tracking-widest">App Guide</h3>
+            <div class="space-y-4 text-xs text-slate-400 leading-relaxed font-medium">
+                <p><span class="text-cyan-400 font-bold">● 隱私模式：</span>點擊標題旁的眼睛圖示可隱藏敏感數值。</p>
+                <p><span class="text-cyan-400 font-bold">● 持股排序：</span>台股優先、美股次之；各市場內<span class="text-rose-400">槓桿型標的</span>自動排在原型之後。</p>
+                <p><span class="text-cyan-400 font-bold">● 最小成本再平衡：</span>系統優先建議使用「新投入資金」填充缺口，避免賣出產生的手續費與稅金。</p>
+            </div>
+            <button onclick="closeInfoModal()" class="mt-8 w-full bg-white/10 text-white py-4 rounded-2xl font-bold btn-action uppercase text-xs">我知道了</button>
+        </div>
+    </div>
+
     <div class="max-w-md mx-auto pb-10">
-        <header class="flex items-start justify-between mb-8 pt-4">
-            <div class="flex flex-col">
-                <h1 class="text-3xl font-black neon-text italic tracking-tighter uppercase flex items-baseline">
-                    StockLens 
-                </h1>
-                <div class="flex items-center mt-0.5">
-                    <span class="text-[10px] not-italic text-slate-500 font-bold opacity-80 uppercase">by Owen</span>
-                    <span class="text-[8px] tracking-[0.2em] text-cyan-500/40 font-black border-l border-cyan-500/20 ml-2 pl-2 uppercase">V4.1.1 Pro</span>
+        <!-- Header -->
+        <header class="flex items-stretch justify-between mb-8 pt-8 gap-4 w-full">
+            <div class="brand-area flex-1 mt-4">
+                <div>
+                    <div class="flex items-end gap-2">
+                        <h1 class="text-[2.4rem] font-[950] neon-text italic tracking-[-0.08em] uppercase leading-[0.8]">
+                            StockLens
+                        </h1>
+                    </div>
+                    <p class="text-[10px] font-bold italic uppercase tracking-wider mt-2.5 ml-0.5 opacity-60">
+                        <span class="text-slate-400">BY OWEN</span>
+                        <span class="text-slate-600 mx-1.5 font-normal">/</span>
+                        <span class="text-slate-500">V1.0 PRO</span>
+                    </p>
+                </div>
+                
+                <div class="flex gap-2 mt-4">
+                    <button onclick="openInfoModal()" class="w-8 h-8 rounded-xl bg-slate-800/40 border border-cyan-500/10 flex items-center justify-center text-[10px] text-cyan-400/40 font-bold btn-action">?</button>
+                    <button onclick="togglePrivacy()" id="privacyBtn" class="w-8 h-8 rounded-xl bg-slate-800/40 border border-cyan-500/10 flex items-center justify-center text-cyan-400 btn-action">
+                        <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/><path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/>
+                        </svg>
+                    </button>
                 </div>
             </div>
 
-            <!-- 數據概覽：進階加大版 -->
-            <div class="glass-card px-7 py-5 rounded-[2.2rem] border border-cyan-500/40 shadow-[0_0_30px_rgba(0,242,255,0.15)] flex flex-col items-end min-w-[200px]">
-                <div class="flex flex-col items-end mb-3">
-                    <span class="text-[11px] text-cyan-400/70 uppercase font-black tracking-[0.2em] mb-1.5">Market Value</span>
-                    <div class="flex items-baseline">
+            <div class="glass-card px-6 py-6 rounded-[2.2rem] border border-cyan-500/40 shadow-[0_0_30px_rgba(0,242,255,0.1)] flex flex-col justify-between items-end min-w-[200px] flex-shrink-0 mt-4">
+                <div class="flex flex-col items-end w-full">
+                    <span class="text-[11px] text-cyan-400/70 uppercase font-black tracking-[0.2em] mb-3">Total Value</span>
+                    <div class="flex items-baseline overflow-hidden">
                         <span class="text-[10px] text-slate-500 font-mono mr-1">TWD</span>
-                        <span id="totalDisplay" class="text-3xl font-mono font-black text-white leading-none tracking-tighter">0</span>
+                        <span id="totalDisplay" class="text-[2.2rem] font-mono font-black text-white leading-none tracking-tighter">0</span>
                     </div>
                 </div>
-                <div class="flex items-center gap-4 border-t border-slate-700/50 pt-3 w-full justify-end">
+                <div class="flex items-center gap-3 border-t border-slate-700/50 pt-5 mt-3 w-full justify-end">
                     <div class="flex flex-col items-end">
-                        <span class="text-[8px] text-slate-500 uppercase font-bold">Total P/L</span>
-                        <span id="totalProfitDisplay" class="text-xs font-mono font-bold">0</span>
+                        <span class="text-[9px] text-slate-500 uppercase font-bold tracking-tighter">Total P/L</span>
+                        <span id="totalProfitDisplay" class="text-sm font-mono font-bold leading-none">0</span>
                     </div>
-                    <div class="flex flex-col items-end">
-                        <span class="text-[8px] text-slate-500 uppercase font-bold">Return</span>
-                        <span id="totalProfitPctDisplay" class="text-xs font-black">0%</span>
+                    <div class="flex flex-col items-end min-w-[55px]">
+                        <span class="text-[9px] text-slate-500 uppercase font-bold tracking-tighter">Return</span>
+                        <span id="totalProfitPctDisplay" class="text-sm font-black leading-none">0%</span>
                     </div>
                 </div>
             </div>
         </header>
 
-        <!-- 組合管理 -->
-        <div class="glass-card rounded-[2.5rem] border border-slate-800/80 overflow-hidden mb-6 shadow-xl">
+        <!-- 持股列表 -->
+        <div class="glass-card rounded-[2.5rem] border border-slate-800/80 overflow-hidden mb-6 shadow-xl w-full">
             <div class="p-6 border-b border-slate-800/50 flex justify-between items-center bg-slate-900/40">
-                <h2 class="font-bold text-sm text-cyan-400 uppercase tracking-widest italic">Portfolio</h2>
+                <h2 class="font-bold text-[13px] text-cyan-400 uppercase tracking-widest italic">Portfolio</h2>
                 <div class="flex gap-2">
                     <button id="refreshBtn" onclick="handleRefreshClick()" class="bg-cyan-500/10 text-cyan-400 text-[10px] px-4 py-2.5 rounded-xl font-bold border border-cyan-500/20 btn-action uppercase">更新</button>
                     <button onclick="openModal()" class="bg-cyan-500 text-black text-[10px] px-4 py-2.5 rounded-xl font-black btn-action uppercase shadow-lg shadow-cyan-500/20">+ 新增</button>
@@ -149,55 +195,107 @@
             </div>
         </div>
 
-        <!-- 圖表區塊 -->
+        <!-- 圖表區域 -->
         <div class="grid grid-cols-1 gap-6 mb-6">
-            <div class="glass-card p-6 rounded-[2.5rem] border border-slate-800/80 shadow-lg">
-                <h3 class="text-[10px] uppercase font-bold text-slate-500 mb-6 text-center tracking-[0.2em]">Asset Allocation</h3>
-                <div class="h-[300px] relative">
-                    <canvas id="mainChart"></canvas>
+            <div class="glass-card p-6 rounded-[2.5rem] border border-slate-800/80 shadow-lg overflow-hidden">
+                <div class="flex items-center justify-between mb-6 px-2">
+                    <h3 class="text-[10px] uppercase font-black text-slate-500 tracking-[0.2em]">Holdings / Strategy</h3>
+                    <div id="leverageIndicator" class="hidden">
+                        <span class="badge-lvrg">Leverage Detected</span>
+                    </div>
+                </div>
+                <div class="flex flex-row items-center justify-center gap-4 h-[280px]">
+                    <div class="w-full h-full relative" id="mainChartContainer">
+                        <canvas id="mainChart"></canvas>
+                    </div>
+                    <div class="hidden w-1/2 h-full relative" id="strategyChartContainer">
+                        <canvas id="strategyChart"></canvas>
+                    </div>
                 </div>
             </div>
+
             <div class="glass-card p-6 rounded-[2.5rem] border border-slate-800/80 shadow-lg">
-                <h3 class="text-[10px] uppercase font-bold text-cyan-500/60 mb-6 text-center tracking-[0.2em] italic">Target Gap Analysis</h3>
-                <div class="h-[200px] relative">
+                <h3 class="text-[11px] uppercase font-bold text-cyan-500/60 mb-6 text-center tracking-[0.2em] italic">Target Gap Analysis</h3>
+                <div class="h-[180px] relative">
                     <canvas id="targetChart"></canvas>
                 </div>
             </div>
         </div>
 
-        <!-- 資金投入 -->
+        <!-- 再平衡區域 -->
         <div class="glass-card p-8 rounded-[2.5rem] border border-slate-800 mb-24 shadow-2xl">
             <div class="flex items-center justify-between mb-8">
                 <div>
-                    <h2 class="font-bold text-xs uppercase tracking-[0.15em] text-slate-300">Rebalance Optimization</h2>
-                    <p class="text-[10px] text-slate-500 uppercase italic mt-1 font-medium">投入閒置資金 (TWD)</p>
+                    <h2 class="font-bold text-[13px] uppercase tracking-[0.15em] text-slate-300">Min-Cost Rebalance</h2>
+                    <p class="text-[10px] text-slate-500 uppercase italic mt-1 font-medium">以最小交易次數優化 (投入現金優先)</p>
                 </div>
-                <input type="number" id="extraCash" oninput="saveAndRefresh()" value="0" class="w-28 rounded-2xl py-3 px-4 text-right text-base font-mono text-emerald-400 font-black shadow-inner">
+                <div class="flex flex-col items-end">
+                    <span class="text-[10px] font-black text-emerald-500 uppercase mb-2 tracking-widest">可投入現金</span>
+                    <input type="number" id="extraCash" oninput="saveAndRefresh()" value="0" class="w-28 rounded-2xl py-3 px-4 text-right text-base font-mono text-emerald-400 font-black shadow-inner">
+                </div>
             </div>
             <div id="adviceContainer" class="space-y-4 min-h-[50px]"></div>
-            <button onclick="triggerAdvice()" class="mt-8 w-full bg-cyan-500 text-black text-sm py-5 rounded-[1.5rem] font-black uppercase italic btn-action shadow-xl shadow-cyan-500/10">Execute Optimization</button>
-            <p class="text-[9px] text-slate-600 mt-5 text-center uppercase tracking-widest font-bold">* Calculation based on Target % > 0</p>
+            <button onclick="triggerAdvice()" class="mt-8 w-full bg-cyan-500 text-black text-sm py-5 rounded-[1.5rem] font-black uppercase italic btn-action shadow-xl shadow-cyan-500/10">Optimize Portfolio</button>
         </div>
     </div>
 
     <script>
         Chart.register(ChartDataLabels);
 
-        let portfolio = JSON.parse(localStorage.getItem('stocklens_portfolio')) || [];
+        const defaultPortfolio = [
+            { id: 1, symbol: '2330', name: '台積電', category: 'TW', isLeverage: false, currency: 'TWD', shares: 1000, cost: 950, target: 40, price: 1005 },
+            { id: 2, symbol: 'VOO', name: 'Vanguard S&P 500 ETF', category: 'US', isLeverage: false, currency: 'USD', shares: 50, cost: 480, target: 30, price: 535 },
+            { id: 3, symbol: '00631L', name: '元大台灣50正2', category: 'TW', isLeverage: true, currency: 'TWD', shares: 2000, cost: 180, target: 15, price: 220 },
+            { id: 4, symbol: 'TLT', name: 'iShares 20+ Year Treasury Bond ETF', category: 'BOND', isLeverage: false, currency: 'USD', shares: 100, cost: 95, target: 15, price: 92 }
+        ];
+
+        let portfolio = JSON.parse(localStorage.getItem('stocklens_portfolio'));
+        if (!portfolio || portfolio.length === 0) {
+            portfolio = defaultPortfolio;
+            localStorage.setItem('stocklens_portfolio', JSON.stringify(portfolio));
+        }
+
+        let isPrivacyOn = JSON.parse(localStorage.getItem('stocklens_privacy')) || false;
         let globalFxRate = 32.50;
         let mainChart = null;
+        let strategyChart = null;
         let targetChart = null;
 
         function saveToStorage() {
             localStorage.setItem('stocklens_portfolio', JSON.stringify(portfolio));
+            localStorage.setItem('stocklens_privacy', JSON.stringify(isPrivacyOn));
             const extraCash = document.getElementById('extraCash').value;
             localStorage.setItem('stocklens_extra_cash', extraCash);
         }
 
         function loadFromStorage() {
             const savedCash = localStorage.getItem('stocklens_extra_cash');
-            if (savedCash !== null) {
-                document.getElementById('extraCash').value = savedCash;
+            if (savedCash !== null) document.getElementById('extraCash').value = savedCash;
+            updatePrivacyUI();
+        }
+
+        function formatVal(val, decimals = 0) {
+            if (isPrivacyOn) return '***';
+            return Number(val).toLocaleString(undefined, { 
+                minimumFractionDigits: decimals, 
+                maximumFractionDigits: decimals 
+            });
+        }
+
+        function togglePrivacy() {
+            isPrivacyOn = !isPrivacyOn;
+            saveToStorage();
+            updatePrivacyUI();
+            finalizeUpdate();
+            render();
+        }
+
+        function updatePrivacyUI() {
+            const icon = document.getElementById('eye-icon');
+            if (isPrivacyOn) {
+                icon.innerHTML = `<path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7.028 7.028 0 0 0-2.79.588l.77.771A5.944 5.944 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.134 13.134 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755-.165.165-.337.328-.517.486l.708.709z"/><path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.828 2.829l.823.822zm-4.143 4.143c-1.701-1.518-2.641-3.238-2.641-3.238s3-5.5 8-5.5a7.028 7.028 0 0 1 2.79-.588l-.77-.771A5.944 5.944 0 0 0 8 14.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 0 1.172 8c.058-.087.122-.183.195-.288.335.48.83-1.12 1.465-1.755.165-.165-.337.328-.517.486l-.708-.709z"/><path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/><line x1="1" y1="1" x2="15" y2="15" stroke="currentColor" stroke-width="2"/>`;
+            } else {
+                icon.innerHTML = `<path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/><path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/>`;
             }
         }
 
@@ -208,6 +306,9 @@
             document.getElementById('modalShares').value = '';
             document.getElementById('modalCost').value = '';
         }
+
+        function openInfoModal() { document.getElementById('infoModal').style.display = 'flex'; }
+        function closeInfoModal() { document.getElementById('infoModal').style.display = 'none'; }
 
         async function processAddAsset() {
             const sym = document.getElementById('modalSymbol').value.trim().toUpperCase();
@@ -225,17 +326,29 @@
             } else {
                 const info = getCategoryInfo(sym);
                 const newId = portfolio.length > 0 ? Math.max(...portfolio.map(i => i.id)) + 1 : 1;
-                const newItem = { id: newId, symbol: sym, category: info.cat, currency: info.cur, shares, cost, target: 0, price: 0 };
+                const newItem = { 
+                    id: newId, 
+                    symbol: sym, 
+                    name: "載入中...",
+                    category: info.cat, 
+                    isLeverage: info.isLeverage, 
+                    currency: info.cur, 
+                    shares, 
+                    cost, 
+                    target: 0, 
+                    price: 0 
+                };
                 portfolio.push(newItem);
-                await fetchPrice(newItem);
+                await fetchPriceAndInfo(newItem);
             }
             saveToStorage();
             render(); 
             closeModal();
         }
 
-        async function fetchPrice(item) {
+        async function fetchPriceAndInfo(item) {
             const rawSymbol = item.symbol.trim().toUpperCase();
+            // 嘗試台股與美股格式
             let tickers = /^\d/.test(rawSymbol) ? [`${rawSymbol}.TW`, `${rawSymbol}.TWO`] : [rawSymbol];
             for (let t of tickers) {
                 try {
@@ -243,33 +356,41 @@
                     const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
                     const data = await res.json();
                     if (data.chart?.result?.[0]) {
-                        item.price = data.chart.result[0].meta.regularMarketPrice;
+                        const meta = data.chart.result[0].meta;
+                        item.price = meta.regularMarketPrice;
+                        item.name = meta.shortName || meta.longName || item.symbol;
+                        const info = getCategoryInfo(item.symbol, item.name);
+                        item.isLeverage = info.isLeverage;
                         if (item.price > 0) break;
                     }
-                } catch (e) { console.warn(e); }
+                } catch (e) { console.warn(`Fetch error for ${t}:`, e); }
             }
         }
 
         async function handleRefreshClick() {
             const btn = document.getElementById('refreshBtn');
             const originalText = btn.innerText;
-            btn.innerText = "WAIT...";
+            btn.innerText = "WAIT..."; 
             btn.disabled = true;
             
-            await fetchFX();
-            await fetchAllPrices();
-            
-            btn.innerText = originalText;
-            btn.disabled = false;
-        }
-
-        async function fetchAllPrices() {
-            for (let item of portfolio) { 
-                await fetchPrice(item); 
-                await new Promise(r => setTimeout(r, 100)); 
+            try {
+                // 1. 更新匯率
+                await fetchFX();
+                
+                // 2. 更新所有標的價格
+                const fetchPromises = portfolio.map(item => fetchPriceAndInfo(item));
+                await Promise.all(fetchPromises);
+                
+                // 3. 儲存並更新 UI
+                saveToStorage();
+                finalizeUpdate();
+                render();
+            } catch (err) {
+                console.error("Refresh failed:", err);
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
             }
-            saveToStorage();
-            finalizeUpdate();
         }
 
         async function fetchFX() {
@@ -278,23 +399,29 @@
                 const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
                 const data = await response.json();
                 globalFxRate = data.chart.result[0].meta.regularMarketPrice || 32.5;
-            } catch (e) { globalFxRate = 32.5; }
+            } catch (e) { 
+                console.warn("FX Fetch failed, using fallback:", e);
+                globalFxRate = 32.5; 
+            }
         }
 
-        function getCategoryInfo(symbol) {
+        function getCategoryInfo(symbol, name = "") {
             const s = symbol.toUpperCase().trim();
+            const n = name.toUpperCase();
+            const leverageKeywords = ['2X', '3X', 'BULL', 'BEAR', 'ULTRA', 'PROSHARES', 'SOXL', 'TQQQ', 'SQQQ', '00631L', '00632R', '00670L', 'TSLL', 'SSO', 'UPRO', 'L'];
+            const isLvrg = leverageKeywords.some(k => s.endsWith(k) || s.includes(k)) || /正2|正3|反1|槓桿|LEVERAGE/.test(n) || /正2|正3/.test(s);
             const bondKeywords = ['BND', 'TLT', 'AGG', '00937B', '00687B', '00679B'];
-            if (bondKeywords.some(k => s.includes(k)) || /^\d+B$/.test(s)) return { cat: 'BOND', cur: (/^[A-Z]/.test(s) ? 'USD' : 'TWD') };
-            if (/^\d/.test(s)) return { cat: 'TW', cur: 'TWD' };
-            return { cat: 'US', cur: 'USD' };
+            const isBond = bondKeywords.some(k => s.includes(k)) || /^\d+B$/.test(s) || n.includes('BOND');
+            if (isBond) return { cat: 'BOND', cur: (/^[A-Z]/.test(s) ? 'USD' : 'TWD'), isLeverage: isLvrg };
+            if (/^\d/.test(s)) return { cat: 'TW', cur: 'TWD', isLeverage: isLvrg };
+            return { cat: 'US', cur: 'USD', isLeverage: isLvrg };
         }
 
         function updateVal(id, field, val) {
             const item = portfolio.find(i => i.id === id);
             if (item) { 
                 item[field] = parseFloat(val) || 0; 
-                saveToStorage();
-                finalizeUpdate(); 
+                saveAndRefresh();
             }
         }
 
@@ -325,15 +452,16 @@
                 const mktEl = document.getElementById(`mkt-${item.id}`);
                 const prfEl = document.getElementById(`prf-${item.id}`);
                 
-                if (priEl) priEl.innerText = (item.price || 0).toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1});
-                if (mktEl) mktEl.innerText = Math.round(item.currentValTWD).toLocaleString();
-                if (prfEl && item.price > 0 && item.cost > 0) {
+                if (priEl) priEl.innerText = formatVal(item.price || 0, 1);
+                if (mktEl) mktEl.innerText = formatVal(Math.round(item.currentValTWD));
+                if (prfEl && (item.price > 0 || item.cost > 0)) {
                     const diff = item.currentValTWD - item.costValTWD;
-                    const pct = (diff / item.costValTWD * 100).toFixed(1);
+                    const pct = item.costValTWD > 0 ? (diff / item.costValTWD * 100).toFixed(1) : '0.0';
                     const isUp = diff >= 0;
+                    const colorClass = isUp ? 'text-rose-500' : 'text-emerald-500';
                     prfEl.innerHTML = `
-                        <div class="${isUp ? 'text-rose-500' : 'text-emerald-500'} font-black text-[11px] leading-none">${isUp ? '+' : ''}${Math.round(diff).toLocaleString()}</div>
-                        <div class="${isUp ? 'text-rose-500' : 'text-emerald-500'} font-bold text-[9px] mt-1 opacity-80">${isUp ? '+' : ''}${pct}%</div>
+                        <div class="${colorClass} font-black text-xs leading-none">${isUp ? '+' : ''}${formatVal(Math.round(diff))}</div>
+                        <div class="${colorClass} font-bold text-[10px] mt-1 opacity-80">${isUp ? '+' : ''}${pct}%</div>
                     `;
                 }
             });
@@ -341,49 +469,51 @@
             const grandTotal = totalMarketTWD + extraCash;
             const totalProfit = totalMarketTWD - totalCostTWD;
             const totalProfitPct = totalCostTWD > 0 ? (totalProfit / totalCostTWD * 100).toFixed(1) : 0;
+            const isOverallUp = totalProfit >= 0;
             
-            document.getElementById('totalDisplay').innerText = Math.round(grandTotal).toLocaleString();
-            const tpEl = document.getElementById('totalProfitDisplay');
-            const tppEl = document.getElementById('totalProfitPctDisplay');
+            const profitDisplay = document.getElementById('totalProfitDisplay');
+            const pctDisplay = document.getElementById('totalProfitPctDisplay');
             
-            tpEl.innerText = (totalProfit > 0 ? '+' : '') + Math.round(totalProfit).toLocaleString();
-            tpEl.className = `text-xs font-mono font-bold ${totalProfit >= 0 ? 'text-rose-500' : 'text-emerald-500'}`;
+            document.getElementById('totalDisplay').innerText = formatVal(Math.round(grandTotal));
             
-            tppEl.innerText = (totalProfit > 0 ? '+' : '') + totalProfitPct + '%';
-            tppEl.className = `text-xs font-black ${totalProfit >= 0 ? 'text-rose-500' : 'text-emerald-500'}`;
+            profitDisplay.innerText = (totalProfit > 0 ? '+' : '') + formatVal(Math.round(totalProfit));
+            profitDisplay.className = `text-sm font-mono font-bold leading-none ${isOverallUp ? 'text-rose-500' : 'text-emerald-500'}`;
             
-            drawMainChart(grandTotal, extraCash);
+            pctDisplay.innerText = (totalProfit > 0 ? '+' : '') + totalProfitPct + '%';
+            pctDisplay.className = `text-sm font-black leading-none ${isOverallUp ? 'text-rose-500' : 'text-emerald-500'}`;
+            
+            drawMainCharts(grandTotal, extraCash);
             drawTargetChart();
         }
 
         function render() {
             const tbody = document.getElementById('tableBody');
-            const emptyState = document.getElementById('emptyState');
             tbody.innerHTML = '';
-            
-            if (portfolio.length === 0) {
-                emptyState.classList.remove('hidden');
-            } else {
-                emptyState.classList.add('hidden');
-            }
-
+            if (portfolio.length === 0) { document.getElementById('emptyState').classList.remove('hidden'); return; }
+            document.getElementById('emptyState').classList.add('hidden');
             const cats = { TW: '台股市場 TAIPEI', US: '美股市場 US STOCK', BOND: '債券資產 BONDS' };
             for (let k in cats) {
-                const items = portfolio.filter(i => i.category === k);
-                if (items.length === 0) continue;
-                tbody.innerHTML += `<tr><td colspan="8" class="px-4 py-3 bg-slate-800/60 text-[9px] font-black text-cyan-400 uppercase tracking-[0.2em] border-y border-slate-700/50">${cats[k]}</td></tr>`;
-                items.forEach(item => {
+                const itemsInCat = portfolio.filter(i => i.category === k);
+                if (itemsInCat.length === 0) continue;
+                const sortedItems = itemsInCat.sort((a, b) => {
+                    if (a.isLeverage !== b.isLeverage) return a.isLeverage ? 1 : -1;
+                    return b.currentValTWD - a.currentValTWD;
+                });
+                tbody.innerHTML += `<tr><td colspan="8" class="px-4 py-3 bg-slate-800/60 text-[10px] font-black text-cyan-400 uppercase tracking-[0.2em] border-y border-slate-700/50">${cats[k]}</td></tr>`;
+                sortedItems.forEach(item => {
                     tbody.innerHTML += `
                         <tr class="bg-slate-800/10 border-b border-slate-800/40">
                             <td class="px-4 py-6 text-center">
                                 <input type="number" oninput="updateVal(${item.id}, 'target', this.value)" value="${item.target}" class="w-12 py-1.5 text-center text-xs text-cyan-400 font-black rounded-xl bg-slate-900 border border-slate-700 shadow-inner">
                             </td>
                             <td class="px-3 py-6">
-                                <div class="text-xs font-black uppercase text-white leading-tight">${item.symbol}</div>
-                                <div class="text-[8px] text-slate-500 font-bold uppercase italic mt-0.5">${item.currency}</div>
+                                <div class="text-xs font-black uppercase text-white leading-tight">
+                                    ${item.symbol}${item.isLeverage ? '<span class="badge-lvrg">LVRG</span>' : ''}
+                                </div>
+                                <div class="text-[9px] text-slate-500 font-bold truncate max-w-[100px] mt-0.5">${item.name || '--'}</div>
                             </td>
-                            <td class="px-3 py-6 text-xs font-mono text-slate-300 font-bold">${item.shares.toLocaleString()}</td>
-                            <td class="px-3 py-6 text-[10px] font-mono text-slate-500 font-medium">${item.cost.toLocaleString(undefined, {maximumFractionDigits:1})}</td>
+                            <td class="px-3 py-6 text-xs font-mono text-slate-300 font-bold">${formatVal(item.shares)}</td>
+                            <td class="px-3 py-6 text-[11px] font-mono text-slate-500 font-medium">${formatVal(item.cost, 1)}</td>
                             <td class="px-3 py-6 text-right text-xs font-mono text-cyan-400 font-black" id="pri-${item.id}">--</td>
                             <td class="px-3 py-6 text-right text-xs font-mono text-slate-200 font-bold" id="mkt-${item.id}">0</td>
                             <td class="px-4 py-6 text-right" id="prf-${item.id}"></td>
@@ -396,104 +526,134 @@
             finalizeUpdate();
         }
 
-        function drawMainChart(total, extraCash) {
-            const ctx = document.getElementById('mainChart').getContext('2d');
-            if (total === 0) { if (mainChart) mainChart.destroy(); return; }
+        function drawMainCharts(total, extraCash) {
+            if (total === 0) return;
+            const hasLeverage = portfolio.some(i => i.isLeverage);
+            const strategyContainer = document.getElementById('strategyChartContainer');
+            const mainContainer = document.getElementById('mainChartContainer');
+            
+            if (hasLeverage) {
+                strategyContainer.classList.remove('hidden');
+                mainContainer.classList.remove('w-full');
+                mainContainer.classList.add('w-1/2');
+            } else {
+                strategyContainer.classList.add('hidden');
+                mainContainer.classList.remove('w-1/2');
+                mainContainer.classList.add('w-full');
+            }
 
-            let innerData = [], innerLabels = [], innerColors = [];
-            let outerData = [], outerLabels = [], outerColors = [];
+            const ctx1 = document.getElementById('mainChart').getContext('2d');
+            let catSummary = { TW: 0, US: 0, BOND: 0, CASH: extraCash };
+            let outerData = [];
+            let outerLabels = [];
+            let outerColors = [];
 
-            const config = [
-                { id: 'TW', l: '台股', c: 'rgba(6, 182, 212, 0.8)' },
-                { id: 'US', l: '美股', c: 'rgba(59, 130, 246, 0.8)' },
-                { id: 'BOND', l: '債券', c: 'rgba(168, 85, 247, 0.8)' }
-            ];
-
-            config.forEach(cat => {
-                const items = portfolio.filter(i => i.category === cat.id);
-                let catVal = items.reduce((a, b) => a + (b.currentValTWD || 0), 0);
-                if (cat.id === 'TW') catVal += extraCash;
-
-                if (catVal > 0) {
-                    innerData.push(catVal);
-                    innerLabels.push(cat.l);
-                    innerColors.push(cat.c);
-
-                    items.forEach(item => {
-                        if (item.currentValTWD > 0) {
-                            outerData.push(item.currentValTWD);
-                            outerLabels.push(item.symbol);
-                            outerColors.push(cat.c.replace('0.8', '0.4'));
-                        }
-                    });
-                    if (cat.id === 'TW' && extraCash > 0) {
-                        outerData.push(extraCash);
-                        outerLabels.push('CASH');
-                        outerColors.push('rgba(16, 185, 129, 0.4)');
-                    }
+            portfolio.forEach((item, idx) => {
+                if (item.currentValTWD > 0) {
+                    catSummary[item.category] += item.currentValTWD;
+                    outerData.push(item.currentValTWD);
+                    outerLabels.push(item.symbol);
+                    if (item.category === 'TW') outerColors.push(`hsla(190, 70%, ${40 + (idx % 3) * 10}%, 0.8)`);
+                    else if (item.category === 'US') outerColors.push(`hsla(210, 60%, ${50 + (idx % 3) * 10}%, 0.8)`);
+                    else outerColors.push(`hsla(270, 60%, ${55 + (idx % 3) * 10}%, 0.8)`);
                 }
             });
 
+            if (extraCash > 0) {
+                outerData.push(extraCash);
+                outerLabels.push('CASH');
+                outerColors.push('rgba(71, 85, 105, 0.6)');
+            }
+
+            const innerData = [catSummary.TW, catSummary.US, catSummary.BOND, catSummary.CASH].filter(v => v > 0);
+            const innerLabels = ['台股', '美股', '債券', '現金'].filter((_, i) => [catSummary.TW, catSummary.US, catSummary.BOND, catSummary.CASH][i] > 0);
+            const innerColors = [
+                'rgba(6, 182, 212, 0.5)', 
+                'rgba(59, 130, 246, 0.5)', 
+                'rgba(168, 85, 247, 0.5)', 
+                'rgba(71, 85, 105, 0.4)' 
+            ].filter((_, i) => [catSummary.TW, catSummary.US, catSummary.BOND, catSummary.CASH][i] > 0);
+
             if (mainChart) mainChart.destroy();
-            mainChart = new Chart(ctx, {
+            mainChart = new Chart(ctx1, {
                 type: 'doughnut',
                 data: {
                     datasets: [
                         {
                             data: outerData,
                             backgroundColor: outerColors,
-                            weight: 1,
-                            borderWidth: 2,
+                            borderWidth: 1,
                             borderColor: '#0b0f1a',
+                            weight: 2,
                             datalabels: {
-                                anchor: 'end', align: 'start', offset: -5, color: '#fff',
-                                font: { size: 10, weight: '900' },
-                                formatter: (val, ctx) => {
-                                    const pct = (val / total * 100).toFixed(0);
-                                    return pct > 3 ? `${outerLabels[ctx.dataIndex]}\n${pct}%` : '';
-                                }
+                                color: '#fff',
+                                font: { size: 8, weight: '800' },
+                                formatter: (v, ctx) => (v/total*100) > 4 ? `${outerLabels[ctx.dataIndex]}\n${(v/total*100).toFixed(1)}%` : '',
+                                textAlign: 'center'
                             }
                         },
                         {
                             data: innerData,
                             backgroundColor: innerColors,
-                            weight: 0.6,
-                            borderWidth: 2,
+                            borderWidth: 1,
                             borderColor: '#0b0f1a',
+                            weight: 1,
                             datalabels: {
-                                color: '#00f2ff', font: { size: 11, weight: 'bold' },
-                                formatter: (val, ctx) => {
-                                    const pct = (val / total * 100).toFixed(0);
-                                    return pct > 10 ? `${innerLabels[ctx.dataIndex]}` : '';
-                                }
+                                color: '#fff',
+                                font: { size: 10, weight: '900' },
+                                formatter: (v, ctx) => (v/total*100) > 8 ? `${innerLabels[ctx.dataIndex]}` : '',
+                                anchor: 'center'
                             }
                         }
                     ]
                 },
-                options: { responsive: true, maintainAspectRatio: false, cutout: '45%', plugins: { legend: { display: false } } }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    cutout: '40%',
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: { enabled: true }
+                    } 
+                }
             });
+
+            if (hasLeverage) {
+                const ctx2 = document.getElementById('strategyChart').getContext('2d');
+                let spotVal = portfolio.filter(i => !i.isLeverage && i.category !== 'BOND').reduce((a, b) => a + b.currentValTWD, 0) + extraCash;
+                let lvrgVal = portfolio.filter(i => i.isLeverage).reduce((a, b) => a + b.currentValTWD, 0);
+                let bondVal = portfolio.filter(i => i.category === 'BOND').reduce((a, b) => a + b.currentValTWD, 0);
+                const stratData = [spotVal, lvrgVal, bondVal].filter(v => v > 0);
+                const stratLabels = ['原型', '槓桿', '債券'].filter((_, i) => [spotVal, lvrgVal, bondVal][i] > 0);
+                const stratColors = ['rgba(6, 182, 212, 0.7)', 'rgba(244, 63, 94, 0.8)', 'rgba(168, 85, 247, 0.7)'].filter((_, i) => [spotVal, lvrgVal, bondVal][i] > 0);
+                
+                if (strategyChart) strategyChart.destroy();
+                strategyChart = new Chart(ctx2, {
+                    type: 'doughnut',
+                    data: { labels: stratLabels, datasets: [{ data: stratData, backgroundColor: stratColors, borderWidth: 2, borderColor: '#0b0f1a' }] },
+                    options: { 
+                        responsive: true, maintainAspectRatio: false, cutout: '65%',
+                        plugins: { 
+                            legend: { display: false },
+                            datalabels: { 
+                                color: '#fff', font: { size: 11, weight: '900' },
+                                formatter: (v, ctx) => (v/total*100) > 5 ? `${stratLabels[ctx.dataIndex]}\n${(v/total*100).toFixed(0)}%` : ''
+                            }
+                        } 
+                    }
+                });
+            }
         }
 
         function drawTargetChart() {
             const ctx = document.getElementById('targetChart').getContext('2d');
             const targets = portfolio.filter(i => i.target > 0);
-            
-            if (targets.length === 0) { 
-                if (targetChart) targetChart.destroy(); 
-                return; 
-            }
-
+            if (targets.length === 0) { if (targetChart) targetChart.destroy(); return; }
             const targetsMarketTotal = targets.reduce((a, b) => a + (b.currentValTWD || 0), 0);
             const targetsTargetSum = targets.reduce((a, b) => a + b.target, 0);
-
             const labels = targets.map(i => i.symbol);
-            const currentPcts = targets.map(i => 
-                targetsMarketTotal > 0 ? ((i.currentValTWD / targetsMarketTotal) * 100).toFixed(1) : 0
-            );
-            const targetPcts = targets.map(i => 
-                targetsTargetSum > 0 ? ((i.target / targetsTargetSum) * 100).toFixed(1) : 0
-            );
-
+            const currentPcts = targets.map(i => targetsMarketTotal > 0 ? ((i.currentValTWD / targetsMarketTotal) * 100).toFixed(1) : 0);
+            const targetPcts = targets.map(i => targetsTargetSum > 0 ? ((i.target / targetsTargetSum) * 100).toFixed(1) : 0);
             if (targetChart) targetChart.destroy();
             targetChart = new Chart(ctx, {
                 type: 'bar',
@@ -507,17 +667,12 @@
                 options: { 
                     responsive: true, maintainAspectRatio: false,
                     scales: { 
-                        x: { ticks: { color: '#64748b', font: { size: 10, weight: '900' } }, grid: { display: false } },
+                        x: { ticks: { color: '#64748b', font: { size: 11, weight: '900' } }, grid: { display: false } },
                         y: { beginAtZero: true, max: 100, display: false } 
                     },
                     plugins: { 
-                        legend: { position: 'bottom', labels: { color: '#475569', font: { size: 9, weight: 'bold' }, boxWidth: 10, padding: 15 } },
-                        datalabels: { 
-                            color: (c) => c.datasetIndex === 0 ? '#00f2ff' : '#64748b', 
-                            anchor: 'end', align: 'top', 
-                            font: { size: 9, weight: 'bold' }, 
-                            formatter: (v) => v + '%' 
-                        } 
+                        legend: { position: 'bottom', labels: { color: '#475569', font: { size: 10, weight: 'bold' }, boxWidth: 10 } },
+                        datalabels: { color: (c) => c.datasetIndex === 0 ? '#00f2ff' : '#64748b', anchor: 'end', align: 'top', font: { size: 10, weight: 'bold' }, formatter: (v) => v + '%' } 
                     }
                 }
             });
@@ -528,44 +683,56 @@
             const extraCash = parseFloat(document.getElementById('extraCash').value) || 0;
             const targets = portfolio.filter(i => i.target > 0);
             const targetSum = targets.reduce((a, b) => a + b.target, 0);
-            const activeMarketVal = targets.reduce((a, b) => a + (b.currentValTWD || 0), 0);
-            const rebalanceBudget = activeMarketVal + extraCash;
-
-            if (rebalanceBudget <= 0 || targetSum === 0) return;
+            const currentTotalMarket = targets.reduce((a, b) => a + (b.currentValTWD || 0), 0);
+            const totalBudget = currentTotalMarket + extraCash;
+            if (totalBudget <= 0 || targetSum === 0) return;
             container.innerHTML = '';
-
-            targets.forEach(item => {
-                const fx = item.currency === 'USD' ? globalFxRate : 1;
-                const idealVal = rebalanceBudget * (item.target / targetSum);
-                const gap = idealVal - (item.currentValTWD || 0);
-
-                if (Math.abs(gap) > 500) {
-                    const isBuy = gap > 0;
-                    const units = item.price > 0 ? Math.floor(Math.abs(gap) / (item.price * fx)) : 0;
-                    
-                    if (units > 0) {
-                        const div = document.createElement('div');
-                        div.className = `p-5 rounded-[1.5rem] border ${isBuy ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-rose-500/20 bg-rose-500/5'} flex justify-between items-center shadow-sm`;
-                        div.innerHTML = `
-                            <div>
-                                <span class="text-xs font-black text-white uppercase tracking-wider">${item.symbol}</span>
-                                <div class="text-[9px] text-slate-500 font-bold mt-1 uppercase">Gap: ${Math.round(gap).toLocaleString()} TWD</div>
-                            </div>
-                            <span class="font-black ${isBuy?'text-emerald-400':'text-rose-400'} text-sm">${isBuy?'買入':'賣出'} ${units} 股</span>
-                        `;
-                        container.appendChild(div);
-                    }
+            const gaps = targets.map(item => {
+                const idealVal = totalBudget * (item.target / targetSum);
+                const currentVal = item.currentValTWD || 0;
+                return { 
+                    item, 
+                    gap: idealVal - currentVal,
+                    deviation: (currentVal / (currentTotalMarket || 1) * 100) - (item.target / targetSum * 100)
+                };
+            });
+            let remainingCash = extraCash;
+            const buyGaps = gaps.filter(g => g.gap > 0).sort((a, b) => b.gap - a.gap);
+            buyGaps.forEach(g => {
+                if (remainingCash <= 0) return;
+                let cashToSpend = Math.min(remainingCash, g.gap);
+                const fx = g.item.currency === 'USD' ? globalFxRate : 1;
+                const units = Math.floor(cashToSpend / (g.item.price * fx));
+                if (units > 0 && (units * g.item.price * fx) > 1000) {
+                    const actualSpend = units * g.item.price * fx;
+                    remainingCash -= actualSpend;
+                    createAdviceRow(container, g.item, true, units, actualSpend);
                 }
             });
-
+            const sellGaps = gaps.filter(g => g.gap < -1000 && Math.abs(g.deviation) > 10);
+            sellGaps.forEach(g => {
+                const fx = g.item.currency === 'USD' ? globalFxRate : 1;
+                const units = Math.floor(Math.abs(g.gap) / (g.item.price * fx));
+                if (units > 0) createAdviceRow(container, g.item, false, units, Math.abs(g.gap));
+            });
             if (container.innerHTML === '') {
-                container.innerHTML = `<p class="text-xs text-slate-500 text-center italic tracking-widest py-4">PERFECT BALANCE</p>`;
+                container.innerHTML = `<div class="text-center py-6 text-[10px] text-slate-500 uppercase">目前比例尚在容許區間，無需額外交易</div>`;
             }
         }
 
+        function createAdviceRow(container, item, isBuy, units, amount) {
+            const div = document.createElement('div');
+            div.className = `p-5 rounded-[1.5rem] border ${isBuy ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-rose-500/20 bg-rose-500/5'} flex justify-between items-center shadow-sm`;
+            div.innerHTML = `
+                <div><span class="text-xs font-black text-white uppercase">${item.symbol}</span><div class="text-[10px] text-slate-500 font-bold mt-1 uppercase">Est. ${formatVal(Math.round(amount))} TWD</div></div>
+                <div class="text-right"><span class="font-black ${isBuy?'text-emerald-400':'text-rose-400'} text-sm uppercase italic">${isBuy?'Buy':'Sell'} ${formatVal(units)} 股</span></div>`;
+            container.appendChild(div);
+        }
+
         window.onload = async () => { 
-            loadFromStorage();
+            loadFromStorage(); 
             render(); 
+            // 頁面載入時也自動執行一次完整的更新
             await handleRefreshClick(); 
         };
     </script>
