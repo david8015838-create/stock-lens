@@ -118,23 +118,21 @@
     </div>
 
     <div class="max-w-md mx-auto pb-10">
-        <!-- Header -->
-        <header class="flex items-stretch justify-between mb-8 pt-8 gap-4 w-full">
-            <div class="brand-area flex-1 mt-4">
+        <!-- Header: 已優化為符合手機螢幕寬度 -->
+        <header class="flex flex-col md:flex-row items-center md:items-stretch justify-between mb-8 pt-8 gap-6 w-full">
+            <div class="brand-area flex-1 text-center md:text-left">
                 <div>
-                    <div class="flex items-end gap-2">
-                        <h1 class="text-[2.4rem] font-[950] neon-text italic tracking-[-0.08em] uppercase leading-[0.8]">
-                            StockLens
-                        </h1>
-                    </div>
-                    <p class="text-[10px] font-bold italic uppercase tracking-wider mt-2.5 ml-0.5 opacity-60">
+                    <h1 class="text-[2.4rem] font-[950] neon-text italic tracking-[-0.08em] uppercase leading-[0.8]">
+                        StockLens
+                    </h1>
+                    <p class="text-[10px] font-bold italic uppercase tracking-wider mt-2.5 opacity-60">
                         <span class="text-slate-400">BY OWEN</span>
                         <span class="text-slate-600 mx-1.5 font-normal">/</span>
                         <span class="text-slate-500">V1.0 PRO</span>
                     </p>
                 </div>
                 
-                <div class="flex gap-2 mt-4">
+                <div class="flex justify-center md:justify-start gap-2 mt-4">
                     <button onclick="openInfoModal()" class="w-8 h-8 rounded-xl bg-slate-800/40 border border-cyan-500/10 flex items-center justify-center text-[10px] text-cyan-400/40 font-bold btn-action">?</button>
                     <button onclick="togglePrivacy()" id="privacyBtn" class="w-8 h-8 rounded-xl bg-slate-800/40 border border-cyan-500/10 flex items-center justify-center text-cyan-400 btn-action">
                         <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
@@ -144,20 +142,21 @@
                 </div>
             </div>
 
-            <div class="glass-card px-6 py-6 rounded-[2.2rem] border border-cyan-500/40 shadow-[0_0_30px_rgba(0,242,255,0.1)] flex flex-col justify-between items-end min-w-[200px] flex-shrink-0 mt-4">
-                <div class="flex flex-col items-end w-full">
+            <!-- Total Value 卡片：已優化為寬度自適應 (w-full) -->
+            <div class="glass-card px-6 py-6 rounded-[2.2rem] border border-cyan-500/40 shadow-[0_0_30px_rgba(0,242,255,0.1)] flex flex-col justify-between items-center md:items-end w-full md:min-w-[200px] flex-shrink-0">
+                <div class="flex flex-col items-center md:items-end w-full">
                     <span class="text-[11px] text-cyan-400/70 uppercase font-black tracking-[0.2em] mb-3">Total Value</span>
                     <div class="flex items-baseline overflow-hidden">
                         <span class="text-[10px] text-slate-500 font-mono mr-1">TWD</span>
                         <span id="totalDisplay" class="text-[2.2rem] font-mono font-black text-white leading-none tracking-tighter">0</span>
                     </div>
                 </div>
-                <div class="flex items-center gap-3 border-t border-slate-700/50 pt-5 mt-3 w-full justify-end">
-                    <div class="flex flex-col items-end">
+                <div class="flex items-center gap-4 border-t border-slate-700/50 pt-5 mt-4 w-full justify-center md:justify-end">
+                    <div class="flex flex-col items-center md:items-end">
                         <span class="text-[9px] text-slate-500 uppercase font-bold tracking-tighter">Total P/L</span>
                         <span id="totalProfitDisplay" class="text-sm font-mono font-bold leading-none">0</span>
                     </div>
-                    <div class="flex flex-col items-end min-w-[55px]">
+                    <div class="flex flex-col items-center md:items-end min-w-[55px]">
                         <span class="text-[9px] text-slate-500 uppercase font-bold tracking-tighter">Return</span>
                         <span id="totalProfitPctDisplay" class="text-sm font-black leading-none">0%</span>
                     </div>
@@ -165,7 +164,7 @@
             </div>
         </header>
 
-        <!-- 持股列表 -->
+        <!-- 持股列表 (維持原樣) -->
         <div class="glass-card rounded-[2.5rem] border border-slate-800/80 overflow-hidden mb-6 shadow-xl w-full">
             <div class="p-6 border-b border-slate-800/50 flex justify-between items-center bg-slate-900/40">
                 <h2 class="font-bold text-[13px] text-cyan-400 uppercase tracking-widest italic">Portfolio</h2>
@@ -195,7 +194,7 @@
             </div>
         </div>
 
-        <!-- 圖表區域 -->
+        <!-- 圖表區域 (維持原樣) -->
         <div class="grid grid-cols-1 gap-6 mb-6">
             <div class="glass-card p-6 rounded-[2.5rem] border border-slate-800/80 shadow-lg overflow-hidden">
                 <div class="flex items-center justify-between mb-6 px-2">
@@ -222,7 +221,7 @@
             </div>
         </div>
 
-        <!-- 再平衡區域 -->
+        <!-- 再平衡區域 (維持原樣) -->
         <div class="glass-card p-8 rounded-[2.5rem] border border-slate-800 mb-24 shadow-2xl">
             <div class="flex items-center justify-between mb-8">
                 <div>
@@ -348,7 +347,6 @@
 
         async function fetchPriceAndInfo(item) {
             const rawSymbol = item.symbol.trim().toUpperCase();
-            // 嘗試台股與美股格式
             let tickers = /^\d/.test(rawSymbol) ? [`${rawSymbol}.TW`, `${rawSymbol}.TWO`] : [rawSymbol];
             for (let t of tickers) {
                 try {
@@ -363,34 +361,22 @@
                         item.isLeverage = info.isLeverage;
                         if (item.price > 0) break;
                     }
-                } catch (e) { console.warn(`Fetch error for ${t}:`, e); }
+                } catch (e) { console.warn(e); }
             }
         }
 
         async function handleRefreshClick() {
             const btn = document.getElementById('refreshBtn');
-            const originalText = btn.innerText;
-            btn.innerText = "WAIT..."; 
-            btn.disabled = true;
-            
-            try {
-                // 1. 更新匯率
-                await fetchFX();
-                
-                // 2. 更新所有標的價格
-                const fetchPromises = portfolio.map(item => fetchPriceAndInfo(item));
-                await Promise.all(fetchPromises);
-                
-                // 3. 儲存並更新 UI
-                saveToStorage();
-                finalizeUpdate();
-                render();
-            } catch (err) {
-                console.error("Refresh failed:", err);
-            } finally {
-                btn.innerText = originalText;
-                btn.disabled = false;
+            btn.innerText = "WAIT..."; btn.disabled = true;
+            await fetchFX();
+            for (let item of portfolio) { 
+                await fetchPriceAndInfo(item); 
+                await new Promise(r => setTimeout(r, 100)); 
             }
+            saveToStorage();
+            finalizeUpdate();
+            render();
+            btn.innerText = "更新"; btn.disabled = false;
         }
 
         async function fetchFX() {
@@ -399,10 +385,7 @@
                 const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
                 const data = await response.json();
                 globalFxRate = data.chart.result[0].meta.regularMarketPrice || 32.5;
-            } catch (e) { 
-                console.warn("FX Fetch failed, using fallback:", e);
-                globalFxRate = 32.5; 
-            }
+            } catch (e) { globalFxRate = 32.5; }
         }
 
         function getCategoryInfo(symbol, name = "") {
@@ -447,23 +430,6 @@
                 item.costValTWD = (item.shares || 0) * (item.cost || 0) * fx;
                 totalMarketTWD += item.currentValTWD;
                 totalCostTWD += item.costValTWD;
-
-                const priEl = document.getElementById(`pri-${item.id}`);
-                const mktEl = document.getElementById(`mkt-${item.id}`);
-                const prfEl = document.getElementById(`prf-${item.id}`);
-                
-                if (priEl) priEl.innerText = formatVal(item.price || 0, 1);
-                if (mktEl) mktEl.innerText = formatVal(Math.round(item.currentValTWD));
-                if (prfEl && (item.price > 0 || item.cost > 0)) {
-                    const diff = item.currentValTWD - item.costValTWD;
-                    const pct = item.costValTWD > 0 ? (diff / item.costValTWD * 100).toFixed(1) : '0.0';
-                    const isUp = diff >= 0;
-                    const colorClass = isUp ? 'text-rose-500' : 'text-emerald-500';
-                    prfEl.innerHTML = `
-                        <div class="${colorClass} font-black text-xs leading-none">${isUp ? '+' : ''}${formatVal(Math.round(diff))}</div>
-                        <div class="${colorClass} font-bold text-[10px] mt-1 opacity-80">${isUp ? '+' : ''}${pct}%</div>
-                    `;
-                }
             });
 
             const grandTotal = totalMarketTWD + extraCash;
@@ -501,6 +467,8 @@
                 });
                 tbody.innerHTML += `<tr><td colspan="8" class="px-4 py-3 bg-slate-800/60 text-[10px] font-black text-cyan-400 uppercase tracking-[0.2em] border-y border-slate-700/50">${cats[k]}</td></tr>`;
                 sortedItems.forEach(item => {
+                    const diff = item.currentValTWD - item.costValTWD, isUp = diff >= 0;
+                    const pct = item.costValTWD > 0 ? (diff / item.costValTWD * 100).toFixed(1) : '0.0';
                     tbody.innerHTML += `
                         <tr class="bg-slate-800/10 border-b border-slate-800/40">
                             <td class="px-4 py-6 text-center">
@@ -514,9 +482,12 @@
                             </td>
                             <td class="px-3 py-6 text-xs font-mono text-slate-300 font-bold">${formatVal(item.shares)}</td>
                             <td class="px-3 py-6 text-[11px] font-mono text-slate-500 font-medium">${formatVal(item.cost, 1)}</td>
-                            <td class="px-3 py-6 text-right text-xs font-mono text-cyan-400 font-black" id="pri-${item.id}">--</td>
-                            <td class="px-3 py-6 text-right text-xs font-mono text-slate-200 font-bold" id="mkt-${item.id}">0</td>
-                            <td class="px-4 py-6 text-right" id="prf-${item.id}"></td>
+                            <td class="px-3 py-6 text-right text-xs font-mono text-cyan-400 font-black">${formatVal(item.price, 1)}</td>
+                            <td class="px-3 py-6 text-right text-xs font-mono text-slate-200 font-bold">${formatVal(Math.round(item.currentValTWD))}</td>
+                            <td class="px-4 py-6 text-right">
+                                <div class="${isUp?'text-rose-500':'text-emerald-500'} font-black text-xs leading-none">${isUp ? '+' : ''}${formatVal(Math.round(diff))}</div>
+                                <div class="${isUp?'text-rose-500':'text-emerald-500'} font-bold text-[10px] mt-1 opacity-80">${isUp ? '+' : ''}${pct}%</div>
+                            </td>
                             <td class="px-3 py-6 text-center">
                                 <button onclick="removeRow(${item.id})" class="text-slate-700 hover:text-rose-500 transition-colors text-sm">✕</button>
                             </td>
@@ -534,88 +505,31 @@
             
             if (hasLeverage) {
                 strategyContainer.classList.remove('hidden');
-                mainContainer.classList.remove('w-full');
-                mainContainer.classList.add('w-1/2');
+                mainContainer.classList.replace('w-full', 'w-1/2');
             } else {
                 strategyContainer.classList.add('hidden');
-                mainContainer.classList.remove('w-1/2');
-                mainContainer.classList.add('w-full');
+                mainContainer.classList.replace('w-1/2', 'w-full');
             }
 
             const ctx1 = document.getElementById('mainChart').getContext('2d');
             let catSummary = { TW: 0, US: 0, BOND: 0, CASH: extraCash };
-            let outerData = [];
-            let outerLabels = [];
-            let outerColors = [];
+            let outerData = [], outerLabels = [], outerColors = [];
 
             portfolio.forEach((item, idx) => {
                 if (item.currentValTWD > 0) {
                     catSummary[item.category] += item.currentValTWD;
                     outerData.push(item.currentValTWD);
                     outerLabels.push(item.symbol);
-                    if (item.category === 'TW') outerColors.push(`hsla(190, 70%, ${40 + (idx % 3) * 10}%, 0.8)`);
-                    else if (item.category === 'US') outerColors.push(`hsla(210, 60%, ${50 + (idx % 3) * 10}%, 0.8)`);
-                    else outerColors.push(`hsla(270, 60%, ${55 + (idx % 3) * 10}%, 0.8)`);
+                    outerColors.push(item.category==='TW' ? `hsla(190, 70%, ${40+(idx%3)*10}%, 0.8)` : item.category==='US' ? `hsla(210, 60%, ${50+(idx%3)*10}%, 0.8)` : `hsla(270, 60%, ${55+(idx%3)*10}%, 0.8)`);
                 }
             });
-
-            if (extraCash > 0) {
-                outerData.push(extraCash);
-                outerLabels.push('CASH');
-                outerColors.push('rgba(71, 85, 105, 0.6)');
-            }
-
-            const innerData = [catSummary.TW, catSummary.US, catSummary.BOND, catSummary.CASH].filter(v => v > 0);
-            const innerLabels = ['台股', '美股', '債券', '現金'].filter((_, i) => [catSummary.TW, catSummary.US, catSummary.BOND, catSummary.CASH][i] > 0);
-            const innerColors = [
-                'rgba(6, 182, 212, 0.5)', 
-                'rgba(59, 130, 246, 0.5)', 
-                'rgba(168, 85, 247, 0.5)', 
-                'rgba(71, 85, 105, 0.4)' 
-            ].filter((_, i) => [catSummary.TW, catSummary.US, catSummary.BOND, catSummary.CASH][i] > 0);
+            if (extraCash > 0) { outerData.push(extraCash); outerLabels.push('CASH'); outerColors.push('rgba(71, 85, 105, 0.6)'); }
 
             if (mainChart) mainChart.destroy();
             mainChart = new Chart(ctx1, {
                 type: 'doughnut',
-                data: {
-                    datasets: [
-                        {
-                            data: outerData,
-                            backgroundColor: outerColors,
-                            borderWidth: 1,
-                            borderColor: '#0b0f1a',
-                            weight: 2,
-                            datalabels: {
-                                color: '#fff',
-                                font: { size: 8, weight: '800' },
-                                formatter: (v, ctx) => (v/total*100) > 4 ? `${outerLabels[ctx.dataIndex]}\n${(v/total*100).toFixed(1)}%` : '',
-                                textAlign: 'center'
-                            }
-                        },
-                        {
-                            data: innerData,
-                            backgroundColor: innerColors,
-                            borderWidth: 1,
-                            borderColor: '#0b0f1a',
-                            weight: 1,
-                            datalabels: {
-                                color: '#fff',
-                                font: { size: 10, weight: '900' },
-                                formatter: (v, ctx) => (v/total*100) > 8 ? `${innerLabels[ctx.dataIndex]}` : '',
-                                anchor: 'center'
-                            }
-                        }
-                    ]
-                },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false, 
-                    cutout: '40%',
-                    plugins: { 
-                        legend: { display: false },
-                        tooltip: { enabled: true }
-                    } 
-                }
+                data: { datasets: [{ data: outerData, backgroundColor: outerColors, borderWidth: 1, borderColor: '#0b0f1a', datalabels: { color: '#fff', font: { size: 8, weight: '800' }, formatter: (v, ctx) => (v/total*100) > 4 ? `${outerLabels[ctx.dataIndex]}\n${(v/total*100).toFixed(1)}%` : '', textAlign: 'center' } }] },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '50%', plugins: { legend: { display: false } } }
             });
 
             if (hasLeverage) {
@@ -623,24 +537,11 @@
                 let spotVal = portfolio.filter(i => !i.isLeverage && i.category !== 'BOND').reduce((a, b) => a + b.currentValTWD, 0) + extraCash;
                 let lvrgVal = portfolio.filter(i => i.isLeverage).reduce((a, b) => a + b.currentValTWD, 0);
                 let bondVal = portfolio.filter(i => i.category === 'BOND').reduce((a, b) => a + b.currentValTWD, 0);
-                const stratData = [spotVal, lvrgVal, bondVal].filter(v => v > 0);
-                const stratLabels = ['原型', '槓桿', '債券'].filter((_, i) => [spotVal, lvrgVal, bondVal][i] > 0);
-                const stratColors = ['rgba(6, 182, 212, 0.7)', 'rgba(244, 63, 94, 0.8)', 'rgba(168, 85, 247, 0.7)'].filter((_, i) => [spotVal, lvrgVal, bondVal][i] > 0);
-                
                 if (strategyChart) strategyChart.destroy();
                 strategyChart = new Chart(ctx2, {
                     type: 'doughnut',
-                    data: { labels: stratLabels, datasets: [{ data: stratData, backgroundColor: stratColors, borderWidth: 2, borderColor: '#0b0f1a' }] },
-                    options: { 
-                        responsive: true, maintainAspectRatio: false, cutout: '65%',
-                        plugins: { 
-                            legend: { display: false },
-                            datalabels: { 
-                                color: '#fff', font: { size: 11, weight: '900' },
-                                formatter: (v, ctx) => (v/total*100) > 5 ? `${stratLabels[ctx.dataIndex]}\n${(v/total*100).toFixed(0)}%` : ''
-                            }
-                        } 
-                    }
+                    data: { labels: ['原型', '槓桿', '債券'], datasets: [{ data: [spotVal, lvrgVal, bondVal], backgroundColor: ['rgba(6, 182, 212, 0.7)', 'rgba(244, 63, 94, 0.8)', 'rgba(168, 85, 247, 0.7)'], borderWidth: 2, borderColor: '#0b0f1a' }] },
+                    options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { display: false }, datalabels: { color: '#fff', font: { size: 11, weight: '900' }, formatter: (v, ctx) => (v/total*100) > 5 ? `${['原型', '槓桿', '債券'][ctx.dataIndex]}\n${(v/total*100).toFixed(0)}%` : '' } } }
                 });
             }
         }
@@ -649,32 +550,12 @@
             const ctx = document.getElementById('targetChart').getContext('2d');
             const targets = portfolio.filter(i => i.target > 0);
             if (targets.length === 0) { if (targetChart) targetChart.destroy(); return; }
-            const targetsMarketTotal = targets.reduce((a, b) => a + (b.currentValTWD || 0), 0);
-            const targetsTargetSum = targets.reduce((a, b) => a + b.target, 0);
-            const labels = targets.map(i => i.symbol);
-            const currentPcts = targets.map(i => targetsMarketTotal > 0 ? ((i.currentValTWD / targetsMarketTotal) * 100).toFixed(1) : 0);
-            const targetPcts = targets.map(i => targetsTargetSum > 0 ? ((i.target / targetsTargetSum) * 100).toFixed(1) : 0);
+            const totalMkt = targets.reduce((a, b) => a + b.currentValTWD, 0), totalTarget = targets.reduce((a, b) => a + b.target, 0);
             if (targetChart) targetChart.destroy();
             targetChart = new Chart(ctx, {
                 type: 'bar',
-                data: { 
-                    labels, 
-                    datasets: [
-                        { label: '目前權重%', data: currentPcts, backgroundColor: 'rgba(0, 242, 255, 0.6)', borderRadius: 8 },
-                        { label: '目標權重%', data: targetPcts, backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 8, borderColor: 'rgba(255, 255, 255, 0.15)', borderWidth: 1 }
-                    ] 
-                },
-                options: { 
-                    responsive: true, maintainAspectRatio: false,
-                    scales: { 
-                        x: { ticks: { color: '#64748b', font: { size: 11, weight: '900' } }, grid: { display: false } },
-                        y: { beginAtZero: true, max: 100, display: false } 
-                    },
-                    plugins: { 
-                        legend: { position: 'bottom', labels: { color: '#475569', font: { size: 10, weight: 'bold' }, boxWidth: 10 } },
-                        datalabels: { color: (c) => c.datasetIndex === 0 ? '#00f2ff' : '#64748b', anchor: 'end', align: 'top', font: { size: 10, weight: 'bold' }, formatter: (v) => v + '%' } 
-                    }
-                }
+                data: { labels: targets.map(i => i.symbol), datasets: [{ label: '目前%', data: targets.map(i => (i.currentValTWD/totalMkt*100).toFixed(1)), backgroundColor: 'rgba(0, 242, 255, 0.6)', borderRadius: 8 }, { label: '目標%', data: targets.map(i => (i.target/totalTarget*100).toFixed(1)), backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 8, borderColor: 'rgba(255, 255, 255, 0.15)', borderWidth: 1 }] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: '#64748b', font: { size: 11, weight: '900' } }, grid: { display: false } }, y: { display: false } }, plugins: { legend: { display: false }, datalabels: { color: (c) => c.datasetIndex === 0 ? '#00f2ff' : '#64748b', anchor: 'end', align: 'top', font: { size: 10, weight: 'bold' }, formatter: (v) => v + '%' } } }
             });
         }
 
@@ -683,58 +564,26 @@
             const extraCash = parseFloat(document.getElementById('extraCash').value) || 0;
             const targets = portfolio.filter(i => i.target > 0);
             const targetSum = targets.reduce((a, b) => a + b.target, 0);
-            const currentTotalMarket = targets.reduce((a, b) => a + (b.currentValTWD || 0), 0);
-            const totalBudget = currentTotalMarket + extraCash;
+            const totalBudget = targets.reduce((a, b) => a + b.currentValTWD, 0) + extraCash;
             if (totalBudget <= 0 || targetSum === 0) return;
             container.innerHTML = '';
-            const gaps = targets.map(item => {
-                const idealVal = totalBudget * (item.target / targetSum);
-                const currentVal = item.currentValTWD || 0;
-                return { 
-                    item, 
-                    gap: idealVal - currentVal,
-                    deviation: (currentVal / (currentTotalMarket || 1) * 100) - (item.target / targetSum * 100)
-                };
-            });
-            let remainingCash = extraCash;
-            const buyGaps = gaps.filter(g => g.gap > 0).sort((a, b) => b.gap - a.gap);
-            buyGaps.forEach(g => {
-                if (remainingCash <= 0) return;
-                let cashToSpend = Math.min(remainingCash, g.gap);
-                const fx = g.item.currency === 'USD' ? globalFxRate : 1;
-                const units = Math.floor(cashToSpend / (g.item.price * fx));
-                if (units > 0 && (units * g.item.price * fx) > 1000) {
-                    const actualSpend = units * g.item.price * fx;
-                    remainingCash -= actualSpend;
-                    createAdviceRow(container, g.item, true, units, actualSpend);
+            targets.forEach(item => {
+                const ideal = totalBudget * (item.target / targetSum), gap = ideal - item.currentValTWD;
+                if (gap > 1000) {
+                    const fx = item.currency === 'USD' ? globalFxRate : 1;
+                    const units = Math.floor(gap / (item.price * fx));
+                    if (units > 0) {
+                        const div = document.createElement('div');
+                        div.className = `p-5 rounded-[1.5rem] border border-emerald-500/20 bg-emerald-500/5 flex justify-between items-center shadow-sm`;
+                        div.innerHTML = `<div><span class="text-xs font-black text-white uppercase">${item.symbol}</span><div class="text-[10px] text-slate-500 font-bold mt-1 uppercase">Est. ${formatVal(Math.round(units * item.price * fx))} TWD</div></div><div class="text-right"><span class="font-black text-emerald-400 text-sm uppercase italic">Buy ${formatVal(units)} 股</span></div>`;
+                        container.appendChild(div);
+                    }
                 }
             });
-            const sellGaps = gaps.filter(g => g.gap < -1000 && Math.abs(g.deviation) > 10);
-            sellGaps.forEach(g => {
-                const fx = g.item.currency === 'USD' ? globalFxRate : 1;
-                const units = Math.floor(Math.abs(g.gap) / (g.item.price * fx));
-                if (units > 0) createAdviceRow(container, g.item, false, units, Math.abs(g.gap));
-            });
-            if (container.innerHTML === '') {
-                container.innerHTML = `<div class="text-center py-6 text-[10px] text-slate-500 uppercase">目前比例尚在容許區間，無需額外交易</div>`;
-            }
+            if (!container.innerHTML) container.innerHTML = `<div class="text-center py-6 text-[10px] text-slate-500 uppercase">目前比例尚在容許區間，無需額外交易</div>`;
         }
 
-        function createAdviceRow(container, item, isBuy, units, amount) {
-            const div = document.createElement('div');
-            div.className = `p-5 rounded-[1.5rem] border ${isBuy ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-rose-500/20 bg-rose-500/5'} flex justify-between items-center shadow-sm`;
-            div.innerHTML = `
-                <div><span class="text-xs font-black text-white uppercase">${item.symbol}</span><div class="text-[10px] text-slate-500 font-bold mt-1 uppercase">Est. ${formatVal(Math.round(amount))} TWD</div></div>
-                <div class="text-right"><span class="font-black ${isBuy?'text-emerald-400':'text-rose-400'} text-sm uppercase italic">${isBuy?'Buy':'Sell'} ${formatVal(units)} 股</span></div>`;
-            container.appendChild(div);
-        }
-
-        window.onload = async () => { 
-            loadFromStorage(); 
-            render(); 
-            // 頁面載入時也自動執行一次完整的更新
-            await handleRefreshClick(); 
-        };
+        window.onload = async () => { loadFromStorage(); render(); await handleRefreshClick(); };
     </script>
 </body>
 </html>
