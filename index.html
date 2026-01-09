@@ -272,7 +272,6 @@
     <script>
         Chart.register(ChartDataLabels);
 
-        // 範例數據
         const defaultPortfolio = [
             { id: 1, symbol: "2330", name: "台積電", category: "TW", isLeverage: false, currency: "TWD", shares: 1000, cost: 600, target: 40, price: 1050 },
             { id: 2, symbol: "VOO", name: "Vanguard S&P 500 ETF", category: "US", isLeverage: false, currency: "USD", shares: 50, cost: 420, target: 30, price: 545.5 },
@@ -297,12 +296,6 @@
             updatePrivacyUI();
         }
 
-        /**
-         * 格式化數值
-         * @param {number} val 數值
-         * @param {number} decimals 小數點
-         * @param {boolean} sensitive 是否為敏感資訊 (股數、總額)
-         */
         function formatVal(val, decimals = 0, sensitive = false) {
             if (isPrivacyOn && sensitive) return '***';
             return Number(val).toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -445,10 +438,10 @@
                 const mktEl = document.getElementById(`mkt-${item.id}`);
                 const prfEl = document.getElementById(`prf-${item.id}`);
                 
-                if (cstEl) cstEl.innerText = formatVal(item.cost || 0, 1, false); // 均價不隱藏
-                if (priEl) priEl.innerText = formatVal(item.price || 0, 1, false); // 市價不隱藏
-                if (invEl) invEl.innerText = formatVal(Math.round(item.costValTWD), 0, true); // 投入總成本隱藏
-                if (mktEl) mktEl.innerText = formatVal(Math.round(item.currentValTWD), 0, true); // 市值隱藏
+                if (cstEl) cstEl.innerText = formatVal(item.cost || 0, 1, false);
+                if (priEl) priEl.innerText = formatVal(item.price || 0, 1, false);
+                if (invEl) invEl.innerText = formatVal(Math.round(item.costValTWD), 0, true);
+                if (mktEl) mktEl.innerText = formatVal(Math.round(item.currentValTWD), 0, true);
                 if (prfEl) {
                     const diff = item.currentValTWD - item.costValTWD;
                     const pct = item.costValTWD > 0 ? (diff / item.costValTWD * 100).toFixed(1) : '0.0';
@@ -562,20 +555,54 @@
         }
 
         function drawTargetChart() {
-            const targets = portfolio.filter(i => i.target > 0);
-            if (targets.length === 0) { if (targetChart) targetChart.destroy(); return; }
-            const totalBudget = portfolio.reduce((a,b)=>a+b.currentValTWD,0) + (parseFloat(document.getElementById('extraCash').value) || 0);
-            const tSum = targets.reduce((a,b)=>a+b.target,0);
+            // 只篩選有設定目標的資產
+            const targetAssets = portfolio.filter(i => i.target > 0);
+            if (targetAssets.length === 0) { if (targetChart) targetChart.destroy(); return; }
+
+            // 1. 計算「目標總和」(用於歸一化背景條到 100%)
+            const sumTargetUnits = targetAssets.reduce((a, b) => a + b.target, 0);
+            // 2. 計算「當前有目標資產的總市值」(用於讓前景條顯示真實的相對權重)
+            const currentActiveTotalMarket = targetAssets.reduce((a, b) => a + b.currentValTWD, 0);
+
             if (targetChart) targetChart.destroy();
             targetChart = new Chart(document.getElementById('targetChart').getContext('2d'), {
                 type: 'bar',
-                data: { labels: targets.map(i=>i.symbol), datasets: [{ data: targets.map(i=>totalBudget>0?(i.currentValTWD/totalBudget*100).toFixed(1):0), backgroundColor: 'rgba(0,242,255,0.6)', borderRadius: 6 }, { data: targets.map(i=>tSum>0?(i.target/tSum*100).toFixed(1):0), backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 6, borderColor: 'rgba(255,255,255,0.15)', borderWidth: 1 }] },
+                data: { 
+                    labels: targetAssets.map(i => i.symbol), 
+                    datasets: [
+                        { 
+                            // 前景：當前權重 (以所有 active 標的總和為 100%)
+                            data: targetAssets.map(i => currentActiveTotalMarket > 0 ? (i.currentValTWD / currentActiveTotalMarket * 100).toFixed(1) : 0), 
+                            backgroundColor: 'rgba(0,242,255,0.6)', 
+                            borderRadius: 6,
+                            datalabels: { color: '#00f2ff', anchor: 'end', align: 'top' }
+                        }, 
+                        { 
+                            // 背景：目標權重 (歸一化，使其加起來等於 100%)
+                            data: targetAssets.map(i => sumTargetUnits > 0 ? (i.target / sumTargetUnits * 100).toFixed(1) : 0), 
+                            backgroundColor: 'rgba(255,255,255,0.05)', 
+                            borderRadius: 6, 
+                            borderColor: 'rgba(255,255,255,0.15)', 
+                            borderWidth: 1,
+                            datalabels: { color: '#64748b', anchor: 'end', align: 'top', offset: -15 }
+                        }
+                    ] 
+                },
                 options: { 
                     responsive: true, 
                     maintainAspectRatio: false, 
-                    layout: { padding: { top: 20 } },
-                    scales: { x: { ticks: { color: '#64748b', font: { size: 9, weight: '900' } }, grid: { display: false } }, y: { display: false } }, 
-                    plugins: { legend: { display: false }, datalabels: { color: (c)=>c.datasetIndex===0?'#00f2ff':'#64748b', anchor: 'end', align: 'top', font: { size: 9, weight: 'bold' }, formatter: (v)=>v+'%' } } 
+                    layout: { padding: { top: 25 } },
+                    scales: { 
+                        x: { ticks: { color: '#64748b', font: { size: 9, weight: '900' } }, grid: { display: false } }, 
+                        y: { display: false } 
+                    }, 
+                    plugins: { 
+                        legend: { display: false }, 
+                        datalabels: { 
+                            font: { size: 9, weight: 'bold' }, 
+                            formatter: (v) => v + '%' 
+                        } 
+                    } 
                 }
             });
         }
