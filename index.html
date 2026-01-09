@@ -57,7 +57,7 @@
         td { white-space: nowrap; }
     </style>
 </head>
-<body class="p-3">
+<body class="p-4">
     <!-- 新增標的彈窗 -->
     <div id="addModal">
         <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-cyan-500/30 p-8 shadow-2xl">
@@ -86,70 +86,79 @@
     </div>
 
     <div class="max-w-md mx-auto pb-10">
-        <header class="flex items-start justify-between mb-6 pt-4">
+        <header class="flex items-start justify-between mb-8 pt-4">
             <div class="flex flex-col">
-                <h1 class="text-2xl font-black neon-text italic tracking-tighter uppercase flex items-baseline">
+                <h1 class="text-3xl font-black neon-text italic tracking-tighter uppercase flex items-baseline">
                     StockLens 
                 </h1>
                 <div class="flex items-center mt-0.5">
-                    <span class="text-[9px] not-italic text-slate-500 font-bold opacity-80 uppercase">by Owen</span>
-                    <span class="text-[7px] tracking-[0.2em] text-cyan-500/40 font-black border-l border-cyan-500/20 ml-2 pl-2 uppercase">V4.0 Mobile</span>
+                    <span class="text-[10px] not-italic text-slate-500 font-bold opacity-80 uppercase">by Owen</span>
+                    <span class="text-[8px] tracking-[0.2em] text-cyan-500/40 font-black border-l border-cyan-500/20 ml-2 pl-2 uppercase">V4.1.1 Pro</span>
                 </div>
             </div>
 
-            <!-- 數據概覽 -->
-            <div class="glass-card px-4 py-2 rounded-2xl border border-slate-800 shadow-xl flex flex-col items-end min-w-[140px]">
-                <div class="flex flex-col items-end mb-1">
-                    <span class="text-[8px] text-slate-500 uppercase font-bold tracking-tighter">總市值 (TWD)</span>
-                    <span id="totalDisplay" class="text-sm font-mono font-bold text-cyan-400 leading-none">0</span>
+            <!-- 數據概覽：進階加大版 -->
+            <div class="glass-card px-7 py-5 rounded-[2.2rem] border border-cyan-500/40 shadow-[0_0_30px_rgba(0,242,255,0.15)] flex flex-col items-end min-w-[200px]">
+                <div class="flex flex-col items-end mb-3">
+                    <span class="text-[11px] text-cyan-400/70 uppercase font-black tracking-[0.2em] mb-1.5">Market Value</span>
+                    <div class="flex items-baseline">
+                        <span class="text-[10px] text-slate-500 font-mono mr-1">TWD</span>
+                        <span id="totalDisplay" class="text-3xl font-mono font-black text-white leading-none tracking-tighter">0</span>
+                    </div>
                 </div>
-                <div class="flex items-center gap-2 border-t border-slate-800/50 pt-1 w-full justify-end">
-                    <span id="totalProfitPctDisplay" class="text-[9px] font-bold">0%</span>
-                    <span id="totalProfitDisplay" class="text-[9px] font-mono font-bold opacity-80">0</span>
+                <div class="flex items-center gap-4 border-t border-slate-700/50 pt-3 w-full justify-end">
+                    <div class="flex flex-col items-end">
+                        <span class="text-[8px] text-slate-500 uppercase font-bold">Total P/L</span>
+                        <span id="totalProfitDisplay" class="text-xs font-mono font-bold">0</span>
+                    </div>
+                    <div class="flex flex-col items-end">
+                        <span class="text-[8px] text-slate-500 uppercase font-bold">Return</span>
+                        <span id="totalProfitPctDisplay" class="text-xs font-black">0%</span>
+                    </div>
                 </div>
             </div>
         </header>
 
         <!-- 組合管理 -->
-        <div class="glass-card rounded-[2rem] neon-border overflow-hidden mb-6">
-            <div class="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+        <div class="glass-card rounded-[2.5rem] border border-slate-800/80 overflow-hidden mb-6 shadow-xl">
+            <div class="p-6 border-b border-slate-800/50 flex justify-between items-center bg-slate-900/40">
                 <h2 class="font-bold text-sm text-cyan-400 uppercase tracking-widest italic">Portfolio</h2>
                 <div class="flex gap-2">
-                    <button onclick="fetchAllPrices()" class="bg-cyan-500/10 text-cyan-400 text-[10px] px-3 py-2 rounded-lg font-bold border border-cyan-500/30 btn-action uppercase">更新</button>
-                    <button onclick="openModal()" class="bg-cyan-500 text-black text-[10px] px-3 py-2 rounded-lg font-black btn-action uppercase">+ 新增</button>
+                    <button id="refreshBtn" onclick="handleRefreshClick()" class="bg-cyan-500/10 text-cyan-400 text-[10px] px-4 py-2.5 rounded-xl font-bold border border-cyan-500/20 btn-action uppercase">更新</button>
+                    <button onclick="openModal()" class="bg-cyan-500 text-black text-[10px] px-4 py-2.5 rounded-xl font-black btn-action uppercase shadow-lg shadow-cyan-500/20">+ 新增</button>
                 </div>
             </div>
             
             <div class="scroll-container no-scrollbar">
                 <table class="w-full text-left border-separate border-spacing-0">
                     <thead>
-                        <tr class="bg-slate-900/30">
-                            <th class="px-3 py-3 text-center">目標%</th>
-                            <th class="px-3 py-3">標的</th>
-                            <th class="px-2 py-3">持股</th>
-                            <th class="px-2 py-3">成本</th>
-                            <th class="px-2 py-3 text-right">市價</th>
-                            <th class="px-2 py-3 text-right">市值</th>
-                            <th class="px-3 py-3 text-right">損益</th>
-                            <th class="px-2 py-3"></th>
+                        <tr class="bg-slate-900/60">
+                            <th class="px-4 py-4 text-center">目標%</th>
+                            <th class="px-3 py-4">標的</th>
+                            <th class="px-3 py-4">持股</th>
+                            <th class="px-3 py-4">成本</th>
+                            <th class="px-3 py-4 text-right">市價</th>
+                            <th class="px-3 py-4 text-right">市值</th>
+                            <th class="px-4 py-4 text-right">損益</th>
+                            <th class="px-3 py-4"></th>
                         </tr>
                     </thead>
                     <tbody id="tableBody"></tbody>
                 </table>
-                <div id="emptyState" class="p-10 text-center text-slate-600 italic text-xs hidden">尚未加入任何標的</div>
+                <div id="emptyState" class="p-10 text-center text-slate-600 italic text-xs hidden uppercase tracking-widest">No assets found</div>
             </div>
         </div>
 
         <!-- 圖表區塊 -->
         <div class="grid grid-cols-1 gap-6 mb-6">
-            <div class="glass-card p-6 rounded-[2rem] border border-slate-800">
-                <h3 class="text-[10px] uppercase font-bold text-slate-500 mb-4 text-center tracking-widest">Asset Allocation</h3>
+            <div class="glass-card p-6 rounded-[2.5rem] border border-slate-800/80 shadow-lg">
+                <h3 class="text-[10px] uppercase font-bold text-slate-500 mb-6 text-center tracking-[0.2em]">Asset Allocation</h3>
                 <div class="h-[300px] relative">
                     <canvas id="mainChart"></canvas>
                 </div>
             </div>
-            <div class="glass-card p-6 rounded-[2rem] border border-slate-800">
-                <h3 class="text-[10px] uppercase font-bold text-cyan-400 mb-4 text-center tracking-widest italic">Target Gap Analysis</h3>
+            <div class="glass-card p-6 rounded-[2.5rem] border border-slate-800/80 shadow-lg">
+                <h3 class="text-[10px] uppercase font-bold text-cyan-500/60 mb-6 text-center tracking-[0.2em] italic">Target Gap Analysis</h3>
                 <div class="h-[200px] relative">
                     <canvas id="targetChart"></canvas>
                 </div>
@@ -157,24 +166,23 @@
         </div>
 
         <!-- 資金投入 -->
-        <div class="glass-card p-6 rounded-[2rem] border border-slate-800 mb-20">
-            <div class="flex items-center justify-between mb-6">
+        <div class="glass-card p-8 rounded-[2.5rem] border border-slate-800 mb-24 shadow-2xl">
+            <div class="flex items-center justify-between mb-8">
                 <div>
-                    <h2 class="font-bold text-xs uppercase tracking-widest text-slate-400">Rebalance Optimization</h2>
-                    <p class="text-[9px] text-slate-600 uppercase italic">投入閒置資金 (TWD)</p>
+                    <h2 class="font-bold text-xs uppercase tracking-[0.15em] text-slate-300">Rebalance Optimization</h2>
+                    <p class="text-[10px] text-slate-500 uppercase italic mt-1 font-medium">投入閒置資金 (TWD)</p>
                 </div>
-                <input type="number" id="extraCash" oninput="saveAndRefresh()" value="0" class="w-24 rounded-xl py-2 px-3 text-right text-sm font-mono text-emerald-400 font-bold">
+                <input type="number" id="extraCash" oninput="saveAndRefresh()" value="0" class="w-28 rounded-2xl py-3 px-4 text-right text-base font-mono text-emerald-400 font-black shadow-inner">
             </div>
-            <div id="adviceContainer" class="space-y-3 min-h-[50px]"></div>
-            <button onclick="triggerAdvice()" class="mt-6 w-full bg-cyan-500 text-black text-xs py-4 rounded-2xl font-black uppercase italic btn-action">Execute Optimization</button>
-            <p class="text-[8px] text-slate-600 mt-4 text-center uppercase tracking-tighter">* 計算僅包含「目標 % > 0」的項目與閒置資金</p>
+            <div id="adviceContainer" class="space-y-4 min-h-[50px]"></div>
+            <button onclick="triggerAdvice()" class="mt-8 w-full bg-cyan-500 text-black text-sm py-5 rounded-[1.5rem] font-black uppercase italic btn-action shadow-xl shadow-cyan-500/10">Execute Optimization</button>
+            <p class="text-[9px] text-slate-600 mt-5 text-center uppercase tracking-widest font-bold">* Calculation based on Target % > 0</p>
         </div>
     </div>
 
     <script>
         Chart.register(ChartDataLabels);
 
-        // 預設從 localStorage 讀取資料，如果沒有則為空陣列
         let portfolio = JSON.parse(localStorage.getItem('stocklens_portfolio')) || [];
         let globalFxRate = 32.50;
         let mainChart = null;
@@ -240,12 +248,28 @@
                     }
                 } catch (e) { console.warn(e); }
             }
-            finalizeUpdate();
+        }
+
+        async function handleRefreshClick() {
+            const btn = document.getElementById('refreshBtn');
+            const originalText = btn.innerText;
+            btn.innerText = "WAIT...";
+            btn.disabled = true;
+            
+            await fetchFX();
+            await fetchAllPrices();
+            
+            btn.innerText = originalText;
+            btn.disabled = false;
         }
 
         async function fetchAllPrices() {
-            for (let item of portfolio) { await fetchPrice(item); await new Promise(r => setTimeout(r, 100)); }
+            for (let item of portfolio) { 
+                await fetchPrice(item); 
+                await new Promise(r => setTimeout(r, 100)); 
+            }
             saveToStorage();
+            finalizeUpdate();
         }
 
         async function fetchFX() {
@@ -301,15 +325,15 @@
                 const mktEl = document.getElementById(`mkt-${item.id}`);
                 const prfEl = document.getElementById(`prf-${item.id}`);
                 
-                if (priEl) priEl.innerText = (item.price || 0).toLocaleString(undefined, {minimumFractionDigits: 1});
+                if (priEl) priEl.innerText = (item.price || 0).toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1});
                 if (mktEl) mktEl.innerText = Math.round(item.currentValTWD).toLocaleString();
                 if (prfEl && item.price > 0 && item.cost > 0) {
                     const diff = item.currentValTWD - item.costValTWD;
                     const pct = (diff / item.costValTWD * 100).toFixed(1);
                     const isUp = diff >= 0;
                     prfEl.innerHTML = `
-                        <div class="${isUp ? 'text-rose-500' : 'text-emerald-500'} font-black text-[10px] leading-none">${isUp ? '+' : ''}${Math.round(diff).toLocaleString()}</div>
-                        <div class="${isUp ? 'text-rose-500' : 'text-emerald-500'} font-bold text-[8px] mt-0.5 opacity-80">${isUp ? '+' : ''}${pct}%</div>
+                        <div class="${isUp ? 'text-rose-500' : 'text-emerald-500'} font-black text-[11px] leading-none">${isUp ? '+' : ''}${Math.round(diff).toLocaleString()}</div>
+                        <div class="${isUp ? 'text-rose-500' : 'text-emerald-500'} font-bold text-[9px] mt-1 opacity-80">${isUp ? '+' : ''}${pct}%</div>
                     `;
                 }
             });
@@ -323,10 +347,10 @@
             const tppEl = document.getElementById('totalProfitPctDisplay');
             
             tpEl.innerText = (totalProfit > 0 ? '+' : '') + Math.round(totalProfit).toLocaleString();
-            tpEl.className = `text-[9px] font-mono font-bold ${totalProfit >= 0 ? 'text-rose-500' : 'text-emerald-500'}`;
+            tpEl.className = `text-xs font-mono font-bold ${totalProfit >= 0 ? 'text-rose-500' : 'text-emerald-500'}`;
             
             tppEl.innerText = (totalProfit > 0 ? '+' : '') + totalProfitPct + '%';
-            tppEl.className = `text-[9px] font-bold ${totalProfit >= 0 ? 'text-rose-500' : 'text-emerald-500'}`;
+            tppEl.className = `text-xs font-black ${totalProfit >= 0 ? 'text-rose-500' : 'text-emerald-500'}`;
             
             drawMainChart(grandTotal, extraCash);
             drawTargetChart();
@@ -343,28 +367,28 @@
                 emptyState.classList.add('hidden');
             }
 
-            const cats = { TW: '台股市場', US: '美股市場', BOND: '債券資產' };
+            const cats = { TW: '台股市場 TAIPEI', US: '美股市場 US STOCK', BOND: '債券資產 BONDS' };
             for (let k in cats) {
                 const items = portfolio.filter(i => i.category === k);
                 if (items.length === 0) continue;
-                tbody.innerHTML += `<tr><td colspan="8" class="px-3 py-2 bg-slate-800/60 text-[8px] font-black text-cyan-400 uppercase tracking-widest border-y border-slate-800">${cats[k]}</td></tr>`;
+                tbody.innerHTML += `<tr><td colspan="8" class="px-4 py-3 bg-slate-800/60 text-[9px] font-black text-cyan-400 uppercase tracking-[0.2em] border-y border-slate-700/50">${cats[k]}</td></tr>`;
                 items.forEach(item => {
                     tbody.innerHTML += `
-                        <tr class="bg-slate-800/10 border-b border-slate-800/50">
-                            <td class="px-3 py-5 text-center">
-                                <input type="number" oninput="updateVal(${item.id}, 'target', this.value)" value="${item.target}" class="w-10 py-1 text-center text-[10px] text-cyan-300 font-black rounded bg-slate-900 border border-slate-700">
+                        <tr class="bg-slate-800/10 border-b border-slate-800/40">
+                            <td class="px-4 py-6 text-center">
+                                <input type="number" oninput="updateVal(${item.id}, 'target', this.value)" value="${item.target}" class="w-12 py-1.5 text-center text-xs text-cyan-400 font-black rounded-xl bg-slate-900 border border-slate-700 shadow-inner">
                             </td>
-                            <td class="px-2 py-5">
-                                <div class="text-[11px] font-black uppercase text-white leading-tight">${item.symbol}</div>
-                                <div class="text-[7px] text-slate-600 font-bold uppercase italic">${item.currency}</div>
+                            <td class="px-3 py-6">
+                                <div class="text-xs font-black uppercase text-white leading-tight">${item.symbol}</div>
+                                <div class="text-[8px] text-slate-500 font-bold uppercase italic mt-0.5">${item.currency}</div>
                             </td>
-                            <td class="px-2 py-5 text-[10px] font-mono text-slate-300 font-bold">${item.shares.toLocaleString()}</td>
-                            <td class="px-2 py-5 text-[9px] font-mono text-amber-500/80">${item.cost.toLocaleString(undefined, {maximumFractionDigits:1})}</td>
-                            <td class="px-2 py-5 text-right text-[10px] font-mono text-cyan-400 font-black" id="pri-${item.id}">--</td>
-                            <td class="px-2 py-5 text-right text-[10px] font-mono text-slate-200 font-bold" id="mkt-${item.id}">0</td>
-                            <td class="px-2 py-5 text-right" id="prf-${item.id}"></td>
-                            <td class="px-2 py-5 text-center">
-                                <button onclick="removeRow(${item.id})" class="text-slate-800 hover:text-rose-500 transition-colors text-xs">✕</button>
+                            <td class="px-3 py-6 text-xs font-mono text-slate-300 font-bold">${item.shares.toLocaleString()}</td>
+                            <td class="px-3 py-6 text-[10px] font-mono text-slate-500 font-medium">${item.cost.toLocaleString(undefined, {maximumFractionDigits:1})}</td>
+                            <td class="px-3 py-6 text-right text-xs font-mono text-cyan-400 font-black" id="pri-${item.id}">--</td>
+                            <td class="px-3 py-6 text-right text-xs font-mono text-slate-200 font-bold" id="mkt-${item.id}">0</td>
+                            <td class="px-4 py-6 text-right" id="prf-${item.id}"></td>
+                            <td class="px-3 py-6 text-center">
+                                <button onclick="removeRow(${item.id})" class="text-slate-700 hover:text-rose-500 transition-colors text-sm">✕</button>
                             </td>
                         </tr>`;
                 });
@@ -419,11 +443,11 @@
                             data: outerData,
                             backgroundColor: outerColors,
                             weight: 1,
-                            borderWidth: 1.5,
+                            borderWidth: 2,
                             borderColor: '#0b0f1a',
                             datalabels: {
                                 anchor: 'end', align: 'start', offset: -5, color: '#fff',
-                                font: { size: 9, weight: '900' },
+                                font: { size: 10, weight: '900' },
                                 formatter: (val, ctx) => {
                                     const pct = (val / total * 100).toFixed(0);
                                     return pct > 3 ? `${outerLabels[ctx.dataIndex]}\n${pct}%` : '';
@@ -437,7 +461,7 @@
                             borderWidth: 2,
                             borderColor: '#0b0f1a',
                             datalabels: {
-                                color: '#00f2ff', font: { size: 10, weight: 'bold' },
+                                color: '#00f2ff', font: { size: 11, weight: 'bold' },
                                 formatter: (val, ctx) => {
                                     const pct = (val / total * 100).toFixed(0);
                                     return pct > 10 ? `${innerLabels[ctx.dataIndex]}` : '';
@@ -446,23 +470,29 @@
                         }
                     ]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                options: { responsive: true, maintainAspectRatio: false, cutout: '45%', plugins: { legend: { display: false } } }
             });
         }
 
         function drawTargetChart() {
             const ctx = document.getElementById('targetChart').getContext('2d');
             const targets = portfolio.filter(i => i.target > 0);
-            if (targets.length === 0) { if (targetChart) targetChart.destroy(); return; }
+            
+            if (targets.length === 0) { 
+                if (targetChart) targetChart.destroy(); 
+                return; 
+            }
 
-            const totalMkt = portfolio.reduce((a, b) => a + (b.currentValTWD || 0), 0);
-            const extraCash = parseFloat(document.getElementById('extraCash').value) || 0;
-            const grandTotal = totalMkt + extraCash;
+            const targetsMarketTotal = targets.reduce((a, b) => a + (b.currentValTWD || 0), 0);
+            const targetsTargetSum = targets.reduce((a, b) => a + b.target, 0);
 
             const labels = targets.map(i => i.symbol);
-            const currentPcts = targets.map(i => grandTotal > 0 ? ((i.currentValTWD / grandTotal) * 100).toFixed(1) : 0);
-            const targetSum = targets.reduce((a, b) => a + b.target, 0);
-            const targetPcts = targets.map(i => ((i.target / targetSum) * 100).toFixed(1));
+            const currentPcts = targets.map(i => 
+                targetsMarketTotal > 0 ? ((i.currentValTWD / targetsMarketTotal) * 100).toFixed(1) : 0
+            );
+            const targetPcts = targets.map(i => 
+                targetsTargetSum > 0 ? ((i.target / targetsTargetSum) * 100).toFixed(1) : 0
+            );
 
             if (targetChart) targetChart.destroy();
             targetChart = new Chart(ctx, {
@@ -470,19 +500,24 @@
                 data: { 
                     labels, 
                     datasets: [
-                        { label: '目前%', data: currentPcts, backgroundColor: 'rgba(0, 242, 255, 0.6)', borderRadius: 4 },
-                        { label: '目標%', data: targetPcts, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: 4, borderColor: 'rgba(255, 255, 255, 0.2)', borderWidth: 1 }
+                        { label: '目前權重%', data: currentPcts, backgroundColor: 'rgba(0, 242, 255, 0.6)', borderRadius: 8 },
+                        { label: '目標權重%', data: targetPcts, backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 8, borderColor: 'rgba(255, 255, 255, 0.15)', borderWidth: 1 }
                     ] 
                 },
                 options: { 
                     responsive: true, maintainAspectRatio: false,
                     scales: { 
-                        x: { ticks: { color: '#64748b', font: { size: 9, weight: 'bold' } }, grid: { display: false } },
+                        x: { ticks: { color: '#64748b', font: { size: 10, weight: '900' } }, grid: { display: false } },
                         y: { beginAtZero: true, max: 100, display: false } 
                     },
                     plugins: { 
-                        legend: { position: 'bottom', labels: { color: '#475569', font: { size: 8 }, boxWidth: 8 } },
-                        datalabels: { color: (c) => c.datasetIndex === 0 ? '#00f2ff' : '#64748b', anchor: 'end', align: 'top', font: { size: 8, weight: 'bold' }, formatter: (v) => v + '%' } 
+                        legend: { position: 'bottom', labels: { color: '#475569', font: { size: 9, weight: 'bold' }, boxWidth: 10, padding: 15 } },
+                        datalabels: { 
+                            color: (c) => c.datasetIndex === 0 ? '#00f2ff' : '#64748b', 
+                            anchor: 'end', align: 'top', 
+                            font: { size: 9, weight: 'bold' }, 
+                            formatter: (v) => v + '%' 
+                        } 
                     }
                 }
             });
@@ -510,13 +545,13 @@
                     
                     if (units > 0) {
                         const div = document.createElement('div');
-                        div.className = `p-3 rounded-xl border ${isBuy ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-rose-500/20 bg-rose-500/5'} flex justify-between items-center`;
+                        div.className = `p-5 rounded-[1.5rem] border ${isBuy ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-rose-500/20 bg-rose-500/5'} flex justify-between items-center shadow-sm`;
                         div.innerHTML = `
                             <div>
-                                <span class="text-[10px] font-black text-white uppercase">${item.symbol}</span>
-                                <div class="text-[8px] text-slate-500">GAP: ${Math.round(gap).toLocaleString()} TWD</div>
+                                <span class="text-xs font-black text-white uppercase tracking-wider">${item.symbol}</span>
+                                <div class="text-[9px] text-slate-500 font-bold mt-1 uppercase">Gap: ${Math.round(gap).toLocaleString()} TWD</div>
                             </div>
-                            <span class="font-black ${isBuy?'text-emerald-400':'text-rose-400'} text-xs">${isBuy?'買入':'賣出'} ${units} 股</span>
+                            <span class="font-black ${isBuy?'text-emerald-400':'text-rose-400'} text-sm">${isBuy?'買入':'賣出'} ${units} 股</span>
                         `;
                         container.appendChild(div);
                     }
@@ -524,15 +559,14 @@
             });
 
             if (container.innerHTML === '') {
-                container.innerHTML = `<p class="text-[10px] text-slate-500 text-center italic">目前比例完美，無需調整</p>`;
+                container.innerHTML = `<p class="text-xs text-slate-500 text-center italic tracking-widest py-4">PERFECT BALANCE</p>`;
             }
         }
 
         window.onload = async () => { 
             loadFromStorage();
             render(); 
-            await fetchFX(); 
-            await fetchAllPrices(); 
+            await handleRefreshClick(); 
         };
     </script>
 </body>
