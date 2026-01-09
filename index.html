@@ -29,6 +29,7 @@
         body { 
             padding: 16px;
             padding-bottom: env(safe-area-inset-bottom);
+            user-select: none;
         }
 
         .neon-text { 
@@ -84,10 +85,23 @@
             vertical-align: middle;
             text-transform: uppercase;
         }
+
+        .max-w-md {
+            max-width: 100% !important;
+            margin-left: auto;
+            margin-right: auto;
+            width: 100%;
+        }
+
+        .chart-wrapper {
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
     </style>
 </head>
 <body>
-    <!-- 新增資產彈窗 -->
+    <!-- Add Asset Modal -->
     <div id="addModal">
         <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-cyan-500/30 p-8 shadow-2xl">
             <h3 class="text-xl font-black text-cyan-400 italic mb-6 uppercase tracking-widest">Add Asset</h3>
@@ -114,43 +128,47 @@
         </div>
     </div>
 
-    <!-- 完整的長版使用說明彈窗 -->
+    <!-- Enhanced Info Modal -->
     <div id="infoModal">
         <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-white/10 p-8 shadow-2xl max-h-[85vh] overflow-y-auto no-scrollbar">
             <h3 class="text-xl font-black text-white italic mb-4 uppercase tracking-widest border-b border-white/10 pb-2">User Guide</h3>
+            
             <div class="space-y-6 text-xs text-slate-400 leading-relaxed font-medium">
                 <section>
                     <h4 class="text-cyan-400 font-black uppercase mb-2 tracking-tighter">🚀 快速開始</h4>
-                    <p>1. 點擊 <span class="text-white">「+ 新增標的」</span> 輸入代碼，系統將自動抓取 Yahoo Finance 即時報價。</p>
-                    <p>2. 在列表左側的 <span class="text-white">「目標 %」</span> 欄位輸入您理想的資產配比。</p>
+                    <p>1. 點擊 <span class="text-white">「+ 新增」</span> 輸入標的代碼（如 2330, VOO），系統將自動抓取即時報價與資產類型。</p>
+                    <p>2. 在列表左側的 <span class="text-white">「目標 %」</span> 欄位輸入您理想的資產佔比。</p>
                 </section>
+
                 <section>
-                    <h4 class="text-cyan-400 font-black uppercase mb-2 tracking-tighter">⚖️ 再平衡邏輯</h4>
-                    <p>點擊 <span class="text-white">「Calculate Trade Orders」</span>，系統會計算您的「當前市值 + 新入金」，並與目標比例對比，給出精確的買賣股數建議。</p>
+                    <h4 class="text-cyan-400 font-black uppercase mb-2 tracking-tighter">🔒 隱私保護模式</h4>
+                    <p>點擊頂部標題旁的 <span class="text-white">眼睛圖示</span>。此模式下會隱藏所有「具體金額、股數、市值」，但在列表中依然保留「單價」與「損益趴數」。</p>
                 </section>
+
                 <section>
-                    <h4 class="text-cyan-400 font-black uppercase mb-2 tracking-tighter">🔒 隱私保護</h4>
-                    <p>點擊頂部標題旁的 <span class="text-white">眼睛圖示</span>，可一鍵隱藏所有敏感金額與損益數字，方便在公共場合查看比例。</p>
+                    <h4 class="text-cyan-400 font-black uppercase mb-2 tracking-tighter">⚖️ 智慧再平衡 (核心功能)</h4>
+                    <p class="mb-2">根據 <span class=\"italic\">「總池 × 目標比例 - 當前價值」</span> 算出該買進或賣出多少金額與股數。</p>
                 </section>
+
                 <section>
-                    <h4 class="text-cyan-400 font-black uppercase mb-2 tracking-tighter">📊 圖表分析</h4>
-                    <p>內圈顯示資產類別（台股/美股/債券），外圈顯示個別標的比例。若持有槓桿型標的，右側將自動開啟「策略偏好分析」。</p>
-                </section>
-                <section>
-                    <h4 class="text-cyan-400 font-black uppercase mb-2 tracking-tighter">💡 小提示</h4>
-                    <p>標的名稱中若包含 <span class="text-white">"2X", "3X", "正2"</span> 等關鍵字，系統會自動標記為槓桿資產並進行分類。</p>
+                    <h4 class="text-cyan-400 font-black uppercase mb-2 tracking-tighter">📊 偏差分析圖</h4>
+                    <p>● <span class="text-cyan-500/80">亮藍色條</span>：代表您目前的實際佔比。</p>
+                    <p>● <span class="text-slate-500">空心框</span>：代表您的目標佔比。</p>
                 </section>
             </div>
-            <button onclick="closeInfoModal()" class="mt-8 w-full bg-cyan-500 text-black py-4 rounded-2xl font-black btn-action uppercase text-xs shadow-lg shadow-cyan-500/20">了解，開始使用</button>
+
+            <button onclick="closeInfoModal()" class="mt-8 w-full bg-cyan-500 text-black py-4 rounded-2xl font-black btn-action uppercase text-xs shadow-lg shadow-cyan-500/20">開始使用 StockLens</button>
         </div>
     </div>
 
-    <div class="max-w-md mx-auto">
-        <!-- 頂部區塊 -->
+    <div class="max-w-md">
+        <!-- Header -->
         <header class="flex flex-col items-stretch justify-between mb-8 pt-4 gap-4 w-full">
             <div class="flex justify-between items-center w-full">
                 <div class="brand-area">
-                    <h1 class="text-[2.2rem] font-[950] neon-text italic tracking-[-0.08em] uppercase leading-[0.8]">StockLens</h1>
+                    <h1 class="text-[2.2rem] font-[950] neon-text italic tracking-[-0.08em] uppercase leading-[0.8]">
+                        StockLens
+                    </h1>
                     <p class="text-[10px] font-bold italic uppercase tracking-wider mt-2 ml-0.5 opacity-60">
                         <span class="text-slate-400">BY OWEN</span>
                         <span class="text-slate-600 mx-1.5 font-normal">/</span>
@@ -197,13 +215,13 @@
             </div>
         </header>
 
-        <!-- 持股列表區 -->
+        <!-- 持股列表 -->
         <div class="glass-card rounded-[2rem] border border-slate-800/80 overflow-hidden mb-6 shadow-xl w-full">
             <div class="p-5 border-b border-slate-800/50 flex justify-between items-center bg-slate-900/40">
                 <h2 class="font-bold text-[12px] text-cyan-400 uppercase tracking-widest italic">Portfolio</h2>
                 <div class="flex gap-2">
-                    <button id="refreshBtn" onclick="handleRefreshClick()" class="bg-cyan-500/10 text-cyan-400 text-[9px] px-3 py-2 rounded-xl font-bold border border-cyan-500/20 btn-action uppercase">更新報價</button>
-                    <button onclick="openModal()" class="bg-cyan-500 text-black text-[9px] px-3 py-2 rounded-xl font-black btn-action uppercase shadow-lg shadow-cyan-500/20">+ 新增標的</button>
+                    <button id="refreshBtn" onclick="handleRefreshClick()" class="bg-cyan-500/10 text-cyan-400 text-[9px] px-3 py-2 rounded-xl font-bold border border-cyan-500/20 btn-action uppercase">更新</button>
+                    <button onclick="openModal()" class="bg-cyan-500 text-black text-[9px] px-3 py-2 rounded-xl font-black btn-action uppercase shadow-lg shadow-cyan-500/20">+ 新增</button>
                 </div>
             </div>
             
@@ -224,41 +242,41 @@
                     </thead>
                     <tbody id="tableBody"></tbody>
                 </table>
-                <div id="emptyState" class="p-16 text-center text-slate-600 italic text-[10px] uppercase tracking-widest">
-                    <div class="mb-2">Portfolio is Empty</div>
-                    <div class="text-[8px] opacity-60">點擊 + 新增標的開始管理資產</div>
-                </div>
+                <div id="emptyState" class="p-10 text-center text-slate-600 italic text-xs hidden uppercase tracking-widest">尚未添加資產</div>
             </div>
         </div>
 
-        <!-- 圖表分析區 -->
+        <!-- 圖表區域 -->
         <div class="grid grid-cols-1 gap-6 mb-6 w-full">
             <div class="glass-card p-5 rounded-[2rem] border border-slate-800/80 shadow-lg overflow-hidden w-full">
                 <div class="flex items-center justify-between mb-4 px-1">
                     <h3 class="text-[10px] uppercase font-black text-slate-500 tracking-[0.2em]">Holdings / Strategy</h3>
                 </div>
-                <div id="chartLoadingArea" class="flex flex-col items-center justify-center h-[260px] text-slate-700 text-[10px] uppercase font-bold tracking-widest">
-                    Waiting for Data...
-                </div>
-                <div class="hidden flex flex-row items-center justify-center gap-2 h-[260px] w-full" id="chartDisplayArea">
-                    <!-- 左圖：持股分佈 -->
+                <div class="flex flex-row items-center justify-center gap-2 h-[260px] w-full">
                     <div class="w-full h-full relative" id="mainChartContainer">
                         <canvas id="mainChart"></canvas>
                     </div>
-                    <!-- 右圖：槓桿比例（策略圖表） -->
                     <div class="hidden w-1/2 h-full relative" id="strategyChartContainer">
                         <canvas id="strategyChart"></canvas>
                     </div>
                 </div>
             </div>
+
+            <!-- Target Gap Analysis 區域 -->
+            <div class="glass-card p-5 rounded-[2rem] border border-slate-800/80 shadow-lg w-full overflow-hidden">
+                <h3 class="text-[10px] uppercase font-bold text-cyan-500/60 mb-4 text-center tracking-[0.2em] italic">Target Gap Analysis</h3>
+                <div class="h-[180px] w-full chart-wrapper">
+                    <canvas id="targetChart"></canvas>
+                </div>
+            </div>
         </div>
 
-        <!-- 再平衡交易指令區 -->
+        <!-- 再平衡區域 -->
         <div class="glass-card p-6 rounded-[2rem] border border-slate-800 mb-20 shadow-2xl w-full">
             <div class="flex items-center justify-between mb-6">
                 <div>
                     <h2 class="font-bold text-[12px] uppercase tracking-[0.1em] text-slate-300">Smart Rebalance</h2>
-                    <p class="text-[9px] text-slate-500 font-bold mt-1 uppercase italic">根據目標比例分配總資金</p>
+                    <p class="text-[9px] text-slate-500 font-bold mt-1 uppercase italic">根據理想比例分配總資金</p>
                 </div>
                 <div class="flex flex-col items-end">
                     <span class="text-[9px] font-black text-emerald-500 uppercase mb-1 tracking-widest">新入金</span>
@@ -273,10 +291,19 @@
     <script>
         Chart.register(ChartDataLabels);
 
-        let portfolio = []; 
+        const defaultPortfolio = [];
+
+        let portfolio = JSON.parse(localStorage.getItem('stocklens_portfolio'));
+        let isFirstTime = false;
+        
+        if (!portfolio) {
+            portfolio = defaultPortfolio;
+            isFirstTime = true;
+        }
+
         let isPrivacyOn = JSON.parse(localStorage.getItem('stocklens_privacy')) || false;
         let globalFxRate = 32.50;
-        let mainChart = null, strategyChart = null;
+        let mainChart = null, strategyChart = null, targetChart = null;
 
         function saveToStorage() {
             localStorage.setItem('stocklens_portfolio', JSON.stringify(portfolio));
@@ -285,8 +312,6 @@
         }
 
         function loadFromStorage() {
-            const savedPortfolio = localStorage.getItem('stocklens_portfolio');
-            if (savedPortfolio) portfolio = JSON.parse(savedPortfolio);
             const savedCash = localStorage.getItem('stocklens_extra_cash');
             if (savedCash !== null) document.getElementById('extraCash').value = savedCash;
             updatePrivacyUI();
@@ -315,7 +340,12 @@
         }
 
         function openModal() { document.getElementById('addModal').style.display = 'flex'; }
-        function closeModal() { document.getElementById('addModal').style.display = 'none'; }
+        function closeModal() { 
+            document.getElementById('addModal').style.display = 'none'; 
+            document.getElementById('modalSymbol').value = '';
+            document.getElementById('modalShares').value = '';
+            document.getElementById('modalCost').value = '';
+        }
         function openInfoModal() { document.getElementById('infoModal').style.display = 'flex'; }
         function closeInfoModal() { document.getElementById('infoModal').style.display = 'none'; }
 
@@ -327,14 +357,12 @@
             const existingIndex = portfolio.findIndex(p => p.symbol === sym);
             if (existingIndex !== -1) {
                 const p = portfolio[existingIndex];
-                const oldTotalCost = p.shares * p.cost;
-                const newTotalCost = shares * cost;
                 p.shares += shares;
-                p.cost = (oldTotalCost + newTotalCost) / p.shares;
+                p.cost = ( (p.shares - shares) * p.cost + shares * cost ) / p.shares;
             } else {
                 const info = getCategoryInfo(sym);
                 const newId = portfolio.length > 0 ? Math.max(...portfolio.map(i => i.id)) + 1 : 1;
-                const newItem = { id: newId, symbol: sym, name: "載入中...", category: info.cat, isLeverage: info.isLeverage, currency: info.cur, shares, cost, target: "", price: 0 };
+                const newItem = { id: newId, symbol: sym, name: "載入中...", category: info.cat, isLeverage: info.isLeverage, currency: info.cur, shares, cost, target: 0, price: 0 };
                 portfolio.push(newItem);
                 await fetchPriceAndInfo(newItem);
             }
@@ -372,7 +400,7 @@
             saveToStorage();
             finalizeUpdate();
             render();
-            btn.innerText = "更新報價"; btn.disabled = false;
+            btn.innerText = "更新"; btn.disabled = false;
         }
 
         async function fetchFX() {
@@ -387,8 +415,8 @@
         function getCategoryInfo(symbol, name = "") {
             const s = symbol.toUpperCase().trim();
             const n = name.toUpperCase();
-            const leverageKeywords = ['2X', '3X', 'BULL', 'BEAR', 'ULTRA', 'PROSHARES', 'SOXL', 'TQQQ', 'SQQQ', '00631L', '00632R', '00670L', 'TSLL', 'SSO', 'UPRO'];
-            const isLvrg = leverageKeywords.some(k => s.endsWith(k) || s.includes(k)) || /正2|正3|反1|槓桿|LEVERAGE/.test(n);
+            const leverageKeywords = ['2X', '3X', 'BULL', 'BEAR', 'ULTRA', 'PROSHARES', 'SOXL', 'TQQQ', 'SQQQ', '00631L', '00632R', '00670L', 'TSLL', 'SSO', 'UPRO', 'L'];
+            const isLvrg = leverageKeywords.some(k => s.endsWith(k) || s.includes(k)) || /正2|正3|反1|槓桿|LEVERAGE/.test(n) || /正2|正3/.test(s);
             const bondKeywords = ['BND', 'TLT', 'AGG', '00937B', '00687B', '00679B'];
             const isBond = bondKeywords.some(k => s.includes(k)) || /^\d+B$/.test(s) || n.includes('BOND');
             if (isBond) return { cat: 'BOND', cur: (/^[A-Z]/.test(s) ? 'USD' : 'TWD'), isLeverage: isLvrg };
@@ -398,15 +426,12 @@
 
         function updateVal(id, field, val) {
             const item = portfolio.find(i => i.id === id);
-            if (item) { 
-                item[field] = val === "" ? "" : parseFloat(val);
-                saveAndRefresh(); 
-            }
+            if (item) { item[field] = parseFloat(val) || 0; saveAndRefresh(); }
         }
 
         function removeRow(id) {
             portfolio = portfolio.filter(p => p.id !== id);
-            saveAndRefresh();
+            saveToStorage();
             render();
         }
 
@@ -458,9 +483,10 @@
             pDisp.innerText = (totalProfit > 0 ? '+' : '') + formatVal(Math.round(totalProfit), 0, true);
             pDisp.className = `text-sm font-mono font-bold leading-none ${totalProfit >= 0 ? 'text-rose-500' : 'text-emerald-500'}`;
             pctDisp.innerText = (totalProfit > 0 ? '+' : '') + totalProfitPct + '%';
-            pctDisp.className = `text-sm font-black text-rose-500 leading-none ${totalProfit >= 0 ? 'text-rose-500' : 'text-emerald-500'}`;
+            pctDisp.className = `text-sm font-black leading-none ${totalProfit >= 0 ? 'text-rose-500' : 'text-emerald-500'}`;
             
             drawMainCharts(grandTotal, extraCash);
+            drawTargetChart();
         }
 
         function render() {
@@ -468,7 +494,7 @@
             tbody.innerHTML = '';
             if (portfolio.length === 0) { 
                 document.getElementById('emptyState').classList.remove('hidden'); 
-                finalizeUpdate();
+                finalizeUpdate(); 
                 return; 
             }
             document.getElementById('emptyState').classList.add('hidden');
@@ -481,7 +507,7 @@
                 sortedItems.forEach(item => {
                     tbody.innerHTML += `
                         <tr class="bg-slate-800/10 border-b border-slate-800/40">
-                            <td class="px-4 py-5 text-center"><input type="number" placeholder="%" oninput="updateVal(${item.id}, 'target', this.value)" value="${item.target}" class="w-10 py-1 text-center text-[11px] text-cyan-400 font-black rounded-lg bg-slate-900 border border-slate-700"></td>
+                            <td class="px-4 py-5 text-center"><input type="number" oninput="updateVal(${item.id}, 'target', this.value)" value="${item.target}" class="w-10 py-1 text-center text-[11px] text-cyan-400 font-black rounded-lg bg-slate-900 border border-slate-700"></td>
                             <td class="px-3 py-5"><div class="text-[11px] font-black uppercase text-white">${item.symbol}${item.isLeverage ? '<span class="badge-lvrg">L</span>' : ''}</div></td>
                             <td class="px-3 py-5 text-[10px] font-mono text-slate-300 font-bold">${formatVal(item.shares, 0, true)}</td>
                             <td class="px-3 py-5 text-right text-[11px] font-mono text-slate-400" id="cst-${item.id}">--</td>
@@ -497,32 +523,15 @@
         }
 
         function drawMainCharts(total, extraCash) {
-            const chartLoadingArea = document.getElementById('chartLoadingArea');
-            const chartDisplayArea = document.getElementById('chartDisplayArea');
-
-            // 修正判斷：只要總市值 > 0 就顯示圖表，不用管 target
             if (total <= 0) {
-                chartLoadingArea.classList.remove('hidden');
-                chartDisplayArea.classList.add('hidden');
                 if (mainChart) mainChart.destroy();
                 if (strategyChart) strategyChart.destroy();
                 return;
             }
-
-            chartLoadingArea.classList.add('hidden');
-            chartDisplayArea.classList.remove('hidden');
-
-            // 判斷是否要開雙圖模式 (只要持有的標的中包含債券或槓桿，就顯示策略圖)
-            const hasSpecial = portfolio.some(i => i.isLeverage || i.category === 'BOND');
+            const hasLvrg = portfolio.some(i => i.isLeverage);
             const sCont = document.getElementById('strategyChartContainer'), mCont = document.getElementById('mainChartContainer');
-            
-            if (hasSpecial) { 
-                sCont.classList.remove('hidden'); 
-                mCont.classList.replace('w-full', 'w-1/2'); 
-            } else { 
-                sCont.classList.add('hidden'); 
-                mCont.classList.replace('w-1/2', 'w-full'); 
-            }
+            if (hasLvrg) { sCont.classList.remove('hidden'); mCont.classList.replace('w-full', 'w-1/2'); }
+            else { sCont.classList.add('hidden'); mCont.classList.replace('w-1/2', 'w-full'); }
             
             const catOrder = ['TW', 'US', 'BOND'], catLabels = { TW: '台股', US: '美股', BOND: '債券' }, catColors = { TW: 'rgba(6,182,212,0.5)', US: 'rgba(59,130,246,0.5)', BOND: 'rgba(168,85,247,0.5)', CASH: 'rgba(71,85,105,0.4)' };
             let inData = [], inLabels = [], inBG = [], outData = [], outLabels = [], outBG = [];
@@ -550,7 +559,7 @@
                 options: { responsive: true, maintainAspectRatio: false, cutout: '35%', plugins: { legend: { display: false } } }
             });
 
-            if (hasSpecial) {
+            if (hasLvrg) {
                 let spot = portfolio.filter(i => !i.isLeverage && i.category !== 'BOND').reduce((a,b)=>a+b.currentValTWD,0) + extraCash;
                 let lvrg = portfolio.filter(i=>i.isLeverage).reduce((a,b)=>a+b.currentValTWD,0);
                 let bond = portfolio.filter(i=>i.category==='BOND').reduce((a,b)=>a+b.currentValTWD,0);
@@ -564,22 +573,87 @@
             }
         }
 
+        function drawTargetChart() {
+            if (portfolio.length === 0) { 
+                if (targetChart) targetChart.destroy(); 
+                return; 
+            }
+
+            // 核心邏輯更新：只篩選有標示目標 % 的標的
+            const activeAssets = portfolio.filter(i => i.target > 0); 
+            const sumTargetUnits = activeAssets.reduce((a, b) => a + (b.target || 0), 0);
+            
+            // 計算這些選中標的的「局部總市值」，作為分母來重新縮放「實際比例」
+            const currentSelectedMarketTotal = activeAssets.reduce((a, b) => a + (b.currentValTWD || 0), 0);
+
+            if (targetChart) targetChart.destroy();
+            
+            if (activeAssets.length === 0) {
+                // 如果沒有任何標的有設定目標，清空圖表
+                return;
+            }
+
+            targetChart = new Chart(document.getElementById('targetChart').getContext('2d'), {
+                type: 'bar',
+                data: { 
+                    labels: activeAssets.map(i => i.symbol), 
+                    datasets: [
+                        { 
+                            label: '實際',
+                            // 這裡的實際值要以「已選標的的加總市值」來算，這樣加起來才會是 100%
+                            data: activeAssets.map(i => currentSelectedMarketTotal > 0 ? (i.currentValTWD / currentSelectedMarketTotal * 100).toFixed(1) : 0), 
+                            backgroundColor: 'rgba(0,242,255,0.6)', 
+                            borderRadius: 6,
+                            datalabels: { color: '#00f2ff', anchor: 'end', align: 'top' }
+                        }, 
+                        { 
+                            label: '目標',
+                            // 目標比例也要在已選標的中重新歸一化（如果輸入的不是總計 100%）
+                            data: activeAssets.map(i => sumTargetUnits > 0 ? (i.target / sumTargetUnits * 100).toFixed(1) : 0), 
+                            backgroundColor: 'rgba(255,255,255,0.05)', 
+                            borderRadius: 6, 
+                            borderColor: 'rgba(255,255,255,0.15)', 
+                            borderWidth: 1,
+                            datalabels: { color: '#64748b', anchor: 'end', align: 'top', offset: -15 }
+                        }
+                    ] 
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    layout: { padding: { top: 25 } },
+                    scales: { 
+                        x: { ticks: { color: '#64748b', font: { size: 9, weight: '900' } }, grid: { display: false } }, 
+                        y: { display: false } 
+                    }, 
+                    plugins: { 
+                        legend: { display: false }, 
+                        datalabels: { 
+                            font: { size: 9, weight: 'bold' }, 
+                            formatter: (v) => v + '%' 
+                        } 
+                    } 
+                }
+            });
+        }
+
         function triggerAdvice() {
             const container = document.getElementById('adviceContainer');
             const extraCash = parseFloat(document.getElementById('extraCash').value) || 0;
-            const activeAssets = portfolio.filter(i => parseFloat(i.target) > 0);
-            const targetSum = activeAssets.reduce((a, b) => a + parseFloat(b.target), 0);
+            
+            const activeAssets = portfolio.filter(i => i.target > 0);
+            const targetSum = activeAssets.reduce((a, b) => a + b.target, 0);
             const currentActiveMarketValue = activeAssets.reduce((a, b) => a + b.currentValTWD, 0);
             const finalPoolSnapshot = currentActiveMarketValue + extraCash;
 
             if (finalPoolSnapshot <= 0 || targetSum <= 0) {
-                container.innerHTML = `<div class="text-center py-4 text-[9px] text-slate-500 uppercase tracking-widest">請先在列表「目標 %」輸入您的理想配比</div>`;
+                container.innerHTML = `<div class="text-center py-4 text-[9px] text-slate-500 uppercase tracking-widest">請先添加標並設定目標比例 (%)</div>`;
                 return;
             }
             
             container.innerHTML = '';
             let trades = activeAssets.map(item => {
-                const idealValueTWD = finalPoolSnapshot * (parseFloat(item.target) / targetSum);
+                const idealValueTWD = finalPoolSnapshot * (item.target / targetSum);
                 const gapTWD = idealValueTWD - item.currentValTWD;
                 const fx = item.currency === 'USD' ? globalFxRate : 1;
                 const unitPriceTWD = item.price * fx;
@@ -590,31 +664,44 @@
             trades.sort((a, b) => a.isBuy - b.isBuy);
             trades.forEach(trade => {
                 if (trade.units > 0) {
-                    const div = document.createElement('div');
-                    div.className = `p-4 rounded-2xl border ${trade.isBuy ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-rose-500/20 bg-rose-500/5'} flex justify-between items-center shadow-sm`;
-                    div.innerHTML = `<div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full flex items-center justify-center font-black text-[10px] ${trade.isBuy ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}">${trade.isBuy ? '買' : '賣'}</div>
-                            <div>
-                                <span class="text-[10px] font-black text-white uppercase tracking-wider">${trade.item.symbol}</span>
-                                <div class="text-[9px] text-slate-500 font-bold mt-0.5 uppercase">預估金額 ${formatVal(Math.round(trade.amountTWD), 0, true)} TWD</div>
-                            </div>
-                        </div>
-                        <div class="text-right">
-                            <span class="font-black ${trade.isBuy?'text-emerald-400':'text-rose-400'} text-xs uppercase italic tracking-tighter">${trade.isBuy?'+':'-'} ${formatVal(trade.units, 0, true)} 股</span>
-                        </div>`;
-                    container.appendChild(div);
+                    createAdviceRow(container, trade.item, trade.isBuy, trade.units, trade.amountTWD);
                 }
             });
-            if (container.innerHTML === '') container.innerHTML = `<div class="text-center py-4 text-[9px] text-slate-500 uppercase tracking-widest">配置已達平衡，無需交易</div>`;
+
+            if (container.innerHTML === '') {
+                container.innerHTML = `<div class="text-center py-4 text-[9px] text-slate-500 uppercase tracking-widest">配置已達平衡，無需交易</div>`;
+            }
+        }
+
+        function createAdviceRow(container, item, isBuy, units, amount) {
+            const div = document.createElement('div');
+            div.className = `p-4 rounded-2xl border ${isBuy ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-rose-500/20 bg-rose-500/5'} flex justify-between items-center shadow-sm`;
+            div.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-black text-[10px] ${isBuy ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}">
+                        ${isBuy ? '買' : '賣'}
+                    </div>
+                    <div>
+                        <span class="text-[10px] font-black text-white uppercase tracking-wider">${item.symbol}</span>
+                        <div class="text-[9px] text-slate-500 font-bold mt-0.5 uppercase">估計金額 ${formatVal(Math.round(amount), 0, true)} TWD</div>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span class="font-black ${isBuy?'text-emerald-400':'text-rose-400'} text-xs uppercase italic tracking-tighter">
+                        ${isBuy?'+':'-'} ${formatVal(units, 0, true)} 股
+                    </span>
+                </div>`;
+            container.appendChild(div);
         }
 
         window.onload = async () => { 
             loadFromStorage(); 
+            if (isFirstTime) {
+                setTimeout(openInfoModal, 800);
+            }
             render(); 
             if (portfolio.length > 0) {
                 await handleRefreshClick(); 
-            } else {
-                setTimeout(openInfoModal, 300);
             }
         };
     </script>
