@@ -144,7 +144,6 @@
                 </div>
             </div>
 
-            <!-- Total Value 區塊：精確縮減至選取框大小 -->
             <div class="glass-card px-4 py-4 rounded-[1.8rem] border border-cyan-500/40 shadow-[0_0_30px_rgba(0,242,255,0.1)] flex flex-col justify-between items-end min-w-[175px] flex-shrink-0 mt-4">
                 <div class="flex flex-col items-end w-full">
                     <span class="text-[10px] text-cyan-400/70 uppercase font-black tracking-[0.2em] mb-2">Total Value</span>
@@ -166,7 +165,7 @@
             </div>
         </header>
 
-        <!-- 持股列表 (完全不變) -->
+        <!-- 持股列表 -->
         <div class="glass-card rounded-[2.5rem] border border-slate-800/80 overflow-hidden mb-6 shadow-xl w-full">
             <div class="p-6 border-b border-slate-800/50 flex justify-between items-center bg-slate-900/40">
                 <h2 class="font-bold text-[13px] text-cyan-400 uppercase tracking-widest italic">Portfolio</h2>
@@ -196,7 +195,7 @@
             </div>
         </div>
 
-        <!-- 圖表區域 (完全不變) -->
+        <!-- 圖表區域 -->
         <div class="grid grid-cols-1 gap-6 mb-6">
             <div class="glass-card p-6 rounded-[2.5rem] border border-slate-800/80 shadow-lg overflow-hidden">
                 <div class="flex items-center justify-between mb-6 px-2">
@@ -223,7 +222,7 @@
             </div>
         </div>
 
-        <!-- 再平衡區域 (完全不變) -->
+        <!-- 再平衡區域 -->
         <div class="glass-card p-8 rounded-[2.5rem] border border-slate-800 mb-24 shadow-2xl">
             <div class="flex items-center justify-between mb-8">
                 <div>
@@ -241,7 +240,6 @@
     </div>
 
     <script>
-        // JS 邏輯完全保持不變
         Chart.register(ChartDataLabels);
 
         const defaultPortfolio = [
@@ -475,6 +473,9 @@
             finalizeUpdate();
         }
 
+        /**
+         * 修正圓餅圖對齊邏輯
+         */
         function drawMainCharts(total, extraCash) {
             if (total === 0) return;
             const hasLeverage = portfolio.some(i => i.isLeverage);
@@ -482,27 +483,94 @@
             const mainContainer = document.getElementById('mainChartContainer');
             if (hasLeverage) { strategyContainer.classList.remove('hidden'); mainContainer.classList.replace('w-full', 'w-1/2'); }
             else { strategyContainer.classList.add('hidden'); mainContainer.classList.replace('w-1/2', 'w-full'); }
+            
             const ctx1 = document.getElementById('mainChart').getContext('2d');
-            let catSummary = { TW: 0, US: 0, BOND: 0, CASH: extraCash };
-            let outerData = [], outerLabels = [], outerColors = [];
-            portfolio.forEach((item, idx) => {
-                if (item.currentValTWD > 0) {
-                    catSummary[item.category] += item.currentValTWD; outerData.push(item.currentValTWD); outerLabels.push(item.symbol);
-                    if (item.category === 'TW') outerColors.push(`hsla(190, 70%, ${40 + (idx % 3) * 10}%, 0.8)`);
-                    else if (item.category === 'US') outerColors.push(`hsla(210, 60%, ${50 + (idx % 3) * 10}%, 0.8)`);
-                    else outerColors.push(`hsla(270, 60%, ${55 + (idx % 3) * 10}%, 0.8)`);
+            
+            // 按照類別重新排序所有資料，確保內圈外圈對應
+            const categoryOrder = ['TW', 'US', 'BOND'];
+            const categoryLabels = { TW: '台股', US: '美股', BOND: '債券' };
+            const categoryColors = {
+                TW: 'rgba(6, 182, 212, 0.5)',
+                US: 'rgba(59, 130, 246, 0.5)',
+                BOND: 'rgba(168, 85, 247, 0.5)',
+                CASH: 'rgba(71, 85, 105, 0.4)'
+            };
+
+            let innerData = [];
+            let innerLabels = [];
+            let innerBG = [];
+            
+            let outerData = [];
+            let outerLabels = [];
+            let outerBG = [];
+
+            categoryOrder.forEach(cat => {
+                const itemsInCat = portfolio.filter(i => i.category === cat && i.currentValTWD > 0)
+                    .sort((a, b) => b.currentValTWD - a.currentValTWD);
+                
+                if (itemsInCat.length > 0) {
+                    const catTotal = itemsInCat.reduce((sum, item) => sum + item.currentValTWD, 0);
+                    innerData.push(catTotal);
+                    innerLabels.push(categoryLabels[cat]);
+                    innerBG.push(categoryColors[cat]);
+
+                    itemsInCat.forEach((item, idx) => {
+                        outerData.push(item.currentValTWD);
+                        outerLabels.push(item.symbol);
+                        // 外圈使用同色系但明度不同的色彩
+                        const hue = cat === 'TW' ? 190 : (cat === 'US' ? 210 : 270);
+                        outerBG.push(`hsla(${hue}, 60%, ${45 + (idx % 4) * 8}%, 0.8)`);
+                    });
                 }
             });
-            if (extraCash > 0) { outerData.push(extraCash); outerLabels.push('CASH'); outerColors.push('rgba(71, 85, 105, 0.6)'); }
-            const innerData = [catSummary.TW, catSummary.US, catSummary.BOND, catSummary.CASH].filter(v => v > 0);
-            const innerLabels = ['台股', '美股', '債券', '現金'].filter((_, i) => [catSummary.TW, catSummary.US, catSummary.BOND, catSummary.CASH][i] > 0);
-            const innerColors = ['rgba(6, 182, 212, 0.5)', 'rgba(59, 130, 246, 0.5)', 'rgba(168, 85, 247, 0.5)', 'rgba(71, 85, 105, 0.4)'].filter((_, i) => [catSummary.TW, catSummary.US, catSummary.BOND, catSummary.CASH][i] > 0);
+
+            if (extraCash > 0) {
+                innerData.push(extraCash);
+                innerLabels.push('現金');
+                innerBG.push(categoryColors.CASH);
+                outerData.push(extraCash);
+                outerLabels.push('CASH');
+                outerBG.push('rgba(71, 85, 105, 0.6)');
+            }
+
             if (mainChart) mainChart.destroy();
             mainChart = new Chart(ctx1, {
                 type: 'doughnut',
-                data: { datasets: [{ data: outerData, backgroundColor: outerColors, borderWidth: 1, borderColor: '#0b0f1a', weight: 2, datalabels: { color: '#fff', font: { size: 8, weight: '800' }, formatter: (v, ctx) => (v/total*100) > 4 ? `${outerLabels[ctx.dataIndex]}\n${(v/total*100).toFixed(1)}%` : '', textAlign: 'center' } }, { data: innerData, backgroundColor: innerColors, borderWidth: 1, borderColor: '#0b0f1a', weight: 1, datalabels: { color: '#fff', font: { size: 10, weight: '900' }, formatter: (v, ctx) => (v/total*100) > 8 ? `${innerLabels[ctx.dataIndex]}` : '', anchor: 'center' } }] },
+                data: { 
+                    datasets: [
+                        { 
+                            // 外圈: 標的
+                            data: outerData, 
+                            backgroundColor: outerBG, 
+                            borderWidth: 1, 
+                            borderColor: '#0b0f1a', 
+                            weight: 2, 
+                            datalabels: { 
+                                color: '#fff', 
+                                font: { size: 8, weight: '800' }, 
+                                formatter: (v, ctx) => (v/total*100) > 4 ? `${outerLabels[ctx.dataIndex]}\n${(v/total*100).toFixed(1)}%` : '', 
+                                textAlign: 'center' 
+                            } 
+                        }, 
+                        { 
+                            // 內圈: 市場
+                            data: innerData, 
+                            backgroundColor: innerBG, 
+                            borderWidth: 1, 
+                            borderColor: '#0b0f1a', 
+                            weight: 1, 
+                            datalabels: { 
+                                color: '#fff', 
+                                font: { size: 10, weight: '900' }, 
+                                formatter: (v, ctx) => (v/total*100) > 8 ? `${innerLabels[ctx.dataIndex]}` : '', 
+                                anchor: 'center' 
+                            } 
+                        }
+                    ] 
+                },
                 options: { responsive: true, maintainAspectRatio: false, cutout: '40%', plugins: { legend: { display: false }, tooltip: { enabled: true } } }
             });
+
             if (hasLeverage) {
                 const ctx2 = document.getElementById('strategyChart').getContext('2d');
                 let spotVal = portfolio.filter(i => !i.isLeverage && i.category !== 'BOND').reduce((a, b) => a + b.currentValTWD, 0) + extraCash;
