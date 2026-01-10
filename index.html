@@ -86,18 +86,39 @@
             text-transform: uppercase;
         }
 
-        .max-w-md {
-            max-width: 100% !important;
-            margin-left: auto;
-            margin-right: auto;
-            width: 100%;
-        }
-
         .chart-wrapper {
             width: 100%;
             position: relative;
             overflow: hidden;
         }
+
+        /* Toggle Switch Styling */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #334155;
+            transition: .4s;
+            border-radius: 20px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px; width: 14px;
+            left: 3px; bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #f43f5e; }
+        input:checked + .slider:before { transform: translateX(20px); }
     </style>
 </head>
 <body>
@@ -171,6 +192,16 @@
                         <input type="number" id="editCost" placeholder="0.00" class="w-full rounded-2xl p-4 font-mono">
                     </div>
                 </div>
+                <div class="flex items-center justify-between p-4 bg-slate-900/50 rounded-2xl border border-white/5 mt-2">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] uppercase font-bold text-slate-400">槓桿型標的</span>
+                        <span class="text-[8px] text-slate-500">是否標示為槓桿標的並計算至策略佔比</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="editLeverage">
+                        <span class="slider"></span>
+                    </label>
+                </div>
             </div>
             <div class="flex gap-3 mt-8">
                 <button onclick="closeModal('editModal')" class="flex-1 bg-slate-800 text-slate-400 py-4 rounded-2xl font-bold btn-action uppercase text-xs">取消</button>
@@ -186,24 +217,23 @@
             <div class="space-y-6 text-xs text-slate-400 leading-relaxed font-medium">
                 <section>
                     <h4 class="text-cyan-400 font-black uppercase mb-2 tracking-tighter">🚀 快速開始</h4>
-                    <p>1. 點擊 <span class="text-white">「+ 新增」</span> 輸入標的，系統會抓取即時報價並計算平均成本。</p>
-                    <p>2. 點擊 <span class="text-white">「- 賣出」</span> 可扣除現有持股。</p>
-                    <p>3. 點擊列表中的 <span class="text-white">「鉛筆圖示」</span> 可直接編輯該標的的股數與均價。</p>
+                    <p>1. 點擊 <span class="text-white">「+ 新增」</span> 輸入標的。</p>
+                    <p>2. 點擊列表中的 <span class="text-white">「編輯」</span> 可修改股數、均價及槓桿標記。</p>
+                </section>
+                <section>
+                    <h4 class="text-rose-400 font-black uppercase mb-2 tracking-tighter">🗑️ 刪除資產</h4>
+                    <p>點擊列表右側的 <span class="text-rose-500 font-bold">垃圾桶圖示</span> 可直接將該資產從組合中移除。</p>
                 </section>
                 <section>
                     <h4 class="text-cyan-400 font-black uppercase mb-2 tracking-tighter">🔒 隱私保護</h4>
-                    <p>點擊頂部 <span class="text-white">眼睛圖示</span> 隱藏具體金額，但保留單價與趴數。</p>
-                </section>
-                <section>
-                    <h4 class="text-cyan-400 font-black uppercase mb-2 tracking-tighter">📊 偏差分析</h4>
-                    <p>Target Gap Analysis 會自動根據您有標示「目標 %」的標的進行局部縮放比較。</p>
+                    <p>點擊頂部 <span class="text-white">眼睛圖示</span> 隱藏具體金額。</p>
                 </section>
             </div>
             <button onclick="closeInfoModal()" class="mt-8 w-full bg-cyan-500 text-black py-4 rounded-2xl font-black btn-action uppercase text-xs shadow-lg shadow-cyan-500/20">我知道了</button>
         </div>
     </div>
 
-    <div class="max-w-md">
+    <div class="max-w-md mx-auto">
         <!-- Header -->
         <header class="flex flex-col items-stretch justify-between mb-8 pt-4 gap-4 w-full">
             <div class="flex justify-between items-center w-full">
@@ -212,7 +242,7 @@
                     <p class="text-[10px] font-bold italic uppercase tracking-wider mt-2 ml-0.5 opacity-60">
                         <span class="text-slate-400">BY OWEN</span>
                         <span class="text-slate-600 mx-1.5 font-normal">/</span>
-                        <span class="text-slate-500">V1.0 PRO</span>
+                        <span class="text-slate-500">V1.1 PRO</span>
                     </p>
                 </div>
                 <div class="flex gap-2">
@@ -353,9 +383,8 @@
         function openModal(id) { document.getElementById(id).style.display = 'flex'; }
         function closeModal(id) { 
             document.getElementById(id).style.display = 'none'; 
-            // Clear inputs
             const inputs = document.getElementById(id).querySelectorAll('input');
-            inputs.forEach(i => i.value = '');
+            inputs.forEach(i => { if(i.type === 'checkbox') i.checked = false; else i.value = ''; });
         }
 
         function openEditModal(id) {
@@ -364,6 +393,7 @@
             document.getElementById('editId').value = item.id;
             document.getElementById('editShares').value = item.shares;
             document.getElementById('editCost').value = item.cost;
+            document.getElementById('editLeverage').checked = !!item.isLeverage;
             document.getElementById('editModalTitle').innerText = `Edit ${item.symbol}`;
             openModal('editModal');
         }
@@ -372,6 +402,7 @@
             const id = parseInt(document.getElementById('editId').value);
             const shares = parseFloat(document.getElementById('editShares').value) || 0;
             const cost = parseFloat(document.getElementById('editCost').value) || 0;
+            const isLvrg = document.getElementById('editLeverage').checked;
             
             if (shares <= 0) {
                 removeRow(id);
@@ -380,6 +411,7 @@
                 if (item) {
                     item.shares = shares;
                     item.cost = cost;
+                    item.isLeverage = isLvrg;
                     saveToStorage();
                     render();
                 }
@@ -393,8 +425,8 @@
         async function processAddAsset() {
             const sym = document.getElementById('modalSymbol').value.trim().toUpperCase();
             const shares = parseFloat(document.getElementById('modalShares').value) || 0;
-            const cost = parseFloat(document.getElementById('modalCost').value) || 0;
-            if (!sym || shares <= 0 || cost <= 0) return;
+            const cost = parseFloat(document.getElementById('modalShares').value) || 0;
+            if (!sym || shares <= 0) return;
             const existingIndex = portfolio.findIndex(p => p.symbol === sym);
             if (existingIndex !== -1) {
                 const p = portfolio[existingIndex];
@@ -444,7 +476,7 @@
                         item.price = meta.regularMarketPrice;
                         item.name = meta.shortName || meta.longName || item.symbol;
                         const info = getCategoryInfo(item.symbol, item.name);
-                        item.isLeverage = info.isLeverage;
+                        if (item.name === "載入中...") item.isLeverage = info.isLeverage;
                         if (item.price > 0) break;
                     }
                 } catch (e) { console.warn(e); }
@@ -475,7 +507,7 @@
         function getCategoryInfo(symbol, name = "") {
             const s = symbol.toUpperCase().trim();
             const n = name.toUpperCase();
-            const leverageKeywords = ['2X', '3X', 'BULL', 'BEAR', 'ULTRA', 'PROSHARES', 'SOXL', 'TQQQ', 'SQQQ', '00631L', '00632R', '00670L', 'TSLL', 'SSO', 'UPRO'];
+            const leverageKeywords = ['2X', '3X', 'BULL', 'BEAR', 'ULTRA', 'PROSHARES', 'SOXL', 'TQQQ', 'SQQQ', '00631L', '00632R', '00670L', 'TSLL', 'SSO', 'UPRO', 'QLD'];
             const isLvrg = leverageKeywords.some(k => s.endsWith(k) || s.includes(k)) || /正2|正3|反1|槓桿|LEVERAGE/.test(n) || (s.length > 4 && s.endsWith('L')); 
             const bondKeywords = ['BND', 'TLT', 'AGG', '00937B', '00687B', '00679B'];
             const isBond = bondKeywords.some(k => s.includes(k)) || /^\d+B$/.test(s) || n.includes('BOND');
@@ -560,11 +592,16 @@
                             <td class="px-3 py-5 text-right text-[11px] font-mono text-slate-500 font-bold" id="inv-${item.id}">0</td>
                             <td class="px-3 py-5 text-right text-[11px] font-mono text-slate-200 font-bold" id="mkt-${item.id}">0</td>
                             <td class="px-4 py-5 text-right" id="prf-${item.id}"></td>
-                            <td class="px-3 py-5 text-center flex items-center gap-2 mt-4">
-                                <button onclick="openEditModal(${item.id})" class="text-amber-500/60 hover:text-amber-400 btn-action">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>
+                            <td class="px-3 py-5 text-center flex items-center gap-2">
+                                <button onclick="openEditModal(${item.id})" class="text-amber-500/60 hover:text-amber-400 btn-action p-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>
                                 </button>
-                                <button onclick="removeRow(${item.id})" class="text-slate-700 hover:text-rose-500 text-xs">✕</button>
+                                <button onclick="removeRow(${item.id})" class="text-rose-500/60 hover:text-rose-500 btn-action p-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                                        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                                        <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                                    </svg>
+                                </button>
                             </td>
                         </tr>`;
                 });
