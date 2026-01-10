@@ -58,7 +58,7 @@
         
         .btn-action:active { transform: scale(0.96); opacity: 0.8; }
 
-        #addModal, #sellModal, #editModal, #infoModal {
+        #addModal, #sellModal, #editModal, #infoModal, #compoundModal {
             display: none;
             position: fixed;
             inset: 0;
@@ -92,7 +92,6 @@
             overflow: hidden;
         }
 
-        /* Toggle Switch Styling */
         .switch {
             position: relative;
             display: inline-block;
@@ -122,7 +121,61 @@
     </style>
 </head>
 <body>
-    <!-- Add Asset Modal -->
+    <!-- 複利計算機彈窗 -->
+    <div id="compoundModal">
+        <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-emerald-500/30 p-8 shadow-2xl">
+            <div class="flex items-center gap-2 mb-6">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#10b981" viewBox="0 0 16 16">
+                    <path d="M12 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h8zM4 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H4z"/>
+                    <path d="M4 2.5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-7a.5.5 0 0 1-.5-.5v-2zm0 4a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm0 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm0 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm3-6a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm0 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm0 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm3-6a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm0 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-4z"/>
+                </svg>
+                <h3 class="text-xl font-black text-emerald-400 italic uppercase tracking-widest">Compound Int.</h3>
+            </div>
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">初始資金</label>
+                        <input type="number" id="compPrincipal" placeholder="0" class="w-full rounded-2xl p-4 font-mono text-white">
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">年利率 (%)</label>
+                        <input type="number" id="compRate" placeholder="例如: 7" class="w-full rounded-2xl p-4 font-mono text-white">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">投資年期</label>
+                        <input type="number" id="compYears" placeholder="例如: 10" class="w-full rounded-2xl p-4 font-mono text-white">
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">每月投入</label>
+                        <input type="number" id="compMonthly" placeholder="0" class="w-full rounded-2xl p-4 font-mono text-white">
+                    </div>
+                </div>
+                <div class="mt-6 p-5 bg-slate-900/80 rounded-3xl border border-white/5 shadow-inner">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-[10px] text-slate-500 font-bold uppercase">預估本利和</span>
+                        <span id="compResultTotal" class="text-lg font-mono font-black text-emerald-400">0</span>
+                    </div>
+                    <div class="flex justify-between items-center text-[10px]">
+                        <span class="text-slate-500">總投入本金</span>
+                        <span id="compResultPrincipal" class="text-slate-300 font-mono">0</span>
+                    </div>
+                    <div class="flex justify-between items-center text-[10px] mt-1">
+                        <span class="text-slate-500">預估獲利</span>
+                        <span id="compResultProfit" class="text-emerald-500/80 font-mono">0</span>
+                    </div>
+                    <p class="text-[8px] text-slate-600 mt-3 italic">* 每月投入從第 2 個月開始計算，採月複利計息。</p>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-8">
+                <button onclick="closeModal('compoundModal')" class="flex-1 bg-slate-800 text-slate-400 py-4 rounded-2xl font-bold btn-action uppercase text-xs">關閉</button>
+                <button onclick="calculateCompound()" class="flex-1 bg-emerald-500 text-black py-4 rounded-2xl font-black btn-action uppercase text-xs shadow-lg shadow-emerald-500/20">開始計算</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 其餘資產管理 UI 保持不變 -->
     <div id="addModal">
         <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-cyan-500/30 p-8 shadow-2xl">
             <h3 class="text-xl font-black text-cyan-400 italic mb-6 uppercase tracking-widest">Add Asset</h3>
@@ -149,7 +202,6 @@
         </div>
     </div>
 
-    <!-- Sell Asset Modal -->
     <div id="sellModal">
         <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-rose-500/30 p-8 shadow-2xl">
             <h3 class="text-xl font-black text-rose-400 italic mb-6 uppercase tracking-widest">Sell Asset</h3>
@@ -176,7 +228,6 @@
         </div>
     </div>
 
-    <!-- Edit Asset Modal -->
     <div id="editModal">
         <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-amber-500/30 p-8 shadow-2xl">
             <h3 class="text-xl font-black text-amber-400 italic mb-6 uppercase tracking-widest" id="editModalTitle">Edit Asset</h3>
@@ -210,7 +261,6 @@
         </div>
     </div>
 
-    <!-- Info Modal -->
     <div id="infoModal">
         <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-white/10 p-8 shadow-2xl max-h-[85vh] overflow-y-auto no-scrollbar">
             <h3 class="text-xl font-black text-white italic mb-4 uppercase tracking-widest border-b border-white/10 pb-2">User Guide</h3>
@@ -225,16 +275,15 @@
                     <p>點擊列表右側的 <span class="text-rose-500 font-bold">垃圾桶圖示</span> 可直接將該資產從組合中移除。</p>
                 </section>
                 <section>
-                    <h4 class="text-cyan-400 font-black uppercase mb-2 tracking-tighter">🔒 隱私保護</h4>
-                    <p>點擊頂部 <span class="text-white">眼睛圖示</span> 隱藏具體金額。</p>
+                    <h4 class="text-emerald-400 font-black uppercase mb-2 tracking-tighter">🧮 複利計算</h4>
+                    <p>點擊頂部工具欄的 <span class="text-white">計算機圖示</span> 可進行試算，每月投入從第 2 個月開始計入。</p>
                 </section>
             </div>
-            <button onclick="closeInfoModal()" class="mt-8 w-full bg-cyan-500 text-black py-4 rounded-2xl font-black btn-action uppercase text-xs shadow-lg shadow-cyan-500/20">我知道了</button>
+            <button onclick="closeModal('infoModal')" class="mt-8 w-full bg-cyan-500 text-black py-4 rounded-2xl font-black btn-action uppercase text-xs shadow-lg shadow-cyan-500/20">我知道了</button>
         </div>
     </div>
 
     <div class="max-w-md mx-auto">
-        <!-- Header -->
         <header class="flex flex-col items-stretch justify-between mb-8 pt-4 gap-4 w-full">
             <div class="flex justify-between items-center w-full">
                 <div class="brand-area">
@@ -246,7 +295,13 @@
                     </p>
                 </div>
                 <div class="flex gap-2">
-                    <button onclick="openInfoModal()" class="w-8 h-8 rounded-xl bg-slate-800/40 border border-cyan-500/10 flex items-center justify-center text-[10px] text-cyan-400 font-bold btn-action">?</button>
+                    <button onclick="openModal('compoundModal')" class="w-8 h-8 rounded-xl bg-slate-800/40 border border-emerald-500/10 flex items-center justify-center btn-action">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#10b981" viewBox="0 0 16 16">
+                            <path d="M12 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h8zM4 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H4z"/>
+                            <path d="M4 2.5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-7a.5.5 0 0 1-.5-.5v-2zm0 4a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm0 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm0 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm3-6a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm0 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm0 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm3-6a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm0 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-4z"/>
+                        </svg>
+                    </button>
+                    <button onclick="openModal('infoModal')" class="w-8 h-8 rounded-xl bg-slate-800/40 border border-cyan-500/10 flex items-center justify-center text-[10px] text-cyan-400 font-bold btn-action">?</button>
                     <button onclick="togglePrivacy()" id="privacyBtn" class="w-8 h-8 rounded-xl bg-slate-800/40 border border-cyan-500/10 flex items-center justify-center text-cyan-400 btn-action">
                         <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                             <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/><path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/>
@@ -383,10 +438,46 @@
         function openModal(id) { document.getElementById(id).style.display = 'flex'; }
         function closeModal(id) { 
             document.getElementById(id).style.display = 'none'; 
-            const inputs = document.getElementById(id).querySelectorAll('input');
-            inputs.forEach(i => { if(i.type === 'checkbox') i.checked = false; else i.value = ''; });
+            if (id !== 'compoundModal') {
+                const inputs = document.getElementById(id).querySelectorAll('input');
+                inputs.forEach(i => { if(i.type === 'checkbox') i.checked = false; else i.value = ''; });
+            }
         }
 
+        /**
+         * 修正後的複利計算邏輯
+         * 1. 初始資金 (P) 第 1 個月即計算複利。
+         * 2. 每月投入 (M) 從第 2 個月開始併入本金並計算複利。
+         */
+        function calculateCompound() {
+            const P = parseFloat(document.getElementById('compPrincipal').value) || 0;
+            const annualRate = parseFloat(document.getElementById('compRate').value) || 0;
+            const years = parseFloat(document.getElementById('compYears').value) || 0;
+            const monthlyContribution = parseFloat(document.getElementById('compMonthly').value) || 0;
+
+            const monthlyRate = (annualRate / 100) / 12;
+            const months = years * 12;
+
+            let total = P;
+            let totalInvested = P;
+            
+            for (let m = 1; m <= months; m++) {
+                // 如果是第 2 個月(含)以後，先加入每月投入金額
+                if (m > 1) {
+                    total += monthlyContribution;
+                    totalInvested += monthlyContribution;
+                }
+                
+                // 每月月底結算複利
+                total *= (1 + monthlyRate);
+            }
+
+            document.getElementById('compResultTotal').innerText = formatVal(Math.round(total), 0, false);
+            document.getElementById('compResultPrincipal').innerText = formatVal(Math.round(totalInvested), 0, false);
+            document.getElementById('compResultProfit').innerText = formatVal(Math.round(total - totalInvested), 0, false);
+        }
+
+        // 其餘原有功能函式
         function openEditModal(id) {
             const item = portfolio.find(p => p.id === id);
             if (!item) return;
@@ -419,13 +510,10 @@
             closeModal('editModal');
         }
 
-        function openInfoModal() { document.getElementById('infoModal').style.display = 'flex'; }
-        function closeInfoModal() { document.getElementById('infoModal').style.display = 'none'; }
-
         async function processAddAsset() {
             const sym = document.getElementById('modalSymbol').value.trim().toUpperCase();
             const shares = parseFloat(document.getElementById('modalShares').value) || 0;
-            const cost = parseFloat(document.getElementById('modalShares').value) || 0;
+            const cost = parseFloat(document.getElementById('modalCost').value) || 0;
             if (!sym || shares <= 0) return;
             const existingIndex = portfolio.findIndex(p => p.symbol === sym);
             if (existingIndex !== -1) {
