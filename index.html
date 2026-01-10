@@ -58,7 +58,7 @@
         
         .btn-action:active { transform: scale(0.96); opacity: 0.8; }
 
-        #addModal, #sellModal, #editModal, #infoModal, #compoundModal {
+        #addModal, #sellModal, #editModal, #infoModal, #compoundModal, #confirmDeleteModal {
             display: none;
             position: fixed;
             inset: 0;
@@ -118,9 +118,29 @@
         }
         input:checked + .slider { background-color: #f43f5e; }
         input:checked + .slider:before { transform: translateX(20px); }
+        
+        .switch-bond input:checked + .slider { background-color: #a855f7; }
     </style>
 </head>
 <body>
+    <!-- 確認刪除彈窗 -->
+    <div id="confirmDeleteModal">
+        <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-rose-500/30 p-8 shadow-2xl text-center">
+            <div class="w-16 h-16 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-rose-500/20">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="#f43f5e" viewBox="0 0 16 16">
+                    <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                    <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                </svg>
+            </div>
+            <h3 class="text-xl font-black text-rose-400 italic mb-2 uppercase tracking-widest">Confirm Delete</h3>
+            <p class="text-xs text-slate-400 mb-8 font-medium">確定要從組合中永久刪除 <span id="deleteTargetName" class="text-white font-bold"></span> 嗎？此動作無法復原。</p>
+            <div class="flex gap-3">
+                <button onclick="closeModal('confirmDeleteModal')" class="flex-1 bg-slate-800 text-slate-400 py-4 rounded-2xl font-bold btn-action uppercase text-xs">取消</button>
+                <button id="finalDeleteBtn" class="flex-1 bg-rose-500 text-white py-4 rounded-2xl font-black btn-action uppercase text-xs shadow-lg shadow-rose-500/20">確認刪除</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 複利計算機彈窗 -->
     <div id="compoundModal">
         <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-emerald-500/30 p-8 shadow-2xl">
@@ -175,7 +195,7 @@
         </div>
     </div>
 
-    <!-- 其餘資產管理 UI 保持不變 -->
+    <!-- 資產管理 UI -->
     <div id="addModal">
         <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-cyan-500/30 p-8 shadow-2xl">
             <h3 class="text-xl font-black text-cyan-400 italic mb-6 uppercase tracking-widest">Add Asset</h3>
@@ -232,7 +252,7 @@
         <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-amber-500/30 p-8 shadow-2xl">
             <h3 class="text-xl font-black text-amber-400 italic mb-6 uppercase tracking-widest" id="editModalTitle">Edit Asset</h3>
             <input type="hidden" id="editId">
-            <div class="space-y-4">
+            <div class="space-y-3">
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">持有股數</label>
@@ -243,13 +263,23 @@
                         <input type="number" id="editCost" placeholder="0.00" class="w-full rounded-2xl p-4 font-mono">
                     </div>
                 </div>
-                <div class="flex items-center justify-between p-4 bg-slate-900/50 rounded-2xl border border-white/5 mt-2">
+                <div class="flex items-center justify-between p-4 bg-slate-900/50 rounded-2xl border border-white/5">
                     <div class="flex flex-col">
                         <span class="text-[10px] uppercase font-bold text-slate-400">槓桿型標的</span>
-                        <span class="text-[8px] text-slate-500">是否標示為槓桿標的並計算至策略佔比</span>
+                        <span class="text-[8px] text-slate-500">標示後將計入策略佔比</span>
                     </div>
                     <label class="switch">
                         <input type="checkbox" id="editLeverage">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="flex items-center justify-between p-4 bg-slate-900/50 rounded-2xl border border-white/5">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] uppercase font-bold text-slate-400">債券型標的</span>
+                        <span class="text-[8px] text-slate-500">歸類至債券分類區塊</span>
+                    </div>
+                    <label class="switch switch-bond">
+                        <input type="checkbox" id="editIsBond">
                         <span class="slider"></span>
                     </label>
                 </div>
@@ -268,11 +298,11 @@
                 <section>
                     <h4 class="text-cyan-400 font-black uppercase mb-2 tracking-tighter">🚀 快速開始</h4>
                     <p>1. 點擊 <span class="text-white">「+ 新增」</span> 輸入標的。</p>
-                    <p>2. 點擊列表中的 <span class="text-white">「編輯」</span> 可修改股數、均價及槓桿標記。</p>
+                    <p>2. 點擊列表中的 <span class="text-white">「編輯」</span> 可修改股數、均價、槓桿及債券屬性。</p>
                 </section>
                 <section>
                     <h4 class="text-rose-400 font-black uppercase mb-2 tracking-tighter">🗑️ 刪除資產</h4>
-                    <p>點擊列表右側的 <span class="text-rose-500 font-bold">垃圾桶圖示</span> 可直接將該資產從組合中移除。</p>
+                    <p>點擊列表右側的 <span class="text-rose-500 font-bold">垃圾桶圖示</span>，確認後即可將該資產移除。</p>
                 </section>
                 <section>
                     <h4 class="text-emerald-400 font-black uppercase mb-2 tracking-tighter">🧮 複利計算</h4>
@@ -291,7 +321,7 @@
                     <p class="text-[10px] font-bold italic uppercase tracking-wider mt-2 ml-0.5 opacity-60">
                         <span class="text-slate-400">BY OWEN</span>
                         <span class="text-slate-600 mx-1.5 font-normal">/</span>
-                        <span class="text-slate-500">V1.1 PRO</span>
+                        <span class="text-slate-500">V2.0 PRO</span>
                     </p>
                 </div>
                 <div class="flex gap-2">
@@ -311,10 +341,10 @@
             </div>
 
             <div class="glass-card px-5 py-5 rounded-[2rem] border border-cyan-500/40 shadow-[0_0_40px_rgba(0,242,255,0.1)] flex flex-col w-full">
-                <div class="flex justify-between items-start mb-4">
+                <div class="flex justify-between items-end mb-4">
                     <div class="flex flex-col">
-                        <span class="text-[9px] text-slate-500 uppercase font-black tracking-widest mb-1">Total Cost</span>
-                        <div class="flex items-baseline"><span class="text-[8px] text-slate-600 font-mono mr-1">TWD</span><span id="totalCostDisplay" class="text-lg font-mono font-bold text-slate-300 tracking-tighter">0</span></div>
+                        <span class="text-[8px] text-slate-500 uppercase font-black tracking-widest mb-1 opacity-80">Total Cost</span>
+                        <div class="flex items-baseline"><span class="text-[7px] text-slate-600 font-mono mr-1">TWD</span><span id="totalCostDisplay" class="text-sm font-mono font-bold text-slate-400 tracking-tighter">0</span></div>
                     </div>
                     <div class="flex flex-col items-end">
                         <span class="text-[10px] text-cyan-400/70 uppercase font-black tracking-[0.2em] mb-1">Market Value</span>
@@ -328,7 +358,6 @@
             </div>
         </header>
 
-        <!-- Portfolio Table -->
         <div class="glass-card rounded-[2rem] border border-slate-800/80 overflow-hidden mb-6 shadow-xl w-full">
             <div class="p-5 border-b border-slate-800/50 flex justify-between items-center bg-slate-900/40">
                 <h2 class="font-bold text-[12px] text-cyan-400 uppercase tracking-widest italic">Portfolio</h2>
@@ -360,7 +389,6 @@
             </div>
         </div>
 
-        <!-- Charts Area -->
         <div class="grid grid-cols-1 gap-6 mb-6 w-full">
             <div class="glass-card p-5 rounded-[2rem] border border-slate-800/80 shadow-lg overflow-hidden w-full">
                 <div class="flex items-center justify-between mb-4 px-1">
@@ -377,7 +405,6 @@
             </div>
         </div>
 
-        <!-- Rebalance Area -->
         <div class="glass-card p-6 rounded-[2rem] border border-slate-800 mb-20 shadow-2xl w-full">
             <div class="flex items-center justify-between mb-6">
                 <div>
@@ -438,46 +465,30 @@
         function openModal(id) { document.getElementById(id).style.display = 'flex'; }
         function closeModal(id) { 
             document.getElementById(id).style.display = 'none'; 
-            if (id !== 'compoundModal') {
+            if (id !== 'compoundModal' && id !== 'confirmDeleteModal') {
                 const inputs = document.getElementById(id).querySelectorAll('input');
                 inputs.forEach(i => { if(i.type === 'checkbox') i.checked = false; else i.value = ''; });
             }
         }
 
-        /**
-         * 修正後的複利計算邏輯
-         * 1. 初始資金 (P) 第 1 個月即計算複利。
-         * 2. 每月投入 (M) 從第 2 個月開始併入本金並計算複利。
-         */
         function calculateCompound() {
             const P = parseFloat(document.getElementById('compPrincipal').value) || 0;
             const annualRate = parseFloat(document.getElementById('compRate').value) || 0;
             const years = parseFloat(document.getElementById('compYears').value) || 0;
             const monthlyContribution = parseFloat(document.getElementById('compMonthly').value) || 0;
-
             const monthlyRate = (annualRate / 100) / 12;
             const months = years * 12;
-
             let total = P;
             let totalInvested = P;
-            
             for (let m = 1; m <= months; m++) {
-                // 如果是第 2 個月(含)以後，先加入每月投入金額
-                if (m > 1) {
-                    total += monthlyContribution;
-                    totalInvested += monthlyContribution;
-                }
-                
-                // 每月月底結算複利
+                if (m > 1) { total += monthlyContribution; totalInvested += monthlyContribution; }
                 total *= (1 + monthlyRate);
             }
-
             document.getElementById('compResultTotal').innerText = formatVal(Math.round(total), 0, false);
             document.getElementById('compResultPrincipal').innerText = formatVal(Math.round(totalInvested), 0, false);
             document.getElementById('compResultProfit').innerText = formatVal(Math.round(total - totalInvested), 0, false);
         }
 
-        // 其餘原有功能函式
         function openEditModal(id) {
             const item = portfolio.find(p => p.id === id);
             if (!item) return;
@@ -485,6 +496,7 @@
             document.getElementById('editShares').value = item.shares;
             document.getElementById('editCost').value = item.cost;
             document.getElementById('editLeverage').checked = !!item.isLeverage;
+            document.getElementById('editIsBond').checked = (item.category === 'BOND');
             document.getElementById('editModalTitle').innerText = `Edit ${item.symbol}`;
             openModal('editModal');
         }
@@ -494,17 +506,24 @@
             const shares = parseFloat(document.getElementById('editShares').value) || 0;
             const cost = parseFloat(document.getElementById('editCost').value) || 0;
             const isLvrg = document.getElementById('editLeverage').checked;
+            const isBond = document.getElementById('editIsBond').checked;
             
-            if (shares <= 0) {
-                removeRow(id);
+            if (shares <= 0) { 
+                triggerDeleteConfirm(id); 
             } else {
                 const item = portfolio.find(p => p.id === id);
-                if (item) {
-                    item.shares = shares;
-                    item.cost = cost;
+                if (item) { 
+                    item.shares = shares; 
+                    item.cost = cost; 
                     item.isLeverage = isLvrg;
-                    saveToStorage();
-                    render();
+                    if (isBond) {
+                        item.category = 'BOND';
+                    } else if (item.category === 'BOND') {
+                        const info = getCategoryInfo(item.symbol, item.name);
+                        item.category = info.cat === 'BOND' ? (/^\d/.test(item.symbol) ? 'TW' : 'US') : info.cat;
+                    }
+                    saveToStorage(); 
+                    render(); 
                 }
             }
             closeModal('editModal');
@@ -527,26 +546,22 @@
                 portfolio.push(newItem);
                 await fetchPriceAndInfo(newItem);
             }
-            saveToStorage();
-            render(); 
-            closeModal('addModal');
+            saveToStorage(); render(); closeModal('addModal');
         }
 
         function processSellAsset() {
             const sym = document.getElementById('sellSymbol').value.trim().toUpperCase();
             const sharesToSell = parseFloat(document.getElementById('sellShares').value) || 0;
             if (!sym || sharesToSell <= 0) return;
-            
             const existingIndex = portfolio.findIndex(p => p.symbol === sym);
             if (existingIndex !== -1) {
                 const p = portfolio[existingIndex];
-                if (sharesToSell >= p.shares) {
-                    portfolio.splice(existingIndex, 1);
-                } else {
-                    p.shares -= sharesToSell;
+                if (sharesToSell >= p.shares) { 
+                    triggerDeleteConfirm(p.id);
+                } else { 
+                    p.shares -= sharesToSell; 
+                    saveToStorage(); render(); 
                 }
-                saveToStorage();
-                render();
                 closeModal('sellModal');
             }
         }
@@ -577,9 +592,7 @@
             btn.innerText = "WAIT..."; btn.disabled = true;
             await fetchFX();
             for (let item of portfolio) { await fetchPriceAndInfo(item); await new Promise(r => setTimeout(r, 100)); }
-            saveToStorage();
-            finalizeUpdate();
-            render();
+            saveToStorage(); finalizeUpdate(); render();
             btn.innerText = "更新"; btn.disabled = false;
         }
 
@@ -609,10 +622,18 @@
             if (item) { item[field] = parseFloat(val) || 0; saveAndRefresh(); }
         }
 
-        function removeRow(id) {
-            portfolio = portfolio.filter(p => p.id !== id);
-            saveToStorage();
-            render();
+        function triggerDeleteConfirm(id) {
+            const item = portfolio.find(p => p.id === id);
+            if (!item) return;
+            document.getElementById('deleteTargetName').innerText = `${item.symbol} (${item.name})`;
+            const btn = document.getElementById('finalDeleteBtn');
+            btn.onclick = () => {
+                portfolio = portfolio.filter(p => p.id !== id);
+                saveToStorage();
+                closeModal('confirmDeleteModal');
+                render();
+            };
+            openModal('confirmDeleteModal');
         }
 
         function saveAndRefresh() { saveToStorage(); finalizeUpdate(); }
@@ -653,7 +674,7 @@
             pDisp.innerText = (totalProfit > 0 ? '+' : '') + formatVal(Math.round(totalProfit), 0, true);
             pDisp.className = `text-sm font-mono font-bold leading-none ${totalProfit >= 0 ? 'text-rose-500' : 'text-emerald-500'}`;
             pctDisp.innerText = (totalProfit > 0 ? '+' : '') + totalProfitPct + '%';
-            pctDisp.className = `text-sm font-black leading-none ${totalProfit >= 0 ? 'text-rose-500' : 'text-emerald-500'}`;
+            pctDisp.className = `text-sm font-black font-bold leading-none ${totalProfit >= 0 ? 'text-rose-500' : 'text-emerald-500'}`;
             drawMainCharts(grandTotal, extraCash);
             drawTargetChart();
         }
@@ -684,7 +705,7 @@
                                 <button onclick="openEditModal(${item.id})" class="text-amber-500/60 hover:text-amber-400 btn-action p-2">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>
                                 </button>
-                                <button onclick="removeRow(${item.id})" class="text-rose-500/60 hover:text-rose-500 btn-action p-2">
+                                <button onclick="triggerDeleteConfirm(${item.id})" class="text-rose-500/60 hover:text-rose-500 btn-action p-2">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
                                         <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
                                         <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
@@ -766,43 +787,56 @@
 
         function triggerAdvice() {
             const container = document.getElementById('adviceContainer');
-            const extraCash = parseFloat(document.getElementById('extraCash').value) || 0;
-            const activeAssets = portfolio.filter(i => i.target > 0);
-            const targetSum = activeAssets.reduce((a, b) => a + b.target, 0);
-            const currentActiveMarketValue = activeAssets.reduce((a, b) => a + b.currentValTWD, 0);
-            const finalPoolSnapshot = currentActiveMarketValue + extraCash;
-            if (finalPoolSnapshot <= 0 || targetSum <= 0) {
-                container.innerHTML = `<div class="text-center py-4 text-[9px] text-slate-500 uppercase tracking-widest">請先設定目標比例 (%)</div>`;
+            const additional_cash = parseFloat(document.getElementById('extraCash').value) || 0;
+            const rebalance_assets = portfolio.filter(i => i.target > 0);
+            if (rebalance_assets.length === 0) {
+                container.innerHTML = `<div class="text-center py-4 text-[9px] text-slate-500 uppercase tracking-widest">請先在目標%欄位輸入比例</div>`;
                 return;
             }
-            container.innerHTML = '';
-            let trades = activeAssets.map(item => {
-                const idealValueTWD = finalPoolSnapshot * (item.target / targetSum);
-                const gapTWD = idealValueTWD - item.currentValTWD;
-                const fx = item.currency === 'USD' ? globalFxRate : 1;
-                const unitPriceTWD = item.price * fx;
-                let unitDiff = unitPriceTWD > 0 ? Math.floor(Math.abs(gapTWD) / unitPriceTWD) : 0;
-                return { item, isBuy: gapTWD > 0, units: unitDiff, amountTWD: unitDiff * unitPriceTWD };
-            }).sort((a, b) => a.isBuy - b.isBuy);
-            trades.forEach(trade => {
-                if (trade.units > 0) {
-                    const div = document.createElement('div');
-                    div.className = `p-4 rounded-2xl border ${trade.isBuy ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-rose-500/20 bg-rose-500/5'} flex justify-between items-center shadow-sm`;
-                    div.innerHTML = `
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full flex items-center justify-center font-black text-[10px] ${trade.isBuy ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}\">${trade.isBuy ? '買' : '賣'}</div>
-                            <div>
-                                <span class="text-[10px] font-black text-white uppercase tracking-wider">${trade.item.symbol}</span>
-                                <div class="text-[9px] text-slate-500 font-bold mt-0.5 uppercase">預估金額 ${formatVal(Math.round(trade.amountTWD), 0, true)} TWD</div>
-                            </div>
-                        </div>
-                        <div class="text-right">
-                            <span class="font-black ${trade.isBuy?'text-emerald-400':'text-rose-400'} text-xs uppercase italic tracking-tighter">${trade.isBuy?'+':'-'} ${formatVal(trade.units, 0, true)} 股</span>
-                        </div>`;
-                    container.appendChild(div);
-                }
+            const base_total_value = rebalance_assets.reduce((sum, asset) => sum + asset.currentValTWD, 0);
+            const final_total_value = base_total_value + additional_cash;
+            const total_target_units = rebalance_assets.reduce((sum, asset) => sum + asset.target, 0);
+            let rebalance_result = rebalance_assets.map(asset => {
+                const target_ratio = asset.target / total_target_units;
+                const target_value = final_total_value * target_ratio;
+                const adjustment = target_value - asset.currentValTWD;
+                const fx = asset.currency === 'USD' ? globalFxRate : 1;
+                const unitPriceTWD = asset.price * fx;
+                const share_adjustment = unitPriceTWD > 0 ? Math.floor(Math.abs(adjustment) / unitPriceTWD) : 0;
+                return {
+                    asset_id: asset.symbol,
+                    current_value: asset.currentValTWD,
+                    target_ratio: target_ratio,
+                    target_value: target_value,
+                    adjustment: adjustment,
+                    action: adjustment > 1 ? "buy" : (adjustment < -1 ? "sell" : "hold"),
+                    shares: share_adjustment,
+                    amountTWD: share_adjustment * unitPriceTWD
+                };
             });
-            if (container.innerHTML === '') container.innerHTML = `<div class="text-center py-4 text-[9px] text-slate-500 uppercase tracking-widest">配置已達平衡，無需交易</div>`;
+            container.innerHTML = '';
+            const filteredResults = rebalance_result.filter(r => r.shares > 0).sort((a, b) => (a.action === 'sell' ? -1 : 1));
+            if (filteredResults.length === 0) {
+                container.innerHTML = `<div class="text-center py-4 text-[9px] text-slate-500 uppercase tracking-widest">配置已達平衡，無需交易</div>`;
+                return;
+            }
+            filteredResults.forEach(res => {
+                const isBuy = res.action === 'buy';
+                const div = document.createElement('div');
+                div.className = `p-4 rounded-2xl border ${isBuy ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-rose-500/20 bg-rose-500/5'} flex justify-between items-center shadow-sm`;
+                div.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center font-black text-[10px] ${isBuy ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}\">${isBuy ? '買' : '賣'}</div>
+                        <div>
+                            <span class="text-[10px] font-black text-white uppercase tracking-wider">${res.asset_id}</span>
+                            <div class="text-[9px] text-slate-500 font-bold mt-0.5 uppercase">預估金額 ${formatVal(Math.round(res.amountTWD), 0, true)} TWD</div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="font-black ${isBuy?'text-emerald-400':'text-rose-400'} text-xs uppercase italic tracking-tighter">${isBuy?'+':'-'} ${formatVal(res.shares, 0, true)} 股</span>
+                    </div>`;
+                container.appendChild(div);
+            });
         }
 
         window.onload = async () => { 
