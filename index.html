@@ -58,7 +58,7 @@
         
         .btn-action:active { transform: scale(0.96); opacity: 0.8; }
 
-        #addModal, #sellModal, #editModal, #infoModal, #compoundModal, #confirmDeleteModal {
+        #addModal, #buyModal, #sellModal, #editModal, #infoModal, #compoundModal, #confirmDeleteModal, #editTradeModal, #deleteTradeModal {
             display: none;
             position: fixed;
             inset: 0;
@@ -120,6 +120,28 @@
         input:checked + .slider:before { transform: translateX(20px); }
         
         .switch-bond input:checked + .slider { background-color: #a855f7; }
+
+        .glowing-effect {
+            animation: glowing 1.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes glowing {
+            from { text-shadow: 0 0 5px rgba(0, 242, 255, 0.3); }
+            to { text-shadow: 0 0 20px rgba(0, 242, 255, 0.6); }
+        }
+
+        .scrolling-version-line {
+            display: inline-block;
+            animation: scrollLeft 12s linear infinite;
+            white-space: nowrap;
+        }
+
+        @keyframes scrollLeft {
+            0% { transform: translateX(100%); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateX(-100%); opacity: 0; }
+        }
     </style>
 </head>
 <body>
@@ -222,6 +244,42 @@
         </div>
     </div>
 
+    <div id="buyModal">
+        <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-emerald-500/30 p-8 shadow-2xl">
+            <h3 class="text-xl font-black text-emerald-400 italic mb-6 uppercase tracking-widest">Buy Asset</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">標的代碼</label>
+                    <input type="text" id="buySymbol" placeholder="例如: 2330 或 VOO" class="w-full rounded-2xl p-4 font-black uppercase">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">買入股數</label>
+                        <input type="number" id="buyShares" placeholder="0" oninput="updateBuyModalCash()" class="w-full rounded-2xl p-4 font-mono">
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">買入單價</label>
+                        <input type="number" id="buyPrice" placeholder="0.00" oninput="updateBuyModalCash()" class="w-full rounded-2xl p-4 font-mono">
+                    </div>
+                </div>
+                <div class="p-4 bg-slate-900/50 rounded-2xl border border-white/5">
+                    <div class="flex justify-between items-center text-[10px]">
+                        <span class="text-slate-500">所需資金</span>
+                        <span id="buyRequiredCash" class="text-emerald-400 font-mono font-bold">0</span>
+                    </div>
+                    <div class="flex justify-between items-center text-[10px] mt-1">
+                        <span class="text-slate-500">現金水位</span>
+                        <span id="buyAvailableCash" class="text-slate-300 font-mono">0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-8">
+                <button onclick="closeModal('buyModal')" class="flex-1 bg-slate-800 text-slate-400 py-4 rounded-2xl font-bold btn-action uppercase text-xs">取消</button>
+                <button onclick="processBuyAsset()" class="flex-1 bg-emerald-500 text-black py-4 rounded-2xl font-black btn-action uppercase text-xs shadow-lg shadow-emerald-500/20" id="buyConfirmBtn">確認買入</button>
+            </div>
+        </div>
+    </div>
+
     <div id="sellModal">
         <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-rose-500/30 p-8 shadow-2xl">
             <h3 class="text-xl font-black text-rose-400 italic mb-6 uppercase tracking-widest">Sell Asset</h3>
@@ -233,11 +291,21 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">賣出股數</label>
-                        <input type="number" id="sellShares" placeholder="0" class="w-full rounded-2xl p-4 font-mono">
+                        <input type="number" id="sellShares" placeholder="0" oninput="updateSellModalCash()" class="w-full rounded-2xl p-4 font-mono">
                     </div>
                     <div>
                         <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">賣出單價</label>
-                        <input type="number" id="sellPrice" placeholder="0.00" class="w-full rounded-2xl p-4 font-mono">
+                        <input type="number" id="sellPrice" placeholder="0.00" oninput="updateSellModalCash()" class="w-full rounded-2xl p-4 font-mono">
+                    </div>
+                </div>
+                <div class="p-4 bg-slate-900/50 rounded-2xl border border-white/5">
+                    <div class="flex justify-between items-center text-[10px]">
+                        <span class="text-slate-500">獲得資金</span>
+                        <span id="sellGainCash" class="text-rose-400 font-mono font-bold">0</span>
+                    </div>
+                    <div class="flex justify-between items-center text-[10px] mt-1">
+                        <span class="text-slate-500">現金水位</span>
+                        <span id="sellCurrentCash" class="text-slate-300 font-mono">0</span>
                     </div>
                 </div>
             </div>
@@ -313,15 +381,61 @@
         </div>
     </div>
 
+    <!-- 編輯交易記錄模態框 -->
+    <div id="editTradeModal" class="modal" style="display: none;">
+        <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-amber-500/30 p-8 shadow-2xl">
+            <h3 class="text-xl font-black text-amber-400 italic mb-6 uppercase tracking-widest">編輯交易記錄</h3>
+            <div class="space-y-4">
+                <div class="text-sm text-slate-400 mb-4">
+                    <p><span class="text-white font-bold" id="editTradeSymbol"></span></p>
+                    <p class="text-xs mt-1">當前價格: <span id="editTradeCurrentPrice" class="text-cyan-400"></span></p>
+                    <p class="text-xs">當前股數: <span id="editTradeCurrentShares" class="text-cyan-400"></span></p>
+                </div>
+                <div>
+                    <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">編輯選項</label>
+                    <select id="editTradeType" class="w-full bg-slate-900/80 border border-slate-700/50 rounded-2xl px-4 py-3 text-white focus:border-amber-500/50 focus:outline-none text-sm">
+                        <option value="price">編輯價格</option>
+                        <option value="shares">編輯股數</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">新數值</label>
+                    <input type="number" id="editTradeNewValue" step="0.01" class="w-full bg-slate-900/80 border border-slate-700/50 rounded-2xl px-4 py-3 text-white focus:border-amber-500/50 focus:outline-none text-sm" placeholder="輸入新數值">
+                </div>
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button onclick="closeModal('editTradeModal')" class="flex-1 bg-slate-800 text-slate-400 py-3 rounded-2xl font-bold btn-action uppercase text-xs">取消</button>
+                <button onclick="confirmEditTrade()" class="flex-1 bg-amber-500 text-black py-3 rounded-2xl font-black btn-action uppercase text-xs shadow-lg shadow-amber-500/20">確認修改</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 刪除交易記錄確認模態框 -->
+    <div id="deleteTradeModal" class="modal" style="display: none;">
+        <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-rose-500/30 p-8 shadow-2xl">
+            <h3 class="text-xl font-black text-rose-400 italic mb-6 uppercase tracking-widest">確認刪除</h3>
+            <div class="text-sm text-slate-400 mb-6">
+                <p>確定要刪除 <span class="text-white font-bold" id="deleteTradeSymbol"></span> 的交易記錄嗎？</p>
+                <p class="text-xs mt-2 text-rose-400">此操作無法復原！</p>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeModal('deleteTradeModal')" class="flex-1 bg-slate-800 text-slate-400 py-3 rounded-2xl font-bold btn-action uppercase text-xs">取消</button>
+                <button onclick="confirmDeleteTrade()" class="flex-1 bg-rose-500 text-white py-3 rounded-2xl font-black btn-action uppercase text-xs shadow-lg shadow-rose-500/20">確認刪除</button>
+            </div>
+        </div>
+    </div>
+
     <div class="max-w-md mx-auto">
         <header class="flex flex-col items-stretch justify-between mb-8 pt-4 gap-4 w-full">
             <div class="flex justify-between items-center w-full">
                 <div class="brand-area">
                     <h1 class="text-[2.2rem] font-[950] neon-text italic tracking-[-0.08em] uppercase leading-[0.8]">StockLens</h1>
                     <p class="text-[10px] font-bold italic uppercase tracking-wider mt-2 ml-0.5 opacity-60">
-                        <span class="text-slate-400">BY OWEN</span>
-                        <span class="text-slate-600 mx-1.5 font-normal">/</span>
-                        <span class="text-slate-500">V2.0 PRO</span>
+                        <span class="scrolling-version-line">
+                            <span class="text-slate-400">BY OWEN</span>
+                            <span class="text-slate-600 mx-1.5 font-normal">/</span>
+                            <span class="text-slate-500">V3.0 PRO</span>
+                        </span>
                     </p>
                 </div>
                 <div class="flex gap-2">
@@ -364,7 +478,20 @@
                 <div class="flex gap-2">
                     <button id="refreshBtn" onclick="handleRefreshClick()" class="bg-cyan-500/10 text-cyan-400 text-[9px] px-3 py-2 rounded-xl font-bold border border-cyan-500/20 btn-action uppercase">更新</button>
                     <button onclick="openModal('sellModal')" class="bg-rose-500/10 text-rose-400 text-[9px] px-3 py-2 rounded-xl font-bold border border-rose-500/20 btn-action uppercase">- 賣出</button>
+                    <button onclick="openModal('buyModal')" class="bg-emerald-500/10 text-emerald-400 text-[9px] px-3 py-2 rounded-xl font-bold border border-emerald-500/20 btn-action uppercase">+ 買入</button>
                     <button onclick="openModal('addModal')" class="bg-cyan-500 text-black text-[9px] px-3 py-2 rounded-xl font-black btn-action uppercase shadow-lg shadow-cyan-500/20">+ 新增</button>
+                </div>
+            </div>
+
+            <!-- 现金水位功能 -->
+            <div class="px-5 py-3 bg-slate-900/20 border-b border-slate-800/30 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="text-emerald-400 font-black text-lg">$</span>
+                    <span class="text-[10px] text-slate-500 uppercase font-black tracking-widest">現金水位</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-[9px] text-slate-500 font-mono">TWD</span>
+                    <input type="number" id="cashPosition" oninput="updateCashPosition()" value="0" class="w-24 py-1.5 px-3 text-right text-sm font-mono text-emerald-400 font-black shadow-inner rounded-lg bg-slate-800 border border-slate-600 focus:border-emerald-400 focus:outline-none">
                 </div>
             </div>
             
@@ -408,16 +535,54 @@
         <div class="glass-card p-6 rounded-[2rem] border border-slate-800 mb-20 shadow-2xl w-full">
             <div class="flex items-center justify-between mb-6">
                 <div>
-                    <h2 class="font-bold text-[12px] uppercase tracking-[0.1em] text-slate-300">Smart Rebalance</h2>
-                    <p class="text-[9px] text-slate-500 font-bold mt-1 uppercase italic">分配總資金</p>
+                    <h2 class="font-bold text-[12px] uppercase tracking-[0.1em] text-slate-300">資產再平衡</h2>
+                    <p class="text-[9px] text-slate-500 font-bold mt-1 uppercase italic">（建議一年一次）</p>
                 </div>
                 <div class="flex flex-col items-end">
-                    <span class="text-[9px] font-black text-emerald-500 uppercase mb-1 tracking-widest">新入金</span>
-                    <input type="number" id="extraCash" oninput="saveAndRefresh()" value="0" class="w-24 rounded-xl py-2 px-3 text-right text-sm font-mono text-emerald-400 font-black shadow-inner">
+                    <span class="text-[9px] font-black text-emerald-500 uppercase mb-1 tracking-widest">可用現金</span>
+                    <span id="availableCashDisplay" class="text-lg font-mono font-black text-emerald-500">0</span>
                 </div>
             </div>
             <div id="adviceContainer" class="space-y-3 min-h-[40px]"></div>
             <button onclick="triggerAdvice()" class="mt-6 w-full bg-cyan-500 text-black text-xs py-4 rounded-[1.2rem] font-black uppercase italic btn-action shadow-xl shadow-cyan-500/10">Calculate Trade Orders</button>
+        </div>
+
+        <!-- 總損益計算區域 -->
+        <div class="glass-card p-6 rounded-[2rem] border border-slate-800 mb-20 shadow-2xl w-full">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <div>
+                            <h2 class="font-bold text-[12px] uppercase tracking-[0.1em] text-slate-300">Total P&L Analysis</h2>
+                            <p class="text-[9px] text-slate-500 font-bold mt-1 uppercase italic">總損益分析</p>
+                        </div>
+                        <button onclick="togglePnLInfo()" class="text-amber-400/80 hover:text-amber-400 transition-colors" title="說明">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="pnlInfoBox" class="hidden mt-2 p-2 bg-slate-800/50 rounded-lg border border-amber-500/30 shadow-lg">
+                        <p class="text-[7px] text-slate-400 leading-relaxed">
+                            💡 <span class="text-amber-400/80 font-bold">自動管理機制</span>：交易記錄最多保留 10 筆，超過時自動刪除最舊的記錄。已刪除記錄的損益會累計保留在總實現損益中，不會因刪除而消失。
+                        </p>
+                    </div>
+                </div>
+                <div class="flex flex-col items-end">
+                    <span class="text-[9px] font-black text-emerald-500 uppercase mb-1 tracking-widest">總實現損益</span>
+                    <span id="totalRealizedPnL" class="text-lg font-mono font-black text-emerald-500">0</span>
+                    <span class="text-[7px] text-slate-500 mt-1 font-bold">含歷史累計</span>
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <button onclick="toggleTradeHistory()" class="w-full bg-slate-800 text-slate-300 text-xs py-3 rounded-[1rem] font-bold uppercase btn-action shadow-lg">查看交易記錄</button>
+            </div>
+
+            <div id="tradeHistoryContainer" class="hidden space-y-3 max-h-60 overflow-y-auto no-scrollbar">
+                <div id="tradeHistoryList" class="space-y-2"></div>
+                <div id="noTradesMessage" class="text-center py-4 text-[9px] text-slate-500 uppercase tracking-widest">尚無交易記錄</div>
+            </div>
         </div>
     </div>
 
@@ -425,24 +590,42 @@
         Chart.register(ChartDataLabels);
         let portfolio = JSON.parse(localStorage.getItem('stocklens_portfolio')) || [];
         let isPrivacyOn = JSON.parse(localStorage.getItem('stocklens_privacy')) || false;
+        let cashPosition = parseFloat(localStorage.getItem('stocklens_cashPosition')) || 0;
+        let tradeHistory = JSON.parse(localStorage.getItem('stocklens_tradeHistory')) || [];
+        let accumulatedRealizedPnL = parseFloat(localStorage.getItem('stocklens_accumulatedPnL')) || 0;
         let globalFxRate = 32.50;
         let mainChart = null, strategyChart = null, targetChart = null;
 
         function saveToStorage() {
             localStorage.setItem('stocklens_portfolio', JSON.stringify(portfolio));
             localStorage.setItem('stocklens_privacy', JSON.stringify(isPrivacyOn));
-            localStorage.setItem('stocklens_extra_cash', document.getElementById('extraCash').value);
+            localStorage.setItem('stocklens_cashPosition', cashPosition.toString());
+            localStorage.setItem('stocklens_tradeHistory', JSON.stringify(tradeHistory));
+            localStorage.setItem('stocklens_accumulatedPnL', accumulatedRealizedPnL.toString());
         }
 
         function loadFromStorage() {
-            const savedCash = localStorage.getItem('stocklens_extra_cash');
-            if (savedCash !== null) document.getElementById('extraCash').value = savedCash;
+            document.getElementById('cashPosition').value = cashPosition;
+            const cashDisplay = document.getElementById('availableCashDisplay');
+            if (cashDisplay) {
+                cashDisplay.textContent = formatVal(Math.round(cashPosition), 0, false);
+            }
             updatePrivacyUI();
         }
 
         function formatVal(val, decimals = 0, sensitive = false) {
             if (isPrivacyOn && sensitive) return '***';
             return Number(val).toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+        }
+
+        function updateCashPosition() {
+            cashPosition = parseFloat(document.getElementById('cashPosition').value) || 0;
+            saveToStorage();
+            const cashDisplay = document.getElementById('availableCashDisplay');
+            if (cashDisplay) {
+                animateNumber(cashDisplay, Math.round(cashPosition), 1000, false, 0, '');
+            }
+            finalizeUpdate();
         }
 
         function togglePrivacy() {
@@ -462,7 +645,47 @@
             }
         }
 
-        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function openModal(id) {
+            document.getElementById(id).style.display = 'flex';
+            if (id === 'buyModal') {
+                updateBuyModalCash();
+            } else if (id === 'sellModal') {
+                updateSellModalCash();
+            }
+        }
+
+        function updateBuyModalCash() {
+            const availableCashEl = document.getElementById('buyAvailableCash');
+            const requiredCashEl = document.getElementById('buyRequiredCash');
+            const confirmBtn = document.getElementById('buyConfirmBtn');
+
+            availableCashEl.textContent = formatVal(cashPosition, 0, false);
+
+            const shares = parseFloat(document.getElementById('buyShares').value) || 0;
+            const price = parseFloat(document.getElementById('buyPrice').value) || 0;
+            const required = shares * price;
+            requiredCashEl.textContent = formatVal(required, 0, false);
+
+            if (required > cashPosition) {
+                confirmBtn.disabled = true;
+                confirmBtn.classList.add('opacity-50');
+            } else {
+                confirmBtn.disabled = false;
+                confirmBtn.classList.remove('opacity-50');
+            }
+        }
+
+        function updateSellModalCash() {
+            const currentCashEl = document.getElementById('sellCurrentCash');
+            const gainCashEl = document.getElementById('sellGainCash');
+
+            currentCashEl.textContent = formatVal(cashPosition, 0, false);
+
+            const shares = parseFloat(document.getElementById('sellShares').value) || 0;
+            const price = parseFloat(document.getElementById('sellPrice').value) || 0;
+            const gain = shares * price;
+            gainCashEl.textContent = formatVal(gain, 0, false);
+        }
         function closeModal(id) { 
             document.getElementById(id).style.display = 'none'; 
             if (id !== 'compoundModal' && id !== 'confirmDeleteModal') {
@@ -507,14 +730,33 @@
             const cost = parseFloat(document.getElementById('editCost').value) || 0;
             const isLvrg = document.getElementById('editLeverage').checked;
             const isBond = document.getElementById('editIsBond').checked;
-            
-            if (shares <= 0) { 
-                triggerDeleteConfirm(id); 
+
+            if (shares <= 0) {
+                if (confirm('確定要將此資產移除嗎？剩餘價值將加入現金水位。')) {
+                    const item = portfolio.find(p => p.id === id);
+                    if (item) {
+                        const remainingValue = item.shares * item.price * (item.currency === 'USD' ? globalFxRate : 1);
+                        cashPosition += remainingValue;
+                    }
+                    triggerDeleteConfirm(id);
+                }
             } else {
                 const item = portfolio.find(p => p.id === id);
-                if (item) { 
-                    item.shares = shares; 
-                    item.cost = cost; 
+                if (item) {
+                    const oldValue = item.shares * item.cost;
+                    const newValue = shares * cost;
+                    const valueDiff = newValue - oldValue;
+
+                    if (item.shares > 0 && Math.abs(valueDiff) > 0.01) {
+                        const action = valueDiff > 0 ? '增加' : '減少';
+                        const confirmMsg = `編輯將使總成本${action} ${formatVal(Math.abs(valueDiff), 0, false)} TWD，是否同步調整現金水位？`;
+                        if (confirm(confirmMsg)) {
+                            cashPosition -= valueDiff;
+                        }
+                    }
+
+                    item.shares = shares;
+                    item.cost = cost;
                     item.isLeverage = isLvrg;
                     if (isBond) {
                         item.category = 'BOND';
@@ -522,8 +764,8 @@
                         const info = getCategoryInfo(item.symbol, item.name);
                         item.category = info.cat === 'BOND' ? (/^\d/.test(item.symbol) ? 'TW' : 'US') : info.cat;
                     }
-                    saveToStorage(); 
-                    render(); 
+                    saveToStorage();
+                    render();
                 }
             }
             closeModal('editModal');
@@ -549,21 +791,136 @@
             saveToStorage(); render(); closeModal('addModal');
         }
 
-        function processSellAsset() {
-            const sym = document.getElementById('sellSymbol').value.trim().toUpperCase();
-            const sharesToSell = parseFloat(document.getElementById('sellShares').value) || 0;
-            if (!sym || sharesToSell <= 0) return;
+        function processBuyAsset() {
+            const sym = document.getElementById('buySymbol').value.trim().toUpperCase();
+            const sharesToBuy = parseFloat(document.getElementById('buyShares').value) || 0;
+            const buyPrice = parseFloat(document.getElementById('buyPrice').value) || 0;
+            if (!sym || sharesToBuy <= 0 || buyPrice <= 0) return;
+
+            const requiredCash = sharesToBuy * buyPrice;
+            
+            // 检查现金水位是否足够
+            if (requiredCash > cashPosition) {
+                alert(`無法買入！\n原因：現金水位不足。\n\n需要金額：${formatVal(requiredCash, 0, false)} TWD\n可用現金：${formatVal(cashPosition, 0, false)} TWD\n不足金額：${formatVal(requiredCash - cashPosition, 0, false)} TWD\n\n請先增加現金水位或減少買入數量。`);
+                return;
+            }
+
             const existingIndex = portfolio.findIndex(p => p.symbol === sym);
             if (existingIndex !== -1) {
                 const p = portfolio[existingIndex];
-                if (sharesToSell >= p.shares) { 
-                    triggerDeleteConfirm(p.id);
-                } else { 
-                    p.shares -= sharesToSell; 
-                    saveToStorage(); render(); 
-                }
-                closeModal('sellModal');
+                const totalCost = (p.shares * p.cost + sharesToBuy * buyPrice) / (p.shares + sharesToBuy);
+                p.cost = totalCost;
+                p.shares += sharesToBuy;
+            } else {
+                const info = getCategoryInfo(sym);
+                const newId = portfolio.length > 0 ? Math.max(...portfolio.map(i => i.id)) + 1 : 1;
+                const newItem = {
+                    id: newId,
+                    symbol: sym,
+                    name: "載入中...",
+                    category: info.cat,
+                    isLeverage: info.isLeverage,
+                    currency: info.cur,
+                    shares: sharesToBuy,
+                    cost: buyPrice,
+                    target: 0,
+                    price: 0
+                };
+                portfolio.push(newItem);
+                fetchPriceAndInfo(newItem);
             }
+
+            const trade = {
+                id: Date.now(),
+                type: 'buy',
+                symbol: sym,
+                shares: sharesToBuy,
+                price: buyPrice,
+                amount: requiredCash,
+                timestamp: new Date().toISOString()
+            };
+            tradeHistory.push(trade);
+            manageTradeHistoryLimit();
+
+            cashPosition -= requiredCash;
+            
+            // 更新现金水位显示
+            const cashInput = document.getElementById('cashPosition');
+            if (cashInput) {
+                cashInput.value = Math.round(cashPosition);
+            }
+            const cashDisplay = document.getElementById('availableCashDisplay');
+            if (cashDisplay) {
+                animateNumber(cashDisplay, Math.round(cashPosition), 1000, false, 0, '');
+            }
+            
+            saveToStorage();
+            render();
+            closeModal('buyModal');
+            renderTradeHistory();
+        }
+
+        function processSellAsset() {
+            const sym = document.getElementById('sellSymbol').value.trim().toUpperCase();
+            const sharesToSell = parseFloat(document.getElementById('sellShares').value) || 0;
+            const sellPrice = parseFloat(document.getElementById('sellPrice').value) || 0;
+            if (!sym || sharesToSell <= 0 || sellPrice <= 0) return;
+
+            const existingIndex = portfolio.findIndex(p => p.symbol === sym);
+            
+            // 检查是否持有该股票
+            if (existingIndex === -1) {
+                alert(`無法賣出！\n原因：您目前沒有持有 ${sym} 這支股票。\n\n請先買入或使用「新增」功能添加此股票。`);
+                return;
+            }
+
+            const p = portfolio[existingIndex];
+            
+            // 检查卖出股数是否超过持有数量
+            if (sharesToSell > p.shares) {
+                alert(`無法賣出！\n原因：賣出股數 (${sharesToSell}) 超過持有數量 (${p.shares})。\n\n請輸入不超過 ${p.shares} 股的數量。`);
+                return;
+            }
+
+            const gainCash = sharesToSell * sellPrice;
+            const realizedPnL = gainCash - (sharesToSell * p.cost);
+
+            const trade = {
+                id: Date.now(),
+                type: 'sell',
+                symbol: sym,
+                shares: sharesToSell,
+                price: sellPrice,
+                amount: gainCash,
+                avgCost: p.cost,
+                realizedPnL: realizedPnL,
+                timestamp: new Date().toISOString()
+            };
+            tradeHistory.push(trade);
+            manageTradeHistoryLimit();
+
+            cashPosition += gainCash;
+
+            if (sharesToSell >= p.shares) {
+                triggerDeleteConfirm(p.id);
+            } else {
+                p.shares -= sharesToSell;
+                saveToStorage(); 
+                render();
+            }
+            
+            // 更新现金水位显示
+            const cashInput = document.getElementById('cashPosition');
+            if (cashInput) {
+                cashInput.value = Math.round(cashPosition);
+            }
+            const cashDisplay = document.getElementById('availableCashDisplay');
+            if (cashDisplay) {
+                animateNumber(cashDisplay, Math.round(cashPosition), 1000, false, 0, '');
+            }
+            
+            closeModal('sellModal');
+            renderTradeHistory();
         }
 
         async function fetchPriceAndInfo(item) {
@@ -592,8 +949,13 @@
             btn.innerText = "WAIT..."; btn.disabled = true;
             await fetchFX();
             for (let item of portfolio) { await fetchPriceAndInfo(item); await new Promise(r => setTimeout(r, 100)); }
-            saveToStorage(); finalizeUpdate(); render();
-            btn.innerText = "更新"; btn.disabled = false;
+            saveToStorage();
+            render();
+            setTimeout(() => {
+                finalizeUpdate(true);
+                btn.innerText = "更新"; 
+                btn.disabled = false;
+            }, 100);
         }
 
         async function fetchFX() {
@@ -638,9 +1000,8 @@
 
         function saveAndRefresh() { saveToStorage(); finalizeUpdate(); }
 
-        function finalizeUpdate() {
+        function finalizeUpdate(startFromOne = false) {
             let totalMarketTWD = 0, totalCostTWD = 0;
-            const extraCash = parseFloat(document.getElementById('extraCash').value) || 0;
             portfolio.forEach(item => {
                 const fx = item.currency === 'USD' ? globalFxRate : 1;
                 item.currentValTWD = (item.shares || 0) * (item.price || 0) * fx;
@@ -652,30 +1013,59 @@
                 const invEl = document.getElementById(`inv-${item.id}`);
                 const mktEl = document.getElementById(`mkt-${item.id}`);
                 const prfEl = document.getElementById(`prf-${item.id}`);
-                if (cstEl) cstEl.innerText = formatVal(item.cost || 0, 1, false);
-                if (priEl) priEl.innerText = formatVal(item.price || 0, 1, false);
-                if (invEl) invEl.innerText = formatVal(Math.round(item.costValTWD), 0, true);
-                if (mktEl) mktEl.innerText = formatVal(Math.round(item.currentValTWD), 0, true);
+                if (cstEl) animateNumber(cstEl, item.cost || 0, 1000, false, 1, '');
+                if (priEl) animateNumber(priEl, item.price || 0, 1000, false, 1, '');
+                if (invEl) animateNumber(invEl, Math.round(item.costValTWD), 1000, true, 0, '');
+                if (mktEl) animateNumber(mktEl, Math.round(item.currentValTWD), 1000, true, 0, '');
                 if (prfEl) {
                     const diff = item.currentValTWD - item.costValTWD;
                     const pct = item.costValTWD > 0 ? (diff / item.costValTWD * 100).toFixed(1) : '0.0';
                     const isUp = diff >= 0;
                     const colorClass = isUp ? 'text-rose-500' : 'text-emerald-500';
-                    prfEl.innerHTML = `<div class="${colorClass} font-black text-xs">${isUp ? '+' : ''}${formatVal(Math.round(diff), 0, true)}</div><div class="${colorClass} font-bold text-[9px] opacity-80">${isUp ? '+' : ''}${pct}%</div>`;
+
+                    const profitDiv = prfEl.querySelector('div:first-child') || document.createElement('div');
+                    const pctDiv = prfEl.querySelector('div:last-child') || document.createElement('div');
+
+                    if (!prfEl.contains(profitDiv)) prfEl.appendChild(profitDiv);
+                    if (!prfEl.contains(pctDiv)) prfEl.appendChild(pctDiv);
+
+                    profitDiv.className = `${colorClass} font-black text-xs`;
+                    pctDiv.className = `${colorClass} font-bold text-[9px] opacity-80`;
+
+                    animateNumber(profitDiv, Math.round(diff), 1000, true, 0, isUp ? '+' : '');
+                    animateNumber(pctDiv, parseFloat(pct), 1000, false, 1, (isUp ? '+' : '') + '%');
                 }
             });
-            const grandTotal = totalMarketTWD + extraCash;
+            const grandTotal = totalMarketTWD + cashPosition;
             const totalProfit = totalMarketTWD - totalCostTWD;
             const totalProfitPct = totalCostTWD > 0 ? (totalProfit / totalCostTWD * 100).toFixed(1) : 0;
-            document.getElementById('totalCostDisplay').innerText = formatVal(Math.round(totalCostTWD), 0, true);
-            document.getElementById('totalDisplay').innerText = formatVal(Math.round(grandTotal), 0, true);
+            
+            const totalCostEl = document.getElementById('totalCostDisplay');
+            const totalDisplayEl = document.getElementById('totalDisplay');
+            
+            if (totalCostEl) {
+                if (startFromOne) {
+                    totalCostEl.innerText = formatVal(1, 0, true);
+                }
+                animateNumber(totalCostEl, Math.round(totalCostTWD), 1500, true, 0, '', true);
+            }
+            if (totalDisplayEl) {
+                if (startFromOne) {
+                    totalDisplayEl.innerText = formatVal(1, 0, true);
+                }
+                animateNumber(totalDisplayEl, Math.round(grandTotal), 1500, true, 0, '', true);
+            }
             const pDisp = document.getElementById('totalProfitDisplay');
             const pctDisp = document.getElementById('totalProfitPctDisplay');
-            pDisp.innerText = (totalProfit > 0 ? '+' : '') + formatVal(Math.round(totalProfit), 0, true);
+            animateNumber(pDisp, Math.round(totalProfit), 1500, true, 0, totalProfit > 0 ? '+' : '');
             pDisp.className = `text-sm font-mono font-bold leading-none ${totalProfit >= 0 ? 'text-rose-500' : 'text-emerald-500'}`;
-            pctDisp.innerText = (totalProfit > 0 ? '+' : '') + totalProfitPct + '%';
+            animateNumber(pctDisp, parseFloat(totalProfitPct), 1500, false, 1, (totalProfit > 0 ? '+' : '') + '%');
             pctDisp.className = `text-sm font-black font-bold leading-none ${totalProfit >= 0 ? 'text-rose-500' : 'text-emerald-500'}`;
-            drawMainCharts(grandTotal, extraCash);
+            const cashDisplay = document.getElementById('availableCashDisplay');
+            if (cashDisplay) {
+                animateNumber(cashDisplay, Math.round(cashPosition), 1000, false, 0, '');
+            }
+            drawMainCharts(grandTotal, cashPosition);
             drawTargetChart();
         }
 
@@ -737,9 +1127,9 @@
                     });
                 }
             });
-            if (extraCash > 0) {
-                inData.push(extraCash); inLabels.push('現金'); inBG.push(catColors.CASH);
-                outData.push(extraCash); outLabels.push('CASH'); outBG.push('rgba(71,85,105,0.6)');
+            if (cashPosition > 0) {
+                inData.push(cashPosition); inLabels.push('現金'); inBG.push(catColors.CASH);
+                outData.push(cashPosition); outLabels.push('CASH'); outBG.push('rgba(71,85,105,0.6)');
             }
             if (mainChart) mainChart.destroy();
             mainChart = new Chart(document.getElementById('mainChart').getContext('2d'), {
@@ -748,10 +1138,13 @@
                 options: { responsive: true, maintainAspectRatio: false, cutout: '35%', plugins: { legend: { display: false } } }
             });
             if (hasLvrg) {
-                let spot = portfolio.filter(i => !i.isLeverage && i.category !== 'BOND').reduce((a,b)=>a+b.currentValTWD,0) + extraCash;
+                let spot = portfolio.filter(i => !i.isLeverage && i.category !== 'BOND').reduce((a,b)=>a+b.currentValTWD,0);
                 let lvrg = portfolio.filter(i=>i.isLeverage).reduce((a,b)=>a+b.currentValTWD,0);
                 let bond = portfolio.filter(i=>i.category==='BOND').reduce((a,b)=>a+b.currentValTWD,0);
-                const sD = [spot, lvrg, bond].filter(v=>v>0), sL = ['原型', '槓桿', '債券'].filter((_,i)=>[spot,lvrg,bond][i]>0), sC = ['rgba(6,182,212,0.7)','rgba(244,63,94,0.8)','rgba(168,85,247,0.7)'].filter((_,i)=>[spot,lvrg,bond][i]>0);
+                let cash = cashPosition;
+                const sD = [spot, lvrg, bond, cash].filter(v=>v>0);
+                const sL = ['原型', '槓桿', '債券', '現金'].filter((_,i)=>[spot,lvrg,bond,cash][i]>0);
+                const sC = ['rgba(6,182,212,0.7)','rgba(244,63,94,0.8)','rgba(168,85,247,0.7)', 'rgba(71,85,105,0.6)'].filter((_,i)=>[spot,lvrg,bond,cash][i]>0);
                 if (strategyChart) strategyChart.destroy();
                 strategyChart = new Chart(document.getElementById('strategyChart').getContext('2d'), {
                     type: 'doughnut',
@@ -787,15 +1180,65 @@
 
         function triggerAdvice() {
             const container = document.getElementById('adviceContainer');
-            const additional_cash = parseFloat(document.getElementById('extraCash').value) || 0;
+            const available_cash = cashPosition;
+
+            const cashDisplay = document.getElementById('availableCashDisplay');
+            animateNumber(cashDisplay, Math.round(available_cash), 1000, false, 0, '');
+
             const rebalance_assets = portfolio.filter(i => i.target > 0);
             if (rebalance_assets.length === 0) {
                 container.innerHTML = `<div class="text-center py-4 text-[9px] text-slate-500 uppercase tracking-widest">請先在目標%欄位輸入比例</div>`;
                 return;
             }
-            const base_total_value = rebalance_assets.reduce((sum, asset) => sum + asset.currentValTWD, 0);
-            const final_total_value = base_total_value + additional_cash;
+
             const total_target_units = rebalance_assets.reduce((sum, asset) => sum + asset.target, 0);
+            let current_total_value = rebalance_assets.reduce((sum, asset) => sum + asset.currentValTWD, 0);
+            let remaining_cash = available_cash;
+            let trades = [];
+
+            while (remaining_cash > 100 && rebalance_assets.some(asset => {
+                const target_ratio = asset.target / total_target_units;
+                const target_value = (current_total_value + remaining_cash) * target_ratio;
+                const gap = target_value - asset.currentValTWD;
+                return gap > 100;
+            })) {
+                const assets_with_gap = rebalance_assets.map(asset => {
+                    const target_ratio = asset.target / total_target_units;
+                    const target_value = (current_total_value + remaining_cash) * target_ratio;
+                    const gap = target_value - asset.currentValTWD;
+                    return { asset, gap, target_value };
+                }).filter(item => item.gap > 100)
+                .sort((a, b) => b.gap - a.gap);
+
+                if (assets_with_gap.length === 0) break;
+
+                const target_asset = assets_with_gap[0];
+                const fx = target_asset.asset.currency === 'USD' ? globalFxRate : 1;
+                const unitPriceTWD = target_asset.asset.price * fx;
+
+                if (unitPriceTWD <= 0) break;
+
+                const max_buy_value = Math.min(target_asset.gap, remaining_cash);
+                const shares_to_buy = Math.floor(max_buy_value / unitPriceTWD);
+
+                if (shares_to_buy <= 0) break;
+
+                const buy_amount = shares_to_buy * unitPriceTWD;
+
+                trades.push({
+                    asset_id: target_asset.asset.symbol,
+                    action: 'buy',
+                    shares: shares_to_buy,
+                    amountTWD: buy_amount,
+                    reason: '使用現金補足目標差距'
+                });
+
+                target_asset.asset.currentValTWD += buy_amount;
+                current_total_value += buy_amount;
+                remaining_cash -= buy_amount;
+            }
+
+            const final_total_value = current_total_value + remaining_cash;
             let rebalance_result = rebalance_assets.map(asset => {
                 const target_ratio = asset.target / total_target_units;
                 const target_value = final_total_value * target_ratio;
@@ -814,35 +1257,405 @@
                     amountTWD: share_adjustment * unitPriceTWD
                 };
             });
+
+            const additional_trades = rebalance_result.filter(r => r.shares > 0).map(res => ({
+                asset_id: res.asset_id,
+                action: res.action,
+                shares: res.shares,
+                amountTWD: res.amountTWD,
+                reason: '再平衡調整'
+            }));
+
+            const all_trades = [...trades, ...additional_trades];
+
             container.innerHTML = '';
-            const filteredResults = rebalance_result.filter(r => r.shares > 0).sort((a, b) => (a.action === 'sell' ? -1 : 1));
-            if (filteredResults.length === 0) {
+            if (all_trades.length === 0) {
                 container.innerHTML = `<div class="text-center py-4 text-[9px] text-slate-500 uppercase tracking-widest">配置已達平衡，無需交易</div>`;
                 return;
             }
-            filteredResults.forEach(res => {
-                const isBuy = res.action === 'buy';
+
+            all_trades.sort((a, b) => (a.action === 'sell' ? -1 : 1)).forEach(trade => {
+                const isBuy = trade.action === 'buy';
                 const div = document.createElement('div');
                 div.className = `p-4 rounded-2xl border ${isBuy ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-rose-500/20 bg-rose-500/5'} flex justify-between items-center shadow-sm`;
                 div.innerHTML = `
                     <div class="flex items-center gap-3">
                         <div class="w-8 h-8 rounded-full flex items-center justify-center font-black text-[10px] ${isBuy ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}\">${isBuy ? '買' : '賣'}</div>
                         <div>
-                            <span class="text-[10px] font-black text-white uppercase tracking-wider">${res.asset_id}</span>
-                            <div class="text-[9px] text-slate-500 font-bold mt-0.5 uppercase">預估金額 ${formatVal(Math.round(res.amountTWD), 0, true)} TWD</div>
+                            <span class="text-[10px] font-black text-white uppercase tracking-wider">${trade.asset_id}</span>
+                            <div class="text-[8px] text-slate-500 font-bold mt-0.5">${trade.reason}</div>
+                            <div class="text-[9px] text-slate-500 font-bold uppercase">金額 ${formatVal(Math.round(trade.amountTWD), 0, true)} TWD</div>
                         </div>
                     </div>
                     <div class="text-right">
-                        <span class="font-black ${isBuy?'text-emerald-400':'text-rose-400'} text-xs uppercase italic tracking-tighter">${isBuy?'+':'-'} ${formatVal(res.shares, 0, true)} 股</span>
+                        <span class="font-black ${isBuy?'text-emerald-400':'text-rose-400'} text-xs uppercase italic tracking-tighter">${isBuy?'+':'-'} ${formatVal(trade.shares, 0, true)} 股</span>
                     </div>`;
                 container.appendChild(div);
             });
         }
 
-        window.onload = async () => { 
-            loadFromStorage(); 
-            render(); 
-            if (portfolio.length > 0) { await handleRefreshClick(); }
+        function toggleTradeHistory() {
+            const container = document.getElementById('tradeHistoryContainer');
+            container.classList.toggle('hidden');
+            if (!container.classList.contains('hidden')) {
+                renderTradeHistory();
+            }
+        }
+
+        function togglePnLInfo() {
+            const infoBox = document.getElementById('pnlInfoBox');
+            infoBox.classList.toggle('hidden');
+        }
+
+        function manageTradeHistoryLimit() {
+            const MAX_RECORDS = 10;
+            if (tradeHistory.length > MAX_RECORDS) {
+                // 删除最旧的记录（保留最新的10条）
+                const removedRecords = tradeHistory.splice(0, tradeHistory.length - MAX_RECORDS);
+                
+                // 将被删除记录的已实现损益累加到总累计值
+                removedRecords.forEach(trade => {
+                    if (trade.realizedPnL !== undefined && trade.realizedPnL !== null) {
+                        accumulatedRealizedPnL += trade.realizedPnL;
+                    }
+                });
+                
+                saveToStorage();
+            }
+        }
+
+        function renderTradeHistory() {
+            const listEl = document.getElementById('tradeHistoryList');
+            const noTradesEl = document.getElementById('noTradesMessage');
+            const totalPnLEl = document.getElementById('totalRealizedPnL');
+
+            listEl.innerHTML = '';
+
+            if (tradeHistory.length === 0) {
+                noTradesEl.classList.remove('hidden');
+                totalPnLEl.textContent = '0';
+                return;
+            }
+
+            noTradesEl.classList.add('hidden');
+
+            let totalRealizedPnL = accumulatedRealizedPnL;
+            tradeHistory.forEach(trade => {
+                if (trade.type === 'sell') {
+                    totalRealizedPnL += trade.realizedPnL || 0;
+                }
+            });
+
+            totalPnLEl.textContent = formatVal(Math.round(totalRealizedPnL), 0, false);
+            totalPnLEl.className = `text-lg font-mono font-black ${totalRealizedPnL >= 0 ? 'text-emerald-500' : 'text-rose-500'}`;
+
+            const sortedTrades = tradeHistory.slice().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            sortedTrades.forEach((trade, displayIndex) => {
+                let originalIndex = tradeHistory.findIndex(t => t.id === trade.id);
+                if (originalIndex === -1) {
+                    originalIndex = tradeHistory.findIndex(t => 
+                        t.symbol === trade.symbol && 
+                        t.type === trade.type && 
+                        t.shares === trade.shares && 
+                        t.price === trade.price &&
+                        t.timestamp === trade.timestamp
+                    );
+                }
+                if (originalIndex === -1) {
+                    console.warn('無法找到交易記錄索引', trade);
+                    return;
+                }
+                const tradeDiv = document.createElement('div');
+                const isSell = trade.type === 'sell';
+                const pnlColor = trade.realizedPnL >= 0 ? 'text-emerald-500' : 'text-rose-500';
+
+                tradeDiv.className = `p-3 rounded-xl border ${isSell ? 'border-rose-500/20 bg-rose-500/5' : 'border-emerald-500/20 bg-emerald-500/5'} flex justify-between items-center shadow-sm`;
+                tradeDiv.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-6 h-6 rounded-full flex items-center justify-center font-black text-[8px] ${isSell ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'}">${isSell ? '賣' : '買'}</div>
+                        <div>
+                            <span class="text-[9px] font-black text-white uppercase">${trade.symbol}</span>
+                            <div class="text-[7px] text-slate-500 font-bold mt-0.5">
+                                ${new Date(trade.timestamp).toLocaleDateString('zh-TW')} ${trade.shares}股 @ ${formatVal(trade.price, 2, false)}
+                            </div>
+                            ${isSell ? `<div class="text-[7px] ${pnlColor} font-bold">實現損益: ${formatVal(Math.round(trade.realizedPnL), 0, false)}</div>` : ''}
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[8px] font-bold text-slate-400">${formatVal(Math.round(trade.amount), 0, false)} TWD</span>
+                        <button class="edit-trade-btn text-amber-500/60 hover:text-amber-400 btn-action p-1" title="編輯" data-index="${originalIndex}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
+                            </svg>
+                        </button>
+                        <button class="delete-trade-btn text-rose-500/60 hover:text-rose-400 btn-action p-1" title="刪除" data-index="${originalIndex}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                                <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                            </svg>
+                        </button>
+                    </div>`;
+
+                listEl.appendChild(tradeDiv);
+                
+                const editBtn = tradeDiv.querySelector('.edit-trade-btn');
+                const deleteBtn = tradeDiv.querySelector('.delete-trade-btn');
+                
+                if (editBtn) {
+                    editBtn.addEventListener('click', () => {
+                        const idx = parseInt(editBtn.getAttribute('data-index'));
+                        editTradePrompt(idx);
+                    });
+                }
+                
+                if (deleteBtn) {
+                    deleteBtn.addEventListener('click', () => {
+                        const idx = parseInt(deleteBtn.getAttribute('data-index'));
+                        deleteTradePrompt(idx);
+                    });
+                }
+            });
+        }
+
+        let currentEditTradeIndex = -1;
+
+        function editTradePrompt(index) {
+            if (index < 0 || index >= tradeHistory.length) {
+                return;
+            }
+            
+            const trade = tradeHistory[index];
+            if (!trade) {
+                return;
+            }
+
+            currentEditTradeIndex = index;
+            document.getElementById('editTradeSymbol').textContent = trade.symbol;
+            document.getElementById('editTradeCurrentPrice').textContent = formatVal(trade.price, 2, false);
+            document.getElementById('editTradeCurrentShares').textContent = formatVal(trade.shares, 0, false);
+            document.getElementById('editTradeNewValue').value = '';
+            document.getElementById('editTradeType').value = 'price';
+            
+            openModal('editTradeModal');
+        }
+
+        function confirmEditTrade() {
+            if (currentEditTradeIndex < 0 || currentEditTradeIndex >= tradeHistory.length) {
+                return;
+            }
+
+            const trade = tradeHistory[currentEditTradeIndex];
+            const editType = document.getElementById('editTradeType').value;
+            const newValue = parseFloat(document.getElementById('editTradeNewValue').value);
+
+            if (isNaN(newValue) || newValue <= 0) {
+                return;
+            }
+
+            if (editType === 'shares') {
+                editTradeShares(currentEditTradeIndex, newValue);
+            } else {
+                editTrade(currentEditTradeIndex, newValue);
+            }
+
+            closeModal('editTradeModal');
+            currentEditTradeIndex = -1;
+        }
+
+        let currentDeleteTradeIndex = -1;
+
+        function deleteTradePrompt(index) {
+            const trade = tradeHistory[index];
+            if (!trade) return;
+
+            currentDeleteTradeIndex = index;
+            document.getElementById('deleteTradeSymbol').textContent = `${trade.symbol} (${trade.type === 'sell' ? '賣出' : '買入'})`;
+            
+            openModal('deleteTradeModal');
+        }
+
+        function confirmDeleteTrade() {
+            if (currentDeleteTradeIndex >= 0 && currentDeleteTradeIndex < tradeHistory.length) {
+                deleteTrade(currentDeleteTradeIndex);
+            }
+            closeModal('deleteTradeModal');
+            currentDeleteTradeIndex = -1;
+        }
+
+        function editTrade(index, newPrice) {
+            const trade = tradeHistory[index];
+            if (!trade) return;
+
+            const oldAmount = trade.amount;
+            trade.price = newPrice;
+            trade.amount = trade.shares * newPrice;
+
+            if (trade.type === 'buy') {
+                const asset = portfolio.find(p => p.symbol === trade.symbol);
+                if (asset) {
+                    asset.cost = newPrice;
+                    asset.currentValTWD = asset.shares * newPrice * (asset.currency === 'USD' ? globalFxRate : 1);
+                }
+                cashPosition -= (trade.amount - oldAmount);
+            }
+            else if (trade.type === 'sell') {
+                trade.realizedPnL = trade.amount - (trade.shares * trade.avgCost);
+                cashPosition += (trade.amount - oldAmount);
+            }
+
+            const cashDisplay = document.getElementById('availableCashDisplay');
+            if (cashDisplay) {
+                animateNumber(cashDisplay, Math.round(cashPosition), 1000, false, 0, '');
+            }
+            saveToStorage();
+            render();
+            renderTradeHistory();
+        }
+
+        function deleteTrade(index) {
+            const trade = tradeHistory[index];
+            if (!trade) return;
+
+            if (trade.type === 'buy') {
+                cashPosition += trade.amount;
+                const asset = portfolio.find(p => p.symbol === trade.symbol);
+                if (asset && asset.shares >= trade.shares) {
+                    asset.shares -= trade.shares;
+                    if (asset.shares <= 0) {
+                        portfolio = portfolio.filter(p => p.id !== asset.id);
+                    }
+                }
+            } else if (trade.type === 'sell') {
+                cashPosition -= trade.amount;
+                const asset = portfolio.find(p => p.symbol === trade.symbol);
+                if (asset) {
+                    asset.shares += trade.shares;
+                }
+            }
+
+            tradeHistory.splice(index, 1);
+            const cashDisplay = document.getElementById('availableCashDisplay');
+            if (cashDisplay) {
+                animateNumber(cashDisplay, Math.round(cashPosition), 1000, false, 0, '');
+            }
+            saveToStorage();
+            render();
+            renderTradeHistory();
+        }
+
+        function editTradeShares(index, newShares) {
+            const trade = tradeHistory[index];
+            if (!trade) return;
+
+            const oldAmount = trade.amount;
+            const oldShares = trade.shares;
+            trade.shares = newShares;
+            trade.amount = trade.shares * trade.price;
+
+            if (trade.type === 'buy') {
+                const asset = portfolio.find(p => p.symbol === trade.symbol);
+                if (asset) {
+                    const shareDiff = newShares - oldShares;
+                    asset.shares += shareDiff;
+                    if (asset.shares <= 0) {
+                        portfolio = portfolio.filter(p => p.id !== asset.id);
+                    }
+                }
+                cashPosition -= (trade.amount - oldAmount);
+            }
+            else if (trade.type === 'sell') {
+                const asset = portfolio.find(p => p.symbol === trade.symbol);
+                if (asset) {
+                    const shareDiff = oldShares - newShares;
+                    asset.shares += shareDiff;
+                }
+                trade.realizedPnL = trade.amount - (trade.shares * trade.avgCost);
+                cashPosition += (trade.amount - oldAmount);
+            }
+
+            const cashDisplay = document.getElementById('availableCashDisplay');
+            if (cashDisplay) {
+                animateNumber(cashDisplay, Math.round(cashPosition), 1000, false, 0, '');
+            }
+            saveToStorage();
+            render();
+            renderTradeHistory();
+        }
+
+        function animateNumber(element, targetValue, duration = 1500, isSensitive = false, decimals = 0, suffix = '', applyGlowing = false) {
+            if (!element) return;
+            
+            let currentText = element.innerText || element.textContent || '0';
+            const startValue = parseFloat(currentText.replace(/[^\d.+\-]/g, '').replace(/,/g, '')) || 0;
+            const startTime = Date.now();
+
+            if (applyGlowing) {
+                element.classList.add('glowing-effect');
+            }
+
+            function updateNumber() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+
+                const currentValue = startValue + (targetValue - startValue) * easeProgress;
+                let formattedValue;
+
+                if (suffix === '%') {
+                    formattedValue = (currentValue > 0 ? '+' : '') + currentValue.toFixed(decimals) + '%';
+                } else if (suffix.startsWith('+') || suffix.startsWith('-')) {
+                    formattedValue = (currentValue > 0 ? '+' : '') + formatVal(Math.round(currentValue), decimals, isSensitive);
+                } else {
+                    formattedValue = formatVal(Math.round(currentValue), decimals, isSensitive);
+                }
+
+                element.innerText = formattedValue;
+
+                if (progress < 1) {
+                    requestAnimationFrame(updateNumber);
+                } else {
+                    if (suffix === '%') {
+                        element.innerText = (targetValue > 0 ? '+' : '') + targetValue.toFixed(decimals) + '%';
+                    } else if (suffix.startsWith('+') || suffix.startsWith('-')) {
+                        element.innerText = (targetValue > 0 ? '+' : '') + formatVal(Math.round(targetValue), decimals, isSensitive);
+                    } else {
+                        element.innerText = formatVal(Math.round(targetValue), decimals, isSensitive);
+                    }
+                    if (applyGlowing) {
+                        setTimeout(() => {
+                            element.classList.remove('glowing-effect');
+                        }, 100);
+                    }
+                }
+            }
+
+            updateNumber();
+        }
+
+        window.onload = async () => {
+            loadFromStorage();
+            render();
+            renderTradeHistory();
+            if (portfolio.length > 0) {
+                const btn = document.getElementById('refreshBtn');
+                const originalText = btn.innerText;
+                btn.innerText = "WAIT..."; 
+                btn.disabled = true;
+                await fetchFX();
+                for (let item of portfolio) { 
+                    await fetchPriceAndInfo(item); 
+                    await new Promise(r => setTimeout(r, 100)); 
+                }
+                saveToStorage();
+                render();
+                setTimeout(() => {
+                    finalizeUpdate(false);
+                    btn.innerText = originalText; 
+                    btn.disabled = false;
+                }, 100);
+            }
         };
     </script>
 </body>
