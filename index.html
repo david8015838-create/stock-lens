@@ -1050,13 +1050,13 @@
                     const mktEl = document.getElementById(`mkt${suffix}`);
                     const prfEl = document.getElementById(`prf${suffix}`);
 
-                    if (cstEl) animateNumber(cstEl, item.cost || 0, 1000, false, 1, '');
-                    if (priEl) animateNumber(priEl, item.price || 0, 1000, false, 1, '');
+                    if (cstEl) animateNumber(cstEl, item.cost || 0, 1000, false, 2, '');
+                    if (priEl) animateNumber(priEl, item.price || 0, 1000, false, 2, '');
                     if (invEl) animateNumber(invEl, costVal, 1000, true, 2, '');
                     if (mktEl) animateNumber(mktEl, val, 1000, true, 2, '');
                     if (prfEl) {
                         const diff = val - costVal;
-                        const pct = costVal > 0 ? (diff / costVal * 100).toFixed(1) : '0.0';
+                        const pct = costVal > 0 ? (diff / costVal * 100).toFixed(2) : '0.00';
                         const isUp = diff >= 0;
                         const colorClass = isUp ? 'text-rose-500' : 'text-emerald-500';
 
@@ -1070,7 +1070,7 @@
                         pctDiv.className = `${colorClass} font-bold text-[9px] opacity-80`;
 
                         animateNumber(profitDiv, Math.round(diff), 1000, true, 0, isUp ? '+' : '');
-                        animateNumber(pctDiv, parseFloat(pct), 1000, false, 1, (isUp ? '+' : '') + '%');
+                        animateNumber(pctDiv, parseFloat(pct), 1000, false, 2, (isUp ? '+' : '') + '%');
                     }
                 };
 
@@ -1079,7 +1079,7 @@
             });
             const grandTotal = totalMarketTWD + cashPosition;
             const totalProfit = totalMarketTWD - totalCostTWD;
-            const totalProfitPct = totalCostTWD > 0 ? (totalProfit / totalCostTWD * 100).toFixed(1) : 0;
+            const totalProfitPct = totalCostTWD > 0 ? (totalProfit / totalCostTWD * 100).toFixed(2) : 0;
             
             const totalCostEl = document.getElementById('totalCostDisplay');
             const totalDisplayEl = document.getElementById('totalDisplay');
@@ -1100,7 +1100,7 @@
             const pctDisp = document.getElementById('totalProfitPctDisplay');
             animateNumber(pDisp, Math.round(totalProfit), 1500, true, 0, totalProfit > 0 ? '+' : '');
             pDisp.className = `text-sm font-mono font-bold leading-none ${totalProfit >= 0 ? 'text-rose-500' : 'text-emerald-500'}`;
-            animateNumber(pctDisp, parseFloat(totalProfitPct), 1500, false, 1, (totalProfit > 0 ? '+' : '') + '%');
+            animateNumber(pctDisp, parseFloat(totalProfitPct), 1500, false, 2, (totalProfit > 0 ? '+' : '') + '%');
             pctDisp.className = `text-sm font-black font-bold leading-none ${totalProfit >= 0 ? 'text-rose-500' : 'text-emerald-500'}`;
             const cashDisplay = document.getElementById('availableCashDisplay');
             if (cashDisplay) {
@@ -1239,8 +1239,8 @@
                 data: { 
                     labels: activeAssets.map(i => i.symbol), 
                     datasets: [
-                        { label: '實際', data: activeAssets.map(i => currentSelectedMarketTotal > 0 ? (getEffectiveVal(i) / currentSelectedMarketTotal * 100).toFixed(1) : 0), backgroundColor: 'rgba(0,242,255,0.6)', borderRadius: 6, datalabels: { color: '#00f2ff', anchor: 'end', align: 'top' } }, 
-                        { label: '目標', data: activeAssets.map(i => sumTargetUnits > 0 ? (i.target / sumTargetUnits * 100).toFixed(1) : 0), backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 6, borderColor: 'rgba(255,255,255,0.15)', borderWidth: 1, datalabels: { color: '#64748b', anchor: 'end', align: 'top', offset: -15 } }
+                        { label: '實際', data: activeAssets.map(i => currentSelectedMarketTotal > 0 ? (getEffectiveVal(i) / currentSelectedMarketTotal * 100).toFixed(2) : 0), backgroundColor: 'rgba(0,242,255,0.6)', borderRadius: 6, datalabels: { color: '#00f2ff', anchor: 'end', align: 'top' } }, 
+                        { label: '目標', data: activeAssets.map(i => sumTargetUnits > 0 ? (i.target / sumTargetUnits * 100).toFixed(2) : 0), backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 6, borderColor: 'rgba(255,255,255,0.15)', borderWidth: 1, datalabels: { color: '#64748b', anchor: 'end', align: 'top', offset: -15 } }
                     ] 
                 },
                 options: { 
