@@ -331,6 +331,20 @@
                         <input type="number" id="editCost" placeholder="0.00" class="w-full rounded-2xl p-4 font-mono">
                     </div>
                 </div>
+                <div>
+                    <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">質押股數</label>
+                    <input type="number" id="editPledgedShares" placeholder="0" class="w-full rounded-2xl p-4 font-mono text-amber-400">
+                </div>
+                <div class="flex items-center justify-between p-4 bg-slate-900/50 rounded-2xl border border-white/5">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] uppercase font-bold text-slate-400">不參與再平衡</span>
+                        <span class="text-[8px] text-slate-500">質押部分不計入再平衡計算</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="editExcludePledged">
+                        <span class="slider"></span>
+                    </label>
+                </div>
                 <div class="flex items-center justify-between p-4 bg-slate-900/50 rounded-2xl border border-white/5">
                     <div class="flex flex-col">
                         <span class="text-[10px] uppercase font-bold text-slate-400">槓桿型標的</span>
@@ -608,7 +622,7 @@
             document.getElementById('cashPosition').value = cashPosition;
             const cashDisplay = document.getElementById('availableCashDisplay');
             if (cashDisplay) {
-                cashDisplay.textContent = formatVal(Math.round(cashPosition), 0, false);
+                cashDisplay.textContent = formatVal(cashPosition, 2, false);
             }
             updatePrivacyUI();
         }
@@ -623,7 +637,7 @@
             saveToStorage();
             const cashDisplay = document.getElementById('availableCashDisplay');
             if (cashDisplay) {
-                animateNumber(cashDisplay, Math.round(cashPosition), 1000, false, 0, '');
+                animateNumber(cashDisplay, cashPosition, 1000, false, 2, '');
             }
             finalizeUpdate();
         }
@@ -718,8 +732,10 @@
             document.getElementById('editId').value = item.id;
             document.getElementById('editShares').value = item.shares;
             document.getElementById('editCost').value = item.cost;
+            document.getElementById('editPledgedShares').value = item.pledgedShares || 0;
             document.getElementById('editLeverage').checked = !!item.isLeverage;
             document.getElementById('editIsBond').checked = (item.category === 'BOND');
+            document.getElementById('editExcludePledged').checked = !!item.excludePledged;
             document.getElementById('editModalTitle').innerText = `Edit ${item.symbol}`;
             openModal('editModal');
         }
@@ -728,8 +744,15 @@
             const id = parseInt(document.getElementById('editId').value);
             const shares = parseFloat(document.getElementById('editShares').value) || 0;
             const cost = parseFloat(document.getElementById('editCost').value) || 0;
+            const pledgedShares = parseFloat(document.getElementById('editPledgedShares').value) || 0;
             const isLvrg = document.getElementById('editLeverage').checked;
             const isBond = document.getElementById('editIsBond').checked;
+            const excludePledged = document.getElementById('editExcludePledged').checked;
+
+            if (pledgedShares > shares) {
+                alert('質押股數不能大於持有股數！');
+                return;
+            }
 
             if (shares <= 0) {
                 if (confirm('確定要將此資產移除嗎？剩餘價值將加入現金水位。')) {
@@ -757,6 +780,8 @@
 
                     item.shares = shares;
                     item.cost = cost;
+                    item.pledgedShares = pledgedShares;
+                    item.excludePledged = excludePledged;
                     item.isLeverage = isLvrg;
                     if (isBond) {
                         item.category = 'BOND';
@@ -851,7 +876,7 @@
             }
             const cashDisplay = document.getElementById('availableCashDisplay');
             if (cashDisplay) {
-                animateNumber(cashDisplay, Math.round(cashPosition), 1000, false, 0, '');
+                animateNumber(cashDisplay, cashPosition, 1000, false, 2, '');
             }
             
             saveToStorage();
@@ -905,6 +930,9 @@
                 triggerDeleteConfirm(p.id);
             } else {
                 p.shares -= sharesToSell;
+                if (p.pledgedShares && p.pledgedShares > p.shares) {
+                    p.pledgedShares = p.shares;
+                }
                 saveToStorage(); 
                 render();
             }
@@ -916,7 +944,7 @@
             }
             const cashDisplay = document.getElementById('availableCashDisplay');
             if (cashDisplay) {
-                animateNumber(cashDisplay, Math.round(cashPosition), 1000, false, 0, '');
+                animateNumber(cashDisplay, cashPosition, 1000, false, 2, '');
             }
             
             closeModal('sellModal');
@@ -1008,33 +1036,46 @@
                 item.costValTWD = (item.shares || 0) * (item.cost || 0) * fx;
                 totalMarketTWD += item.currentValTWD;
                 totalCostTWD += item.costValTWD;
-                const cstEl = document.getElementById(`cst-${item.id}`);
-                const priEl = document.getElementById(`pri-${item.id}`);
-                const invEl = document.getElementById(`inv-${item.id}`);
-                const mktEl = document.getElementById(`mkt-${item.id}`);
-                const prfEl = document.getElementById(`prf-${item.id}`);
-                if (cstEl) animateNumber(cstEl, item.cost || 0, 1000, false, 1, '');
-                if (priEl) animateNumber(priEl, item.price || 0, 1000, false, 1, '');
-                if (invEl) animateNumber(invEl, Math.round(item.costValTWD), 1000, true, 0, '');
-                if (mktEl) animateNumber(mktEl, Math.round(item.currentValTWD), 1000, true, 0, '');
-                if (prfEl) {
-                    const diff = item.currentValTWD - item.costValTWD;
-                    const pct = item.costValTWD > 0 ? (diff / item.costValTWD * 100).toFixed(1) : '0.0';
-                    const isUp = diff >= 0;
-                    const colorClass = isUp ? 'text-rose-500' : 'text-emerald-500';
 
-                    const profitDiv = prfEl.querySelector('div:first-child') || document.createElement('div');
-                    const pctDiv = prfEl.querySelector('div:last-child') || document.createElement('div');
+                const pledged = item.pledgedShares || 0;
+                const unpledged = item.shares - pledged;
 
-                    if (!prfEl.contains(profitDiv)) prfEl.appendChild(profitDiv);
-                    if (!prfEl.contains(pctDiv)) prfEl.appendChild(pctDiv);
+                const updateRow = (suffix, shareCount) => {
+                    const val = shareCount * (item.price || 0) * fx;
+                    const costVal = shareCount * (item.cost || 0) * fx;
+                    
+                    const cstEl = document.getElementById(`cst${suffix}`);
+                    const priEl = document.getElementById(`pri${suffix}`);
+                    const invEl = document.getElementById(`inv${suffix}`);
+                    const mktEl = document.getElementById(`mkt${suffix}`);
+                    const prfEl = document.getElementById(`prf${suffix}`);
 
-                    profitDiv.className = `${colorClass} font-black text-xs`;
-                    pctDiv.className = `${colorClass} font-bold text-[9px] opacity-80`;
+                    if (cstEl) animateNumber(cstEl, item.cost || 0, 1000, false, 1, '');
+                    if (priEl) animateNumber(priEl, item.price || 0, 1000, false, 1, '');
+                    if (invEl) animateNumber(invEl, costVal, 1000, true, 2, '');
+                    if (mktEl) animateNumber(mktEl, val, 1000, true, 2, '');
+                    if (prfEl) {
+                        const diff = val - costVal;
+                        const pct = costVal > 0 ? (diff / costVal * 100).toFixed(1) : '0.0';
+                        const isUp = diff >= 0;
+                        const colorClass = isUp ? 'text-rose-500' : 'text-emerald-500';
 
-                    animateNumber(profitDiv, Math.round(diff), 1000, true, 0, isUp ? '+' : '');
-                    animateNumber(pctDiv, parseFloat(pct), 1000, false, 1, (isUp ? '+' : '') + '%');
-                }
+                        const profitDiv = prfEl.querySelector('div:first-child') || document.createElement('div');
+                        const pctDiv = prfEl.querySelector('div:last-child') || document.createElement('div');
+
+                        if (!prfEl.contains(profitDiv)) prfEl.appendChild(profitDiv);
+                        if (!prfEl.contains(pctDiv)) prfEl.appendChild(pctDiv);
+
+                        profitDiv.className = `${colorClass} font-black text-xs`;
+                        pctDiv.className = `${colorClass} font-bold text-[9px] opacity-80`;
+
+                        animateNumber(profitDiv, Math.round(diff), 1000, true, 0, isUp ? '+' : '');
+                        animateNumber(pctDiv, parseFloat(pct), 1000, false, 1, (isUp ? '+' : '') + '%');
+                    }
+                };
+
+                if (unpledged > 0) updateRow(`-${item.id}`, unpledged);
+                if (pledged > 0) updateRow(`-pledged-${item.id}`, pledged);
             });
             const grandTotal = totalMarketTWD + cashPosition;
             const totalProfit = totalMarketTWD - totalCostTWD;
@@ -1045,15 +1086,15 @@
             
             if (totalCostEl) {
                 if (startFromOne) {
-                    totalCostEl.innerText = formatVal(1, 0, true);
+                    totalCostEl.innerText = formatVal(1, 2, true);
                 }
-                animateNumber(totalCostEl, Math.round(totalCostTWD), 1500, true, 0, '', true);
+                animateNumber(totalCostEl, totalCostTWD, 1500, true, 2, '', true);
             }
             if (totalDisplayEl) {
                 if (startFromOne) {
-                    totalDisplayEl.innerText = formatVal(1, 0, true);
+                    totalDisplayEl.innerText = formatVal(1, 2, true);
                 }
-                animateNumber(totalDisplayEl, Math.round(grandTotal), 1500, true, 0, '', true);
+                animateNumber(totalDisplayEl, grandTotal, 1500, true, 2, '', true);
             }
             const pDisp = document.getElementById('totalProfitDisplay');
             const pctDisp = document.getElementById('totalProfitPctDisplay');
@@ -1063,7 +1104,7 @@
             pctDisp.className = `text-sm font-black font-bold leading-none ${totalProfit >= 0 ? 'text-rose-500' : 'text-emerald-500'}`;
             const cashDisplay = document.getElementById('availableCashDisplay');
             if (cashDisplay) {
-                animateNumber(cashDisplay, Math.round(cashPosition), 1000, false, 0, '');
+                animateNumber(cashDisplay, cashPosition, 1000, false, 2, '');
             }
             drawMainCharts(grandTotal, cashPosition);
             drawTargetChart();
@@ -1074,33 +1115,53 @@
             tbody.innerHTML = '';
             if (portfolio.length === 0) { document.getElementById('emptyState').classList.remove('hidden'); finalizeUpdate(); return; }
             document.getElementById('emptyState').classList.add('hidden');
-            const cats = { TW: '台股 TAIPEI', US: '美股 US STOCK', BOND: '債券 BONDS' };
+            
+            const cats = { TW: '台股 TAIPEI', US: '美股 US STOCK', BOND: '債券 BONDS', PLEDGED: '質押 PLEDGED' };
+            
+            const getDisplayItems = () => {
+                let displayItems = [];
+                portfolio.forEach(item => {
+                    const pledged = item.pledgedShares || 0;
+                    const unpledged = item.shares - pledged;
+                    if (unpledged > 0) {
+                        displayItems.push({ ...item, isVirtual: false, displayShares: unpledged, displayCategory: item.category });
+                    }
+                    if (pledged > 0) {
+                        displayItems.push({ ...item, isVirtual: true, displayShares: pledged, displayCategory: 'PLEDGED' });
+                    }
+                });
+                return displayItems;
+            };
+
+            const allItems = getDisplayItems();
+
             for (let k in cats) {
-                const itemsInCat = portfolio.filter(i => i.category === k);
+                const itemsInCat = allItems.filter(i => i.displayCategory === k);
                 if (itemsInCat.length === 0) continue;
-                const sortedItems = itemsInCat.sort((a, b) => (a.isLeverage !== b.isLeverage) ? (a.isLeverage ? 1 : -1) : b.currentValTWD - a.currentValTWD);
+                const sortedItems = itemsInCat.sort((a, b) => (a.isLeverage !== b.isLeverage) ? (a.isLeverage ? 1 : -1) : (b.displayShares * b.price) - (a.displayShares * a.price));
                 tbody.innerHTML += `<tr><td colspan="9" class="px-4 py-2 bg-slate-800/60 text-[9px] font-black text-cyan-400 uppercase tracking-[0.2em] border-y border-slate-700/50">${cats[k]}</td></tr>`;
                 sortedItems.forEach(item => {
+                    const idSuffix = item.isVirtual ? `-pledged-${item.id}` : `-${item.id}`;
                     tbody.innerHTML += `
                         <tr class="bg-slate-800/10 border-b border-slate-800/40">
-                            <td class="px-4 py-5 text-center"><input type="number" oninput="updateVal(${item.id}, 'target', this.value)" value="${item.target}" class="w-10 py-1 text-center text-[11px] text-cyan-400 font-black rounded-lg bg-slate-900 border border-slate-700"></td>
-                            <td class="px-3 py-5"><div class="text-[11px] font-black uppercase text-white">${item.symbol}${item.isLeverage ? '<span class="badge-lvrg">L</span>' : ''}</div></td>
-                            <td class="px-3 py-5 text-[10px] font-mono text-slate-300 font-bold">${formatVal(item.shares, 0, true)}</td>
-                            <td class="px-3 py-5 text-right text-[11px] font-mono text-slate-400" id="cst-${item.id}">--</td>
-                            <td class="px-3 py-5 text-right text-[11px] font-mono text-cyan-400 font-black" id="pri-${item.id}">--</td>
-                            <td class="px-3 py-5 text-right text-[11px] font-mono text-slate-500 font-bold" id="inv-${item.id}">0</td>
-                            <td class="px-3 py-5 text-right text-[11px] font-mono text-slate-200 font-bold" id="mkt-${item.id}">0</td>
-                            <td class="px-4 py-5 text-right" id="prf-${item.id}"></td>
+                            <td class="px-4 py-5 text-center"><input type="number" oninput="updateVal(${item.id}, 'target', this.value)" value="${item.target}" class="w-10 py-1 text-center text-[11px] text-cyan-400 font-black rounded-lg bg-slate-900 border border-slate-700" ${item.isVirtual ? 'disabled' : ''}></td>
+                            <td class="px-3 py-5"><div class="text-[11px] font-black uppercase text-white">${item.symbol}${item.isLeverage ? '<span class="badge-lvrg">L</span>' : ''}${item.isVirtual ? '<span class="text-[8px] text-amber-500 ml-1">PLEDGED</span>' : ''}</div></td>
+                            <td class="px-3 py-5 text-[10px] font-mono text-slate-300 font-bold">${formatVal(item.displayShares, 0, true)}</td>
+                            <td class="px-3 py-5 text-right text-[11px] font-mono text-slate-400" id="cst${idSuffix}">--</td>
+                            <td class="px-3 py-5 text-right text-[11px] font-mono text-cyan-400 font-black" id="pri${idSuffix}">--</td>
+                            <td class="px-3 py-5 text-right text-[11px] font-mono text-slate-500 font-bold" id="inv${idSuffix}">0</td>
+                            <td class="px-3 py-5 text-right text-[11px] font-mono text-slate-200 font-bold" id="mkt${idSuffix}">0</td>
+                            <td class="px-4 py-5 text-right" id="prf${idSuffix}"></td>
                             <td class="px-3 py-5 text-center flex items-center gap-2">
                                 <button onclick="openEditModal(${item.id})" class="text-amber-500/60 hover:text-amber-400 btn-action p-2">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>
                                 </button>
-                                <button onclick="triggerDeleteConfirm(${item.id})" class="text-rose-500/60 hover:text-rose-500 btn-action p-2">
+                                ${!item.isVirtual ? `<button onclick="triggerDeleteConfirm(${item.id})" class="text-rose-500/60 hover:text-rose-500 btn-action p-2">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
                                         <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
                                         <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
                                     </svg>
-                                </button>
+                                </button>` : ''}
                             </td>
                         </tr>`;
                 });
@@ -1158,7 +1219,19 @@
             if (portfolio.length === 0) { if (targetChart) targetChart.destroy(); return; }
             const activeAssets = portfolio.filter(i => i.target > 0); 
             const sumTargetUnits = activeAssets.reduce((a, b) => a + (b.target || 0), 0);
-            const currentSelectedMarketTotal = activeAssets.reduce((a, b) => a + (b.currentValTWD || 0), 0);
+            
+            const getEffectiveVal = (asset) => {
+                let val = asset.currentValTWD || 0;
+                if (asset.excludePledged && asset.pledgedShares > 0) {
+                    const fx = asset.currency === 'USD' ? globalFxRate : 1;
+                    const pledgedVal = asset.pledgedShares * (asset.price || 0) * fx;
+                    val = Math.max(0, val - pledgedVal);
+                }
+                return val;
+            };
+
+            const currentSelectedMarketTotal = activeAssets.reduce((a, b) => a + getEffectiveVal(b), 0);
+
             if (targetChart) targetChart.destroy();
             if (activeAssets.length === 0) return;
             targetChart = new Chart(document.getElementById('targetChart').getContext('2d'), {
@@ -1166,7 +1239,7 @@
                 data: { 
                     labels: activeAssets.map(i => i.symbol), 
                     datasets: [
-                        { label: '實際', data: activeAssets.map(i => currentSelectedMarketTotal > 0 ? (i.currentValTWD / currentSelectedMarketTotal * 100).toFixed(1) : 0), backgroundColor: 'rgba(0,242,255,0.6)', borderRadius: 6, datalabels: { color: '#00f2ff', anchor: 'end', align: 'top' } }, 
+                        { label: '實際', data: activeAssets.map(i => currentSelectedMarketTotal > 0 ? (getEffectiveVal(i) / currentSelectedMarketTotal * 100).toFixed(1) : 0), backgroundColor: 'rgba(0,242,255,0.6)', borderRadius: 6, datalabels: { color: '#00f2ff', anchor: 'end', align: 'top' } }, 
                         { label: '目標', data: activeAssets.map(i => sumTargetUnits > 0 ? (i.target / sumTargetUnits * 100).toFixed(1) : 0), backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 6, borderColor: 'rgba(255,255,255,0.15)', borderWidth: 1, datalabels: { color: '#64748b', anchor: 'end', align: 'top', offset: -15 } }
                     ] 
                 },
@@ -1183,13 +1256,27 @@
             const available_cash = cashPosition;
 
             const cashDisplay = document.getElementById('availableCashDisplay');
-            animateNumber(cashDisplay, Math.round(available_cash), 1000, false, 0, '');
+            animateNumber(cashDisplay, available_cash, 1000, false, 2, '');
 
-            const rebalance_assets = portfolio.filter(i => i.target > 0);
-            if (rebalance_assets.length === 0) {
+            const rebalance_assets_orig = portfolio.filter(i => i.target > 0);
+            if (rebalance_assets_orig.length === 0) {
                 container.innerHTML = `<div class="text-center py-4 text-[9px] text-slate-500 uppercase tracking-widest">請先在目標%欄位輸入比例</div>`;
                 return;
             }
+
+            // Create simulation objects to respect excludePledged
+            let rebalance_assets = rebalance_assets_orig.map(asset => {
+                const fx = asset.currency === 'USD' ? globalFxRate : 1;
+                let val = asset.currentValTWD;
+                if (asset.excludePledged && asset.pledgedShares > 0) {
+                    const pledgedVal = asset.pledgedShares * (asset.price || 0) * fx;
+                    val = Math.max(0, val - pledgedVal);
+                }
+                return {
+                    ...asset, 
+                    currentValTWD: val 
+                };
+            });
 
             const total_target_units = rebalance_assets.reduce((sum, asset) => sum + asset.target, 0);
             let current_total_value = rebalance_assets.reduce((sum, asset) => sum + asset.currentValTWD, 0);
@@ -1506,7 +1593,7 @@
 
             const cashDisplay = document.getElementById('availableCashDisplay');
             if (cashDisplay) {
-                animateNumber(cashDisplay, Math.round(cashPosition), 1000, false, 0, '');
+                animateNumber(cashDisplay, cashPosition, 1000, false, 2, '');
             }
             saveToStorage();
             render();
@@ -1522,6 +1609,9 @@
                 const asset = portfolio.find(p => p.symbol === trade.symbol);
                 if (asset && asset.shares >= trade.shares) {
                     asset.shares -= trade.shares;
+                    if (asset.pledgedShares && asset.pledgedShares > asset.shares) {
+                        asset.pledgedShares = Math.max(0, asset.shares);
+                    }
                     if (asset.shares <= 0) {
                         portfolio = portfolio.filter(p => p.id !== asset.id);
                     }
@@ -1537,7 +1627,7 @@
             tradeHistory.splice(index, 1);
             const cashDisplay = document.getElementById('availableCashDisplay');
             if (cashDisplay) {
-                animateNumber(cashDisplay, Math.round(cashPosition), 1000, false, 0, '');
+                animateNumber(cashDisplay, cashPosition, 1000, false, 2, '');
             }
             saveToStorage();
             render();
@@ -1558,6 +1648,9 @@
                 if (asset) {
                     const shareDiff = newShares - oldShares;
                     asset.shares += shareDiff;
+                    if (asset.pledgedShares && asset.pledgedShares > asset.shares) {
+                        asset.pledgedShares = Math.max(0, asset.shares);
+                    }
                     if (asset.shares <= 0) {
                         portfolio = portfolio.filter(p => p.id !== asset.id);
                     }
@@ -1569,6 +1662,9 @@
                 if (asset) {
                     const shareDiff = oldShares - newShares;
                     asset.shares += shareDiff;
+                    if (asset.pledgedShares && asset.pledgedShares > asset.shares) {
+                        asset.pledgedShares = Math.max(0, asset.shares);
+                    }
                 }
                 trade.realizedPnL = trade.amount - (trade.shares * trade.avgCost);
                 cashPosition += (trade.amount - oldAmount);
@@ -1576,7 +1672,7 @@
 
             const cashDisplay = document.getElementById('availableCashDisplay');
             if (cashDisplay) {
-                animateNumber(cashDisplay, Math.round(cashPosition), 1000, false, 0, '');
+                animateNumber(cashDisplay, cashPosition, 1000, false, 2, '');
             }
             saveToStorage();
             render();
@@ -1606,9 +1702,9 @@
                 if (suffix === '%') {
                     formattedValue = (currentValue > 0 ? '+' : '') + currentValue.toFixed(decimals) + '%';
                 } else if (suffix.startsWith('+') || suffix.startsWith('-')) {
-                    formattedValue = (currentValue > 0 ? '+' : '') + formatVal(Math.round(currentValue), decimals, isSensitive);
+                    formattedValue = (currentValue > 0 ? '+' : '') + formatVal(currentValue, decimals, isSensitive);
                 } else {
-                    formattedValue = formatVal(Math.round(currentValue), decimals, isSensitive);
+                    formattedValue = formatVal(currentValue, decimals, isSensitive);
                 }
 
                 element.innerText = formattedValue;
@@ -1619,9 +1715,9 @@
                     if (suffix === '%') {
                         element.innerText = (targetValue > 0 ? '+' : '') + targetValue.toFixed(decimals) + '%';
                     } else if (suffix.startsWith('+') || suffix.startsWith('-')) {
-                        element.innerText = (targetValue > 0 ? '+' : '') + formatVal(Math.round(targetValue), decimals, isSensitive);
+                        element.innerText = (targetValue > 0 ? '+' : '') + formatVal(targetValue, decimals, isSensitive);
                     } else {
-                        element.innerText = formatVal(Math.round(targetValue), decimals, isSensitive);
+                        element.innerText = formatVal(targetValue, decimals, isSensitive);
                     }
                     if (applyGlowing) {
                         setTimeout(() => {
