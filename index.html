@@ -1918,19 +1918,34 @@
             if (!contentArea) return;
             let startX = 0;
             let startY = 0;
-            const threshold = 50;
+            let skipSwipe = false;
+            const minDist = 120;
+            const edgeZone = 28;
+            const slopeRatio = 0.6;
             const tabOrder = ['tab-home', 'tab-analysis', 'tab-advice', 'tab-history'];
             contentArea.addEventListener('touchstart', (e) => {
                 const t = e.touches[0];
                 startX = t.clientX;
                 startY = t.clientY;
+                const w = window.innerWidth || contentArea.clientWidth || 0;
+                skipSwipe = !((startX <= edgeZone) || (startX >= w - edgeZone));
+            }, { passive: true });
+            contentArea.addEventListener('touchmove', (e) => {
+                if (skipSwipe) return;
+                const t = e.touches[0];
+                const diffX = t.clientX - startX;
+                const diffY = t.clientY - startY;
+                if (Math.abs(diffY) > Math.abs(diffX) * slopeRatio) {
+                    skipSwipe = true;
+                }
             }, { passive: true });
             contentArea.addEventListener('touchend', (e) => {
                 const t = e.changedTouches && e.changedTouches[0];
                 if (!t) return;
                 const diffX = t.clientX - startX;
                 const diffY = t.clientY - startY;
-                if (Math.abs(diffX) <= Math.abs(diffY) || Math.abs(diffX) < threshold) return;
+                if (skipSwipe) return;
+                if (Math.abs(diffX) <= Math.abs(diffY) * slopeRatio || Math.abs(diffX) < minDist) return;
                 const activeTabEl = document.querySelector('.tab-content.active');
                 if (!activeTabEl) return;
                 const currentIndex = tabOrder.indexOf(activeTabEl.id);
