@@ -1093,13 +1093,18 @@
             let tickers = /^\d/.test(rawSymbol) ? [`${rawSymbol}.TW`, `${rawSymbol}.TWO`] : [rawSymbol];
             for (let t of tickers) {
                 try {
-                    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d`;
+                    const isTW = t.endsWith('.TW') || t.endsWith('.TWO');
+                    // Use quote endpoint which handles localization better
+                    const params = isTW ? '&lang=zh-Hant-TW&region=TW' : '&lang=en-US&region=US';
+                    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${t}${params}`;
                     const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
                     const data = await res.json();
-                    if (data.chart?.result?.[0]) {
-                        const meta = data.chart.result[0].meta;
-                        item.price = meta.regularMarketPrice;
-                        item.name = meta.shortName || meta.longName || item.symbol;
+                    if (data.quoteResponse?.result?.[0]) {
+                        const q = data.quoteResponse.result[0];
+                        item.price = q.regularMarketPrice;
+                        item.name = q.longName || q.shortName || item.symbol;
+                        // Fallback to English/Symbol if name is still empty or same as symbol (though unlikely for valid stocks)
+                        
                         const info = getCategoryInfo(item.symbol, item.name);
                         if (item.name === "載入中...") item.isLeverage = info.isLeverage;
                         if (item.price > 0) break;
@@ -1275,14 +1280,21 @@
             for (let k in cats) {
                 const itemsInCat = allItems.filter(i => i.displayCategory === k);
                 if (itemsInCat.length === 0) continue;
+                const catTotalTWD = itemsInCat.reduce((sum, item) => {
+                    const fx = item.currency === 'USD' ? globalFxRate : 1;
+                    return sum + (item.displayShares || 0) * (item.price || 0) * fx;
+                }, 0);
                 const sortedItems = itemsInCat.sort((a, b) => (a.isLeverage !== b.isLeverage) ? (a.isLeverage ? 1 : -1) : (b.displayShares * b.price) - (a.displayShares * a.price));
-                tbody.innerHTML += `<tr><td colspan="9" class="px-4 py-2 bg-slate-800/60 text-[9px] font-black text-cyan-400 uppercase tracking-[0.2em] border-y border-slate-700/50">${cats[k]}</td></tr>`;
+                tbody.innerHTML += `<tr><td colspan="9" class="px-4 py-2 bg-slate-800/60 text-[9px] font-black text-cyan-400 uppercase tracking-[0.2em] border-y border-slate-700/50"><div class="flex items-center justify-between"><span>${cats[k]}</span><span class="text-[9px] font-mono text-slate-200 tracking-normal">${formatVal(catTotalTWD, 0, true)} TWD</span></div></td></tr>`;
                 sortedItems.forEach(item => {
                     const idSuffix = item.isVirtual ? `-pledged-${item.id}` : `-${item.id}`;
                     tbody.innerHTML += `
                         <tr class="bg-slate-800/10 border-b border-slate-800/40">
                             <td class="px-4 py-5 text-center"><input type="number" oninput="updateVal(${item.id}, 'target', this.value)" value="${item.target}" class="w-10 py-1 text-center text-[11px] text-cyan-400 font-black rounded-lg bg-slate-900 border border-slate-700" ${item.isVirtual ? 'disabled' : ''}></td>
-                            <td class="px-3 py-5"><div class="text-[11px] font-black uppercase text-white">${item.symbol}${item.isLeverage ? '<span class="badge-lvrg">L</span>' : ''}${item.isVirtual ? '<span class="text-[8px] text-amber-500 ml-1">PLEDGED</span>' : ''}</div></td>
+                            <td class="px-3 py-5">
+                                <div class="text-[11px] font-black uppercase text-white">${item.symbol}${item.isLeverage ? '<span class="badge-lvrg">L</span>' : ''}${item.isVirtual ? '<span class="text-[8px] text-amber-500 ml-1">PLEDGED</span>' : ''}</div>
+                                <div class="text-[9px] text-slate-400 font-bold mt-0.5">${item.name || ''}</div>
+                            </td>
                             <td class="px-3 py-5 text-[10px] font-mono text-slate-300 font-bold">${formatVal(item.displayShares, 0, true)}</td>
                             <td class="px-3 py-5 text-right text-[11px] font-mono text-slate-400" id="cst${idSuffix}">--</td>
                             <td class="px-3 py-5 text-right text-[11px] font-mono text-cyan-400 font-black" id="pri${idSuffix}">--</td>
