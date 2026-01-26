@@ -13,14 +13,17 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        :root { --neon: #00f2ff; --bg: #0b0f1a; --card: #161c2d; --nav-height: 80px; }
+        :root { --neon: #22d3ee; --bg: #0b111f; --card: #0f172a; --surface: rgba(15, 23, 42, 0.7); --nav-height: 84px; }
         
         html, body {
             max-width: 100vw;
             height: 100vh;
             overflow: hidden;
-            background-color: var(--bg);
-            color: #e2e8f0;
+            background:
+                radial-gradient(1200px 600px at 10% 0%, rgba(34, 211, 238, 0.08), transparent 60%),
+                radial-gradient(1200px 600px at 90% 100%, rgba(99, 102, 241, 0.08), transparent 60%),
+                var(--bg);
+            color: #e5e7eb;
             font-family: 'Inter', -apple-system, sans-serif;
             -webkit-tap-highlight-color: transparent;
             margin: 0;
@@ -46,20 +49,19 @@
             left: 20px;
             right: 20px;
             height: 72px;
-            background: rgba(15, 23, 42, 0.65);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 24px;
+            background: var(--surface);
+            backdrop-filter: blur(22px);
+            -webkit-backdrop-filter: blur(22px);
+            border: 1px solid rgba(148, 163, 184, 0.12);
+            border-radius: 20px;
             display: flex;
             justify-content: space-around;
             align-items: center;
             z-index: 50;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 
-                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            box-shadow: 0 16px 36px rgba(2, 6, 23, 0.6);
             padding-bottom: 0;
             margin: 0 auto;
-            max-width: 500px;
+            max-width: 560px;
         }
 
         .nav-item {
@@ -68,12 +70,12 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 4px;
-            color: #64748b;
+            gap: 6px;
+            color: #94a3b8;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            width: 60px;
-            height: 60px;
-            border-radius: 16px;
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
             cursor: pointer;
         }
 
@@ -87,10 +89,10 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%) scale(0.5);
-            width: 48px;
-            height: 48px;
-            background: linear-gradient(145deg, rgba(0, 242, 255, 0.15), rgba(0, 242, 255, 0.05));
-            border-radius: 14px;
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(145deg, rgba(34, 211, 238, 0.15), rgba(34, 211, 238, 0.06));
+            border-radius: 12px;
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             opacity: 0;
             z-index: -1;
@@ -99,7 +101,7 @@
         .nav-item.active::before {
             transform: translate(-50%, -50%) scale(1);
             opacity: 1;
-            box-shadow: 0 0 20px rgba(0, 242, 255, 0.15);
+            box-shadow: 0 0 16px rgba(34, 211, 238, 0.18);
         }
 
         .nav-item svg {
@@ -111,17 +113,16 @@
 
         .nav-item.active svg {
             opacity: 1;
-            filter: drop-shadow(0 0 8px rgba(0, 242, 255, 0.6));
             transform: translateY(-2px);
         }
 
         .nav-label {
-            font-size: 9px;
+            font-size: 10px;
             font-weight: 800;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.06em;
             transition: all 0.3s;
-            opacity: 0.6;
+            opacity: 0.7;
             transform: translateY(0);
         }
         
@@ -136,7 +137,7 @@
             height: 100%;
             overflow-y: auto;
             overflow-x: hidden;
-            padding: 16px;
+            padding: 18px;
             padding-bottom: calc(var(--nav-height) + 40px);
             -webkit-overflow-scrolling: touch;
             animation: fadeIn 0.3s ease-out;
@@ -159,11 +160,11 @@
         }
 
         .neon-text { 
-            color: var(--neon); 
-            text-shadow: 0 0 20px rgba(0, 242, 255, 0.5); 
-            font-weight: 950; 
+            color: var(--neon);
+            text-shadow: 0 0 10px rgba(34, 211, 238, 0.35);
+            font-weight: 950;
         }
-        .glass-card { background: rgba(22, 28, 45, 0.8); backdrop-filter: blur(10px); }
+        .glass-card { background: var(--surface); backdrop-filter: blur(10px); border: 1px solid rgba(148, 163, 184, 0.12); }
         
         .scroll-container { 
             overflow-x: auto; 
@@ -180,27 +181,27 @@
         input { 
             transition: all 0.2s; 
             background-color: rgba(30, 41, 59, 0.5) !important; 
-            border: 1px solid #334155; 
-            color: white; 
+            border: 1px solid rgba(148, 163, 184, 0.25); 
+            color: #e5e7eb; 
             font-size: 14px !important; 
         }
-        input:focus { border-color: var(--neon) !important; outline: none; }
+        input:focus { border-color: var(--neon) !important; outline: none; box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.25); }
         
-        .btn-action:active { transform: scale(0.96); opacity: 0.8; }
+        .btn-action:active { transform: scale(0.97); opacity: 0.9; }
 
         #addModal, #buyModal, #sellModal, #editModal, #infoModal, #compoundModal, #confirmDeleteModal, #editTradeModal, #deleteTradeModal {
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(8px);
+            background: rgba(2, 6, 23, 0.85);
+            backdrop-filter: blur(10px);
             z-index: 100;
             align-items: center;
             justify-content: center;
             padding: 20px;
         }
 
-        th { white-space: nowrap; font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 800; }
+        th { white-space: nowrap; font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 800; }
         td { white-space: nowrap; }
 
         .badge-lvrg {
@@ -220,6 +221,83 @@
             width: 100%;
             position: relative;
             overflow: hidden;
+        }
+        table tbody tr:hover { background-color: rgba(148, 163, 184, 0.06); transition: background-color .2s; }
+        table tbody tr:nth-child(odd) { background-color: rgba(2, 6, 23, 0.18); }
+
+        .glass-card:hover { transform: translateY(-2px); transition: transform .25s ease; }
+        .glass-card:active { transform: translateY(0); }
+
+        .shine-title {
+            position: relative;
+            background: linear-gradient(90deg, #fff 0%, #9ae6f3 25%, #fff 50%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            background-size: 200% 100%;
+            background-position: 0% 50%;
+            animation: shineSweep 4s ease-in-out infinite;
+        }
+        @keyframes shineSweep {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
+        }
+
+        .btn-action {
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-action::after {
+            content: '';
+            position: absolute;
+            top: 0; left: -120%;
+            width: 80%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            transform: skewX(-20deg);
+            transition: left .5s ease;
+        }
+        .btn-action:hover::after { left: 120%; }
+
+        .nav-item.active { text-shadow: 0 0 12px rgba(34, 211, 238, 0.35); }
+        .nav-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            width: 30px; height: 3px;
+            background: linear-gradient(90deg, transparent, rgba(34,211,238,0.8), transparent);
+            border-radius: 999px;
+            filter: blur(0.5px);
+        }
+
+        .aurora-stage {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+        }
+        .aurora-stage .blob {
+            position: absolute;
+            width: 38vmax;
+            height: 38vmax;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.08;
+            animation: floatBlob 20s ease-in-out infinite;
+        }
+        .aurora-stage .blob.b1 { background: #22d3ee; top: -10vmax; left: -8vmax; animation-delay: 0s; }
+        .aurora-stage .blob.b2 { background: #6366f1; bottom: -10vmax; right: -12vmax; animation-delay: 5s; }
+        .aurora-stage .blob.b3 { background: #f43f5e; top: 30%; right: -10vmax; animation-delay: 10s; }
+        @keyframes floatBlob {
+            0% { transform: translate(0,0) scale(1); }
+            50% { transform: translate(4vmax,-2vmax) scale(1.05); }
+            100% { transform: translate(0,0) scale(1); }
+        }
+
+        .tab-content.active { animation: slideIn .35s ease-out; }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .switch {
@@ -275,6 +353,11 @@
     </style>
 </head>
 <body>
+    <div class="aurora-stage" aria-hidden="true">
+        <span class="blob b1"></span>
+        <span class="blob b2"></span>
+        <span class="blob b3"></span>
+    </div>
     <!-- 確認刪除彈窗 -->
     <div id="confirmDeleteModal">
         <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-rose-500/30 p-8 shadow-2xl text-center">
@@ -571,11 +654,11 @@
 
     <div id="main-content-area" class="max-w-md mx-auto w-full">
         <div id="tab-home" class="tab-content active">
-        <header class="flex flex-col items-stretch justify-between mb-8 pt-4 gap-4 w-full">
+        <header class="flex flex-col items-stretch justify-between mb-8 pt-6 gap-4 w-full">
             <div class="flex justify-between items-center w-full">
                 <div class="brand-area">
-                    <h1 class="text-[2.2rem] font-[950] neon-text italic tracking-[-0.08em] uppercase leading-[0.8]">StockLens</h1>
-                    <p class="text-[10px] font-bold italic uppercase tracking-wider mt-2 ml-0.5 opacity-60">
+                    <h1 class="text-[2.1rem] font-[950] neon-text tracking-[-0.06em] leading-[0.9] shine-title">StockLens</h1>
+                    <p class="text-[10px] font-bold uppercase tracking-wider mt-1.5 ml-0.5 opacity-70">
                         <span class="scrolling-version-line">
                             <span class="text-slate-400">BY OWEN</span>
                             <span class="text-slate-600 mx-1.5 font-normal">/</span>
@@ -584,14 +667,14 @@
                     </p>
                 </div>
                 <div class="flex gap-2">
-                    <button onclick="openModal('compoundModal')" class="w-8 h-8 rounded-xl bg-slate-800/40 border border-emerald-500/10 flex items-center justify-center btn-action">
+                    <button onclick="openModal('compoundModal')" class="w-9 h-9 rounded-xl bg-slate-800/40 border border-emerald-500/20 flex items-center justify-center btn-action">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#10b981" viewBox="0 0 16 16">
                             <path d="M12 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h8zM4 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H4z"/>
                             <path d="M4 2.5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-7a.5.5 0 0 1-.5-.5v-2zm0 4a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm0 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm0 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm3-6a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm0 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm0 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm3-6a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm0 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-4z"/>
                         </svg>
                     </button>
-                    <button onclick="openModal('infoModal')" class="w-8 h-8 rounded-xl bg-slate-800/40 border border-cyan-500/10 flex items-center justify-center text-[10px] text-cyan-400 font-bold btn-action">?</button>
-                    <button onclick="togglePrivacy()" id="privacyBtn" class="w-8 h-8 rounded-xl bg-slate-800/40 border border-cyan-500/10 flex items-center justify-center text-cyan-400 btn-action">
+                    <button onclick="openModal('infoModal')" class="w-9 h-9 rounded-xl bg-slate-800/40 border border-cyan-500/20 flex items-center justify-center text-[10px] text-cyan-400 font-bold btn-action">?</button>
+                    <button onclick="togglePrivacy()" id="privacyBtn" class="w-9 h-9 rounded-xl bg-slate-800/40 border border-cyan-500/20 flex items-center justify-center text-cyan-400 btn-action">
                         <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                             <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/><path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/>
                         </svg>
@@ -599,15 +682,15 @@
                 </div>
             </div>
 
-            <div class="glass-card px-5 py-5 rounded-[2rem] border border-cyan-500/40 shadow-[0_0_40px_rgba(0,242,255,0.1)] flex flex-col w-full">
+            <div class="glass-card px-5 py-5 rounded-2xl shadow-[0_10px_30px_rgba(2,6,23,0.45)] flex flex-col w-full">
                 <div class="flex justify-between items-end mb-4">
                     <div class="flex flex-col">
-                        <span class="text-[8px] text-slate-500 uppercase font-black tracking-widest mb-1 opacity-80">Total Cost</span>
-                        <div class="flex items-baseline"><span class="text-[7px] text-slate-600 font-mono mr-1">TWD</span><span id="totalCostDisplay" class="text-sm font-mono font-bold text-slate-400 tracking-tighter">0</span></div>
+                        <span class="text-[9px] text-slate-500 uppercase font-black tracking-widest mb-1 opacity-80">Total Cost</span>
+                        <div class="flex items-baseline"><span class="text-[9px] text-slate-500 font-mono mr-1">TWD</span><span id="totalCostDisplay" class="text-base font-mono font-bold text-slate-300 tracking-tighter">0</span></div>
                     </div>
                     <div class="flex flex-col items-end">
-                        <span class="text-[10px] text-cyan-400/70 uppercase font-black tracking-[0.2em] mb-1">Market Value</span>
-                        <div class="flex items-baseline overflow-hidden"><span class="text-[9px] text-slate-500 font-mono mr-1">TWD</span><span id="totalDisplay" class="text-[1.8rem] font-mono font-black text-white leading-none tracking-tighter">0</span></div>
+                        <span class="text-[10px] text-cyan-400/80 uppercase font-black tracking-[0.18em] mb-1">Market Value</span>
+                        <div class="flex items-baseline overflow-hidden"><span class="text-[10px] text-slate-500 font-mono mr-1">TWD</span><span id="totalDisplay" class="text-[2rem] font-mono font-black text-white leading-none tracking-tighter">0</span></div>
                     </div>
                 </div>
                 <div class="flex items-center gap-4 border-t border-slate-700/50 pt-4 w-full justify-end">
@@ -617,33 +700,33 @@
             </div>
         </header>
 
-        <div class="glass-card rounded-[2rem] border border-slate-800/80 overflow-hidden mb-6 shadow-xl w-full">
-            <div class="p-5 border-b border-slate-800/50 flex justify-between items-center bg-slate-900/40">
-                <h2 class="font-bold text-[12px] text-cyan-400 uppercase tracking-widest italic">Portfolio</h2>
+        <div class="glass-card rounded-2xl overflow-hidden mb-6 shadow-[0_10px_30px_rgba(2,6,23,0.45)] w-full">
+            <div class="p-5 border-b border-slate-800/50 flex justify-between items-center bg-slate-900/30">
+                <h2 class="font-bold text-[12px] text-cyan-400 uppercase tracking-widest">Portfolio</h2>
                 <div class="flex gap-2">
-                    <button id="refreshBtn" onclick="handleRefreshClick()" class="bg-cyan-500/10 text-cyan-400 text-[9px] px-3 py-2 rounded-xl font-bold border border-cyan-500/20 btn-action uppercase">更新</button>
-                    <button onclick="openModal('sellModal')" class="bg-rose-500/10 text-rose-400 text-[9px] px-3 py-2 rounded-xl font-bold border border-rose-500/20 btn-action uppercase">- 賣出</button>
-                    <button onclick="openModal('buyModal')" class="bg-emerald-500/10 text-emerald-400 text-[9px] px-3 py-2 rounded-xl font-bold border border-emerald-500/20 btn-action uppercase">+ 買入</button>
-                    <button onclick="openModal('addModal')" class="bg-cyan-500 text-black text-[9px] px-3 py-2 rounded-xl font-black btn-action uppercase shadow-lg shadow-cyan-500/20">+ 新增</button>
+                    <button id="refreshBtn" onclick="handleRefreshClick()" class="bg-cyan-500/10 text-cyan-400 text-[10px] px-3.5 py-2 rounded-xl font-bold border border-cyan-500/20 btn-action uppercase">更新</button>
+                    <button onclick="openModal('sellModal')" class="bg-rose-500/10 text-rose-400 text-[10px] px-3.5 py-2 rounded-xl font-bold border border-rose-500/20 btn-action uppercase">- 賣出</button>
+                    <button onclick="openModal('buyModal')" class="bg-emerald-500/10 text-emerald-400 text-[10px] px-3.5 py-2 rounded-xl font-bold border border-emerald-500/20 btn-action uppercase">+ 買入</button>
+                    <button onclick="openModal('addModal')" class="bg-cyan-500 text-black text-[10px] px-3.5 py-2 rounded-xl font-black btn-action uppercase shadow-lg shadow-cyan-500/20">+ 新增</button>
                 </div>
             </div>
 
             <!-- 现金水位功能 -->
             <div class="px-5 py-3 bg-slate-900/20 border-b border-slate-800/30 flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                    <span class="text-emerald-400 font-black text-lg">$</span>
+                    <span class="text-emerald-400 font-black text-xl">$</span>
                     <span class="text-[10px] text-slate-500 uppercase font-black tracking-widest">現金水位</span>
                 </div>
                 <div class="flex items-center gap-3">
-                    <span class="text-[9px] text-slate-500 font-mono">TWD</span>
-                    <input type="number" id="cashPosition" oninput="updateCashPosition()" value="0" class="w-24 py-1.5 px-3 text-right text-sm font-mono text-emerald-400 font-black shadow-inner rounded-lg bg-slate-800 border border-slate-600 focus:border-emerald-400 focus:outline-none">
+                    <span class="text-[10px] text-slate-500 font-mono">TWD</span>
+                    <input type="number" id="cashPosition" oninput="updateCashPosition()" value="0" class="w-28 py-1.5 px-3 text-right text-sm font-mono text-emerald-400 font-black shadow-inner rounded-lg bg-slate-800 border border-slate-600 focus:border-emerald-400 focus:outline-none">
                 </div>
             </div>
             
             <div class="scroll-container no-scrollbar">
                 <table class="w-full text-left border-separate border-spacing-0">
                     <thead>
-                        <tr class="bg-slate-900/60">
+                        <tr class="bg-slate-900/50">
                             <th class="px-4 py-4 text-center">目標%</th>
                             <th class="px-3 py-4">標的</th>
                             <th class="px-3 py-4">持股</th>
@@ -657,7 +740,7 @@
                     </thead>
                     <tbody id="tableBody"></tbody>
                 </table>
-                <div id="emptyState" class="p-10 text-center text-slate-600 italic text-xs hidden uppercase tracking-widest">尚未添加資產</div>
+                <div id="emptyState" class="p-10 text-center text-slate-500 italic text-xs hidden uppercase tracking-widest">尚未添加資產</div>
             </div>
         </div>
         </div>
@@ -673,14 +756,14 @@
                     <div class="hidden w-1/2 h-full relative" id="strategyChartContainer"><canvas id="strategyChart"></canvas></div>
                 </div>
             </div>
-            <div class="glass-card p-5 rounded-[2rem] border border-slate-800/80 shadow-lg w-full overflow-hidden">
-                <h3 class="text-[10px] uppercase font-bold text-cyan-500/60 mb-4 text-center tracking-[0.2em] italic">Target Gap Analysis</h3>
+            <div class="glass-card p-5 rounded-2xl shadow-[0_10px_30px_rgba(2,6,23,0.45)] w-full overflow-hidden">
+                <h3 class="text-[10px] uppercase font-bold text-cyan-500/70 mb-4 text-center tracking-[0.18em]">Target Gap Analysis</h3>
                 <div class="h-[180px] w-full chart-wrapper"><canvas id="targetChart"></canvas></div>
             </div>
         </div>
 
         <!-- 總損益計算區域 -->
-        <div class="glass-card p-6 rounded-[2rem] border border-slate-800 mb-6 shadow-2xl w-full">
+        <div class="glass-card p-6 rounded-2xl mb-6 shadow-[0_10px_30px_rgba(2,6,23,0.45)] w-full">
             <div class="flex items-center justify-between mb-6">
                 <div>
                     <div class="flex items-center gap-2">
@@ -702,7 +785,7 @@
                 </div>
                 <div class="flex flex-col items-end">
                     <span class="text-[9px] font-black text-emerald-500 uppercase mb-1 tracking-widest">總實現損益</span>
-                    <span id="totalRealizedPnL" class="text-lg font-mono font-black text-emerald-500">0</span>
+                    <span id="totalRealizedPnL" class="text-xl font-mono font-black text-emerald-500">0</span>
                     <span class="text-[7px] text-slate-500 mt-1 font-bold">含歷史累計</span>
                 </div>
             </div>
@@ -710,7 +793,7 @@
         </div>
 
         <div id="tab-advice" class="tab-content">
-        <div class="glass-card p-6 rounded-[2rem] border border-slate-800 mb-20 shadow-2xl w-full">
+        <div class="glass-card p-6 rounded-2xl mb-20 shadow-[0_10px_30px_rgba(2,6,23,0.45)] w-full">
             <div class="flex items-center justify-between mb-6">
                 <div>
                     <h2 class="font-bold text-[12px] uppercase tracking-[0.1em] text-slate-300">資產再平衡</h2>
@@ -722,12 +805,12 @@
                 </div>
             </div>
             <div id="adviceContainer" class="space-y-3 min-h-[40px]"></div>
-            <button onclick="triggerAdvice()" class="mt-6 w-full bg-cyan-500 text-black text-xs py-4 rounded-[1.2rem] font-black uppercase italic btn-action shadow-xl shadow-cyan-500/10">Calculate Trade Orders</button>
+            <button onclick="triggerAdvice()" class="mt-6 w-full bg-cyan-500 text-black text-xs py-4 rounded-xl font-black uppercase btn-action shadow-xl shadow-cyan-500/10">Calculate Trade Orders</button>
         </div>
         </div>
 
         <div id="tab-history" class="tab-content">
-        <div class="glass-card p-6 rounded-[2rem] border border-slate-800 mb-20 shadow-2xl w-full">
+        <div class="glass-card p-6 rounded-2xl mb-20 shadow-[0_10px_30px_rgba(2,6,23,0.45)] w-full">
             <h2 class="font-bold text-[12px] uppercase tracking-[0.1em] text-slate-300 mb-6">Trade History</h2>
             <div id="tradeHistoryContainer" class="space-y-3 overflow-y-auto no-scrollbar" style="display:block;">
                 <div id="tradeHistoryList" class="space-y-2"></div>
