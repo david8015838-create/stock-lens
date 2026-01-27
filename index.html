@@ -138,6 +138,7 @@
             overflow-y: auto;
             overflow-x: hidden;
             padding: 18px;
+            padding-top: calc(env(safe-area-inset-top, 0px) + 24px);
             padding-bottom: calc(var(--nav-height) + 40px);
             -webkit-overflow-scrolling: touch;
             animation: fadeIn 0.3s ease-out;
@@ -665,10 +666,10 @@
 
     <div id="main-content-area" class="max-w-md mx-auto w-full">
         <div id="tab-home" class="tab-content active">
-        <header class="flex flex-col items-stretch justify-between mb-8 pt-6 gap-4 w-full">
+        <header class="flex flex-col items-stretch justify-between mb-8 pt-2 gap-4 w-full">
             <div class="flex justify-between items-center w-full">
                 <div class="brand-area">
-                    <h1 class="text-[2.1rem] font-[950] neon-text tracking-[-0.06em] leading-[0.9] shine-title pr-1">StockLens</h1>
+                    <h1 class="text-[1.8rem] sm:text-[2.1rem] font-[950] neon-text tracking-[-0.06em] leading-[0.9] shine-title pr-1">StockLens</h1>
                     <p class="text-[10px] font-bold uppercase tracking-wider mt-1.5 ml-0.5 opacity-70">
                         <span class="scrolling-version-line">
                             <span class="text-slate-400">BY OWEN</span>
@@ -748,9 +749,9 @@
             </div>
 
             <!-- 現金水位區塊 -->
-            <div class="mx-6 my-4 p-4 bg-slate-950/30 rounded-3xl border border-white/5 flex items-center justify-between group/cash hover:border-emerald-500/30 transition-all duration-500">
-                <div class="flex items-center gap-4">
-                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 border border-emerald-500/20 flex items-center justify-center shadow-lg shadow-emerald-500/5 group-hover/cash:scale-110 transition-transform">
+            <div class="mx-4 sm:mx-6 my-4 p-4 bg-slate-950/30 rounded-3xl border border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-0 group/cash hover:border-emerald-500/30 transition-all duration-500">
+                <div class="flex items-center gap-4 w-full sm:w-auto">
+                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 border border-emerald-500/20 flex items-center justify-center shadow-lg shadow-emerald-500/5 group-hover/cash:scale-110 transition-transform flex-shrink-0">
                         <span class="text-emerald-400 font-black text-xl leading-none">$</span>
                     </div>
                     <div class="flex flex-col">
@@ -758,9 +759,9 @@
                         <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tighter opacity-60">可用現金水位</span>
                     </div>
                 </div>
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
                     <span class="text-[11px] text-slate-500 font-mono font-black opacity-40">TWD</span>
-                    <input type="number" id="cashPosition" oninput="updateCashPosition()" value="0" class="w-36 py-2.5 px-5 text-right text-base font-mono text-emerald-400 font-black rounded-2xl bg-slate-900/50 border border-white/5 focus:border-emerald-500/40 focus:bg-slate-900 transition-all outline-none shadow-inner">
+                    <input type="number" id="cashPosition" oninput="updateCashPosition()" value="0" class="w-full sm:w-36 py-2.5 px-5 text-right text-base font-mono text-emerald-400 font-black rounded-2xl bg-slate-900/50 border border-white/5 focus:border-emerald-500/40 focus:bg-slate-900 transition-all outline-none shadow-inner">
                 </div>
             </div>
             
