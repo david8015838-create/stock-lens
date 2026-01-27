@@ -1334,11 +1334,13 @@
             const originalText = btn.innerText;
             btn.innerText = "WAIT..."; btn.disabled = true;
             try {
-                await fetchFX();
-                for (let item of portfolio) { 
-                    await fetchPriceAndInfo(item); 
-                    await new Promise(r => setTimeout(r, 100)); 
-                }
+                // 1. 同步執行匯率更新與所有價格更新，不再一個一個排隊
+                const fxPromise = fetchFX();
+                const pricePromises = portfolio.map(item => fetchPriceAndInfo(item));
+                
+                // 2. 等待所有請求完成
+                await Promise.all([fxPromise, ...pricePromises]);
+                
                 saveToStorage();
                 render();
                 finalizeUpdate(true);
@@ -2173,11 +2175,13 @@
                 const originalText = btn.innerText;
                 btn.innerText = "WAIT..."; 
                 btn.disabled = true;
-                await fetchFX();
-                for (let item of portfolio) { 
-                    await fetchPriceAndInfo(item); 
-                    await new Promise(r => setTimeout(r, 100)); 
-                }
+                
+                // 1. 並行執行匯率與所有價格更新
+                const fxPromise = fetchFX();
+                const pricePromises = portfolio.map(item => fetchPriceAndInfo(item));
+                
+                await Promise.all([fxPromise, ...pricePromises]);
+                
                 saveToStorage();
                 render();
                 setTimeout(() => {
