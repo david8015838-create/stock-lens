@@ -1565,8 +1565,8 @@
                             <td class="px-3 py-4 text-right text-[11px] font-mono text-cyan-400 font-black" id="pri${idSuffix}">--</td>
                     <td class="px-3 py-4 text-right text-[11px] font-mono text-slate-600 font-bold" id="inv${idSuffix}">0</td>
                     <td class="px-3 py-4 text-right relative">
-                        <div class="absolute inset-y-1.5 right-1 left-1 bg-white/[0.01] rounded-xl border border-white/[0.04] pointer-events-none backdrop-blur-[1px]"></div>
-                        <div id="mkt${idSuffix}" class="text-[11px] font-mono text-slate-100 font-black relative z-10">0</div>
+                        <div class="absolute inset-y-1.5 right-1 left-1 bg-white/[0.005] rounded-xl border border-white/[0.03] pointer-events-none"></div>
+                        <div id="mkt${idSuffix}" class="text-[11px] font-mono text-slate-100 font-black relative z-10 transition-all duration-300 origin-right">0</div>
                     </td>
                     <td class="px-4 py-4 text-right" id="prf${idSuffix}"></td>
                             <td class="px-4 py-4">
@@ -2127,6 +2127,21 @@
                 }
 
                 element.innerText = formattedValue;
+
+                // 自動縮放邏輯
+                if (element.id.startsWith('mkt-')) {
+                    const cleanVal = formattedValue.replace(/,/g, '');
+                    const length = cleanVal.length;
+                    if (length > 9) element.style.fontSize = '8px';
+                    else if (length > 7) element.style.fontSize = '9px';
+                    else element.style.fontSize = '11px';
+                } else if (applyGlowing && element.id === 'totalDisplay') {
+                    const cleanVal = formattedValue.replace(/,/g, '');
+                    const length = cleanVal.length;
+                    if (length > 12) element.style.fontSize = '1.2rem';
+                    else if (length > 10) element.style.fontSize = '1.5rem';
+                    else element.style.fontSize = '1.875rem';
+                }
 
                 if (progress < 1) {
                     requestAnimationFrame(updateNumber);
