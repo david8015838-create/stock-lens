@@ -668,7 +668,7 @@
         <header class="flex flex-col items-stretch justify-between mb-8 pt-6 gap-4 w-full">
             <div class="flex justify-between items-center w-full">
                 <div class="brand-area">
-                    <h1 class="text-[2.1rem] font-[950] neon-text tracking-[-0.06em] leading-[0.9] shine-title">StockLens</h1>
+                    <h1 class="text-[2.1rem] font-[950] neon-text tracking-[-0.06em] leading-[0.9] shine-title pr-1">StockLens</h1>
                     <p class="text-[10px] font-bold uppercase tracking-wider mt-1.5 ml-0.5 opacity-70">
                         <span class="scrolling-version-line">
                             <span class="text-slate-400">BY OWEN</span>
@@ -1546,9 +1546,12 @@
                     tbody.innerHTML += `
                         <tr class="group/row hover:bg-white/[0.02] transition-colors duration-300">
                             <td class="px-4 py-4 text-center">
-                                <input type="number" oninput="updateVal(${item.id}, 'target', this.value)" value="${item.target}" 
-                                    class="w-11 py-2 text-center text-[11px] text-cyan-400 font-black rounded-xl bg-slate-950/40 border border-white/5 focus:border-cyan-500/40 focus:outline-none transition-all" 
-                                    ${item.isVirtual ? 'disabled' : ''}>
+                                <div class="relative inline-block">
+                                    <input type="number" oninput="updateVal(${item.id}, 'target', this.value)" value="${item.target}" 
+                                        class="w-12 py-2 pr-4 text-center text-[11px] text-cyan-400 font-black rounded-xl bg-slate-950/40 border border-white/5 focus:border-cyan-500/40 focus:outline-none transition-all" 
+                                        ${item.isVirtual ? 'disabled' : ''}>
+                                    <span class="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-cyan-400/60 font-black pointer-events-none">%</span>
+                                </div>
                             </td>
                             <td class="px-3 py-4">
                                 <div class="flex flex-col">
