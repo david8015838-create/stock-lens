@@ -1226,8 +1226,7 @@
             const proxies = [
                 (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
                 (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-                (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-                (u) => `https://thingproxy.freeboard.io/fetch/${u}`
+                (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
             ];
             
             for (let i = 0; i < retries; i++) {
@@ -1235,22 +1234,30 @@
                 try {
                     const fetchUrl = proxyFn(url);
                     console.log(`Fetching via proxy: ${fetchUrl}`);
+                    
+                    // 使用 AbortController 設置 8 秒逾時，避免單個請求卡死 30 秒
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 8000);
+                    
                     const response = await fetch(fetchUrl, {
-                        headers: { 'Accept': 'application/json' }
+                        headers: { 'Accept': 'application/json' },
+                        signal: controller.signal
                     });
+                    
+                    clearTimeout(timeoutId);
                     
                     if (response.ok) {
                         let data = await response.json();
-                        // allorigins returns data in a 'contents' field as a string if using the raw API fails
                         if (data.contents && typeof data.contents === 'string') {
                             data = JSON.parse(data.contents);
                         }
                         return data;
                     }
                 } catch (e) {
-                    console.warn(`Fetch attempt ${i + 1} failed for ${url} using proxy ${i % proxies.length}:`, e);
+                    console.warn(`Fetch attempt ${i + 1} failed for ${url}:`, e.name === 'AbortError' ? 'Timeout' : e);
                 }
-                await new Promise(r => setTimeout(r, 800 * (i + 1)));
+                // 減少重試等待時間
+                if (i < retries - 1) await new Promise(r => setTimeout(r, 500));
             }
             throw new Error(`Failed to fetch after ${retries} attempts`);
         }
@@ -1334,12 +1341,13 @@
             const originalText = btn.innerText;
             btn.innerText = "WAIT..."; btn.disabled = true;
             try {
-                // 1. 同步執行匯率更新與所有價格更新，不再一個一個排隊
+                // 1. 同步執行匯率更新與所有價格更新
                 const fxPromise = fetchFX();
                 const pricePromises = portfolio.map(item => fetchPriceAndInfo(item));
                 
-                // 2. 等待所有請求完成
-                await Promise.all([fxPromise, ...pricePromises]);
+                // 2. 使用 Promise.allSettled 代替 Promise.all
+                // 這樣即使其中一支股票 API 壞了，其他的還是能正常顯示，不會整批卡死
+                await Promise.allSettled([fxPromise, ...pricePromises]);
                 
                 saveToStorage();
                 render();
@@ -2180,7 +2188,7 @@
                 const fxPromise = fetchFX();
                 const pricePromises = portfolio.map(item => fetchPriceAndInfo(item));
                 
-                await Promise.all([fxPromise, ...pricePromises]);
+                await Promise.allSettled([fxPromise, ...pricePromises]);
                 
                 saveToStorage();
                 render();
