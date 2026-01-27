@@ -749,19 +749,19 @@
             </div>
 
             <!-- 現金水位區塊 -->
-            <div class="mx-4 sm:mx-6 my-4 p-4 bg-slate-950/30 rounded-3xl border border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-0 group/cash hover:border-emerald-500/30 transition-all duration-500">
-                <div class="flex items-center gap-4 w-full sm:w-auto">
-                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 border border-emerald-500/20 flex items-center justify-center shadow-lg shadow-emerald-500/5 group-hover/cash:scale-110 transition-transform flex-shrink-0">
-                        <span class="text-emerald-400 font-black text-xl leading-none">$</span>
+            <div class="mx-3 sm:mx-6 my-4 p-3 sm:p-4 bg-slate-950/30 rounded-3xl border border-white/5 flex items-center justify-between group/cash hover:border-emerald-500/30 transition-all duration-500 overflow-hidden">
+                <div class="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+                    <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 border border-emerald-500/20 flex items-center justify-center shadow-lg shadow-emerald-500/5 group-hover/cash:scale-110 transition-transform flex-shrink-0">
+                        <span class="text-emerald-400 font-black text-lg sm:text-xl leading-none">$</span>
                     </div>
                     <div class="flex flex-col">
-                        <span class="text-[10px] text-slate-300 uppercase font-black tracking-widest">Available Cash</span>
-                        <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tighter opacity-60">可用現金水位</span>
+                        <span class="text-[9px] sm:text-[10px] text-slate-300 uppercase font-black tracking-widest whitespace-nowrap">Available Cash</span>
+                        <span class="hidden sm:block text-[8px] text-slate-500 font-bold uppercase tracking-tighter opacity-60">可用現金水位</span>
                     </div>
                 </div>
-                <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
-                    <span class="text-[11px] text-slate-500 font-mono font-black opacity-40">TWD</span>
-                    <input type="number" id="cashPosition" oninput="updateCashPosition()" value="0" class="w-full sm:w-36 py-2.5 px-5 text-right text-base font-mono text-emerald-400 font-black rounded-2xl bg-slate-900/50 border border-white/5 focus:border-emerald-500/40 focus:bg-slate-900 transition-all outline-none shadow-inner">
+                <div class="flex items-center gap-2 sm:gap-3 flex-shrink min-w-0 justify-end">
+                    <span class="text-[10px] sm:text-[11px] text-slate-500 font-mono font-black opacity-40 flex-shrink-0">TWD</span>
+                    <input type="number" id="cashPosition" oninput="updateCashPosition()" value="0" class="w-24 sm:w-36 py-2 px-3 sm:px-5 text-right text-sm sm:text-base font-mono text-emerald-400 font-black rounded-xl sm:rounded-2xl bg-slate-900/50 border border-white/5 focus:border-emerald-500/40 focus:bg-slate-900 transition-all outline-none shadow-inner min-w-0">
                 </div>
             </div>
             
