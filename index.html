@@ -1219,8 +1219,8 @@
                         const response = await fetch(url, {
                             method: 'GET',
                             headers: {
-                                'x-rapidapi-key': rapidApiKey,
-                                'x-rapidapi-host': 'apidojo-yahoo-finance-v1.p.rapidapi.com'
+                                'X-RapidAPI-Key': rapidApiKey,
+                                'X-RapidAPI-Host': 'apidojo-yahoo-finance-v1.p.rapidapi.com'
                             }
                         });
                         if (response.ok) {
@@ -1233,6 +1233,8 @@
                                 if (item.name === "載入中...") item.isLeverage = info.isLeverage;
                                 if (item.price > 0) return;
                             }
+                        } else {
+                            console.warn(`RapidAPI responded with status: ${response.status} for ${t}`);
                         }
                     } catch (e) {
                         console.warn(`RapidAPI fetch failed for ${t}:`, e);
@@ -1281,16 +1283,24 @@
         async function handleRefreshClick() {
             if (portfolio.length === 0) return;
             const btn = document.getElementById('refreshBtn');
+            const originalText = btn.innerText;
             btn.innerText = "WAIT..."; btn.disabled = true;
-            await fetchFX();
-            for (let item of portfolio) { await fetchPriceAndInfo(item); await new Promise(r => setTimeout(r, 100)); }
-            saveToStorage();
-            render();
-            setTimeout(() => {
+            try {
+                await fetchFX();
+                for (let item of portfolio) { 
+                    await fetchPriceAndInfo(item); 
+                    await new Promise(r => setTimeout(r, 100)); 
+                }
+                saveToStorage();
+                render();
                 finalizeUpdate(true);
-                btn.innerText = "更新"; 
+            } catch (error) {
+                console.error("Refresh failed:", error);
+                alert("更新失敗，請檢查網路連線或稍後再試。");
+            } finally {
+                btn.innerText = originalText; 
                 btn.disabled = false;
-            }, 100);
+            }
         }
 
         async function fetchFX() {
@@ -1300,8 +1310,8 @@
                     const response = await fetch(url, {
                         method: 'GET',
                         headers: {
-                            'x-rapidapi-key': rapidApiKey,
-                            'x-rapidapi-host': 'apidojo-yahoo-finance-v1.p.rapidapi.com'
+                            'X-RapidAPI-Key': rapidApiKey,
+                            'X-RapidAPI-Host': 'apidojo-yahoo-finance-v1.p.rapidapi.com'
                         }
                     });
                     if (response.ok) {
