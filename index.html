@@ -1387,8 +1387,8 @@
 
                     if (cstEl) animateNumber(cstEl, item.cost || 0, 1000, false, 2, '');
                     if (priEl) animateNumber(priEl, item.price || 0, 1000, false, 2, '');
-                    if (invEl) animateNumber(invEl, costVal, 1000, true, 2, '');
-                    if (mktEl) animateNumber(mktEl, val, 1000, true, 2, '');
+                    if (invEl) animateNumber(invEl, costVal, 1000, true, 0, '');
+                    if (mktEl) animateNumber(mktEl, val, 1000, true, 0, '');
                     if (prfEl) {
                         const diff = val - costVal;
                         const pct = costVal > 0 ? (diff / costVal * 100).toFixed(2) : '0.00';
@@ -1421,15 +1421,15 @@
             
             if (totalCostEl) {
                 if (startFromOne) {
-                    totalCostEl.innerText = formatVal(1, 2, true);
+                    totalCostEl.innerText = formatVal(1, 0, true);
                 }
-                animateNumber(totalCostEl, totalCostTWD, 1500, true, 2, '', true);
+                animateNumber(totalCostEl, totalCostTWD, 1500, true, 0, '', true);
             }
             if (totalDisplayEl) {
                 if (startFromOne) {
-                    totalDisplayEl.innerText = formatVal(1, 2, true);
+                    totalDisplayEl.innerText = formatVal(1, 0, true);
                 }
-                animateNumber(totalDisplayEl, grandTotal, 1500, true, 2, '', true);
+                animateNumber(totalDisplayEl, grandTotal, 1500, true, 0, '', true);
             }
             const pDisp = document.getElementById('totalProfitDisplay');
             const pctDisp = document.getElementById('totalProfitPctDisplay');
