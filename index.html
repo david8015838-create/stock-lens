@@ -700,49 +700,83 @@
             </div>
         </header>
 
-        <div class="glass-card rounded-2xl overflow-hidden mb-6 shadow-[0_10px_30px_rgba(2,6,23,0.45)] w-full">
-            <div class="p-5 border-b border-slate-800/50 flex justify-between items-center bg-slate-900/30">
-                <h2 class="font-bold text-[12px] text-cyan-400 uppercase tracking-widest">Portfolio</h2>
-                <div class="flex gap-2">
-                    <button id="refreshBtn" onclick="handleRefreshClick()" class="bg-cyan-500/10 text-cyan-400 text-[10px] px-3.5 py-2 rounded-xl font-bold border border-cyan-500/20 btn-action uppercase">更新</button>
-                    <button onclick="openModal('sellModal')" class="bg-rose-500/10 text-rose-400 text-[10px] px-3.5 py-2 rounded-xl font-bold border border-rose-500/20 btn-action uppercase">- 賣出</button>
-                    <button onclick="openModal('buyModal')" class="bg-emerald-500/10 text-emerald-400 text-[10px] px-3.5 py-2 rounded-xl font-bold border border-emerald-500/20 btn-action uppercase">+ 買入</button>
-                    <button onclick="openModal('addModal')" class="bg-cyan-500 text-black text-[10px] px-3.5 py-2 rounded-xl font-black btn-action uppercase shadow-lg shadow-cyan-500/20">+ 新增</button>
+        <!-- Portfolio 區塊 -->
+        <div class="rounded-[2.5rem] overflow-hidden mb-8 shadow-[0_25px_50px_-12px_rgba(2,6,23,0.6)] w-full border border-white/[0.08] bg-[#0f172a]/60 backdrop-blur-xl relative group">
+            <!-- 裝飾背景 -->
+            <div class="absolute inset-0 bg-gradient-to-b from-cyan-500/[0.02] to-transparent pointer-events-none"></div>
+            
+            <div class="p-7 flex justify-between items-center relative z-10 border-b border-white/[0.05]">
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 rounded-2xl bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20 shadow-inner">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#22d3ee" viewBox="0 0 16 16">
+                            <path d="M6.5 2a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zM11 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/>
+                            <path d="M4.5 0A2.5 2.5 0 0 0 2 2.5V14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V2.5A2.5 2.5 0 0 0 11.5 0h-7zM3 2.5A1.5 1.5 0 0 1 4.5 1h7A1.5 1.5 0 0 1 13 2.5V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2.5z"/>
+                        </svg>
+                    </div>
+                    <div class="flex flex-col">
+                        <h2 class="font-black text-[15px] text-white uppercase tracking-[0.25em] leading-tight">
+                            Portfolio
+                        </h2>
+                        <span class="text-[9px] text-slate-500 font-bold uppercase mt-1 tracking-widest opacity-80">Assets & Positions Control</span>
+                    </div>
+                </div>
+                <div class="flex gap-2.5">
+                    <button id="refreshBtn" onclick="handleRefreshClick()" class="bg-slate-800/80 text-cyan-400 text-[10px] px-4 py-2.5 rounded-2xl font-black border border-white/5 btn-action uppercase tracking-tight hover:bg-cyan-500 hover:text-black transition-all duration-300">Sync</button>
+                    <div class="flex items-center gap-1.5 bg-slate-950/40 p-1.5 rounded-2xl border border-white/5">
+                        <button onclick="openModal('sellModal')" class="text-rose-400 text-[10px] px-3.5 py-2 rounded-xl font-black btn-action uppercase tracking-tight hover:bg-rose-500/10 transition-all">Sell</button>
+                        <button onclick="openModal('buyModal')" class="text-emerald-400 text-[10px] px-3.5 py-2 rounded-xl font-black btn-action uppercase tracking-tight hover:bg-emerald-500/10 transition-all">Buy</button>
+                        <button onclick="openModal('addModal')" class="bg-cyan-500 text-black text-[10px] px-5 py-2 rounded-xl font-black btn-action uppercase tracking-tight shadow-lg shadow-cyan-500/30 hover:scale-105 active:scale-95 transition-all">Add</button>
+                    </div>
                 </div>
             </div>
 
-            <!-- 现金水位功能 -->
-            <div class="px-5 py-3 bg-slate-900/20 border-b border-slate-800/30 flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                    <span class="text-emerald-400 font-black text-xl">$</span>
-                    <span class="text-[10px] text-slate-500 uppercase font-black tracking-widest">現金水位</span>
+            <!-- 現金水位區塊 -->
+            <div class="mx-6 my-4 p-4 bg-slate-950/30 rounded-3xl border border-white/5 flex items-center justify-between group/cash hover:border-emerald-500/30 transition-all duration-500">
+                <div class="flex items-center gap-4">
+                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 border border-emerald-500/20 flex items-center justify-center shadow-lg shadow-emerald-500/5 group-hover/cash:scale-110 transition-transform">
+                        <span class="text-emerald-400 font-black text-xl leading-none">$</span>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="text-[10px] text-slate-300 uppercase font-black tracking-widest">Available Cash</span>
+                        <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tighter opacity-60">可用現金水位</span>
+                    </div>
                 </div>
                 <div class="flex items-center gap-3">
-                    <span class="text-[10px] text-slate-500 font-mono">TWD</span>
-                    <input type="number" id="cashPosition" oninput="updateCashPosition()" value="0" class="w-28 py-1.5 px-3 text-right text-sm font-mono text-emerald-400 font-black shadow-inner rounded-lg bg-slate-800 border border-slate-600 focus:border-emerald-400 focus:outline-none">
+                    <span class="text-[11px] text-slate-500 font-mono font-black opacity-40">TWD</span>
+                    <input type="number" id="cashPosition" oninput="updateCashPosition()" value="0" class="w-36 py-2.5 px-5 text-right text-base font-mono text-emerald-400 font-black rounded-2xl bg-slate-900/50 border border-white/5 focus:border-emerald-500/40 focus:bg-slate-900 transition-all outline-none shadow-inner">
                 </div>
             </div>
             
-            <div class="scroll-container no-scrollbar">
-                <table class="w-full text-left border-separate border-spacing-0">
+            <div class="scroll-container no-scrollbar px-2 pb-4">
+                <table class="w-full text-left border-separate border-spacing-y-2">
                     <thead>
-                        <tr class="bg-slate-900/50">
-                            <th class="px-4 py-4 text-center">目標%</th>
-                            <th class="px-3 py-4">標的</th>
-                            <th class="px-3 py-4">持股</th>
-                            <th class="px-3 py-4 text-right">均價</th>
-                            <th class="px-3 py-4 text-right">市價</th>
-                            <th class="px-3 py-4 text-right">投入成本</th>
-                            <th class="px-3 py-4 text-right">當前市值</th>
-                            <th class="px-4 py-4 text-right">損益</th>
-                            <th class="px-3 py-4"></th>
+                        <tr class="text-slate-500">
+                            <th class="px-4 py-3 text-center w-14 text-[9px] uppercase font-black tracking-widest">Goal</th>
+                            <th class="px-3 py-3 text-[9px] uppercase font-black tracking-widest">Asset</th>
+                            <th class="px-3 py-3 text-[9px] uppercase font-black tracking-widest">Shares</th>
+                            <th class="px-3 py-3 text-right text-[9px] uppercase font-black tracking-widest">Cost</th>
+                            <th class="px-3 py-3 text-right text-[9px] uppercase font-black tracking-widest">Price</th>
+                            <th class="px-3 py-3 text-right text-[9px] uppercase font-black tracking-widest">Total Cost</th>
+                            <th class="px-3 py-3 text-right text-[9px] uppercase font-black tracking-widest">Market Value</th>
+                            <th class="px-4 py-3 text-right text-[9px] uppercase font-black tracking-widest">P&L</th>
+                            <th class="px-4 py-3"></th>
                         </tr>
                     </thead>
                     <tbody id="tableBody"></tbody>
                 </table>
-                <div id="emptyState" class="p-10 text-center text-slate-500 italic text-xs hidden uppercase tracking-widest">尚未添加資產</div>
+                <div id="emptyState" class="p-20 text-center">
+                    <div class="w-16 h-16 bg-slate-800/20 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-white/5 shadow-inner">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="#475569" viewBox="0 0 16 16" class="opacity-40">
+                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                            <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3.5a.5.5 0 0 1-.5-.5v-4A.5.5 0 0 1 8 4z"/>
+                        </svg>
+                    </div>
+                    <p class="text-[11px] text-slate-400 font-black uppercase tracking-[0.25em]">No Assets Detected</p>
+                    <p class="text-[9px] text-slate-600 font-bold mt-2 uppercase tracking-tight">Begin by adding your first position</p>
+                </div>
             </div>
         </div>
+
         </div>
 
         <div id="tab-analysis" class="tab-content">
@@ -1478,32 +1512,55 @@
                     return sum + (item.displayShares || 0) * (item.price || 0) * fx;
                 }, 0);
                 const sortedItems = itemsInCat.sort((a, b) => (a.isLeverage !== b.isLeverage) ? (a.isLeverage ? 1 : -1) : (b.displayShares * b.price) - (a.displayShares * a.price));
-                tbody.innerHTML += `<tr><td colspan="9" class="px-4 py-2 bg-slate-800/60 text-[9px] font-black text-cyan-400 uppercase tracking-[0.2em] border-y border-slate-700/50"><div class="flex items-center justify-between"><span>${cats[k]}</span><span class="text-[9px] font-mono text-slate-200 tracking-normal">${formatVal(catTotalTWD, 0, true)} TWD</span></div></td></tr>`;
+                tbody.innerHTML += `
+                    <tr>
+                        <td colspan="9" class="px-4 py-4">
+                            <div class="flex items-center justify-between bg-slate-800/40 rounded-2xl px-5 py-3 border border-white/[0.03] shadow-sm">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.5)]"></span>
+                                    <span class="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">${cats[k]}</span>
+                                </div>
+                                <span class="text-[10px] font-mono font-black text-cyan-400/80 tracking-tight bg-cyan-500/5 px-3 py-1 rounded-lg border border-cyan-500/10">${formatVal(catTotalTWD, 0, true)} <span class="text-[8px] opacity-60 ml-0.5">TWD</span></span>
+                            </div>
+                        </td>
+                    </tr>`;
                 sortedItems.forEach(item => {
                     const idSuffix = item.isVirtual ? `-pledged-${item.id}` : `-${item.id}`;
                     tbody.innerHTML += `
-                        <tr class="bg-slate-800/10 border-b border-slate-800/40">
-                            <td class="px-4 py-5 text-center"><input type="number" oninput="updateVal(${item.id}, 'target', this.value)" value="${item.target}" class="w-10 py-1 text-center text-[11px] text-cyan-400 font-black rounded-lg bg-slate-900 border border-slate-700" ${item.isVirtual ? 'disabled' : ''}></td>
-                            <td class="px-3 py-5">
-                                <div class="text-[11px] font-black uppercase text-white">${item.symbol}${item.isLeverage ? '<span class="badge-lvrg">L</span>' : ''}${item.isVirtual ? '<span class="text-[8px] text-amber-500 ml-1">PLEDGED</span>' : ''}</div>
-                                <div class="text-[9px] text-slate-400 font-bold mt-0.5">${item.name || ''}</div>
+                        <tr class="group/row hover:bg-white/[0.02] transition-colors duration-300">
+                            <td class="px-4 py-4 text-center">
+                                <input type="number" oninput="updateVal(${item.id}, 'target', this.value)" value="${item.target}" 
+                                    class="w-11 py-2 text-center text-[11px] text-cyan-400 font-black rounded-xl bg-slate-950/40 border border-white/5 focus:border-cyan-500/40 focus:outline-none transition-all" 
+                                    ${item.isVirtual ? 'disabled' : ''}>
                             </td>
-                            <td class="px-3 py-5 text-[10px] font-mono text-slate-300 font-bold">${formatVal(item.displayShares, 0, true)}</td>
-                            <td class="px-3 py-5 text-right text-[11px] font-mono text-slate-400" id="cst${idSuffix}">--</td>
-                            <td class="px-3 py-5 text-right text-[11px] font-mono text-cyan-400 font-black" id="pri${idSuffix}">--</td>
-                            <td class="px-3 py-5 text-right text-[11px] font-mono text-slate-500 font-bold" id="inv${idSuffix}">0</td>
-                            <td class="px-3 py-5 text-right text-[11px] font-mono text-slate-200 font-bold" id="mkt${idSuffix}">0</td>
-                            <td class="px-4 py-5 text-right" id="prf${idSuffix}"></td>
-                            <td class="px-3 py-5 text-center flex items-center gap-2">
-                                <button onclick="openEditModal(${item.id})" class="text-amber-500/60 hover:text-amber-400 btn-action p-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>
-                                </button>
-                                ${!item.isVirtual ? `<button onclick="triggerDeleteConfirm(${item.id})" class="text-rose-500/60 hover:text-rose-500 btn-action p-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-                                        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
-                                        <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
-                                    </svg>
-                                </button>` : ''}
+                            <td class="px-3 py-4">
+                                <div class="flex flex-col">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-[12px] font-black uppercase text-white tracking-tight">${item.symbol}</span>
+                                        ${item.isLeverage ? '<span class="px-1.5 py-0.5 rounded-md bg-rose-500/10 text-rose-500 text-[7px] font-black border border-rose-500/20">LVRG</span>' : ''}
+                                        ${item.isVirtual ? '<span class="px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-500 text-[7px] font-black border border-amber-500/20">PLEDGE</span>' : ''}
+                                    </div>
+                                    <div class="text-[9px] text-slate-500 font-bold mt-1 truncate max-w-[100px] uppercase tracking-tighter opacity-70">${item.name || '---'}</div>
+                                </div>
+                            </td>
+                            <td class="px-3 py-4 text-[11px] font-mono text-slate-300 font-black">${formatVal(item.displayShares, 0, true)}</td>
+                            <td class="px-3 py-4 text-right text-[11px] font-mono text-slate-500 font-bold" id="cst${idSuffix}">--</td>
+                            <td class="px-3 py-4 text-right text-[11px] font-mono text-cyan-400 font-black" id="pri${idSuffix}">--</td>
+                            <td class="px-3 py-4 text-right text-[11px] font-mono text-slate-600 font-bold" id="inv${idSuffix}">0</td>
+                            <td class="px-3 py-4 text-right text-[11px] font-mono text-slate-100 font-black" id="mkt${idSuffix}">0</td>
+                            <td class="px-4 py-4 text-right" id="prf${idSuffix}"></td>
+                            <td class="px-4 py-4">
+                                <div class="flex items-center justify-end gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity duration-300">
+                                    <button onclick="openEditModal(${item.id})" class="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-800/50 text-amber-500/60 hover:text-amber-400 hover:bg-slate-800 transition-all">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>
+                                    </button>
+                                    ${!item.isVirtual ? `<button onclick="triggerDeleteConfirm(${item.id})" class="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-800/50 text-rose-500/60 hover:text-rose-500 hover:bg-slate-800 transition-all">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                                            <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                                            <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                                        </svg>
+                                    </button>` : ''}
+                                </div>
                             </td>
                         </tr>`;
                 });
