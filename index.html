@@ -907,10 +907,6 @@
         function updateCashPosition() {
             cashPosition = parseFloat(document.getElementById('cashPosition').value) || 0;
             saveToStorage();
-            const cashDisplay = document.getElementById('availableCashDisplay');
-            if (cashDisplay) {
-                animateNumber(cashDisplay, cashPosition, 1000, false, 2, '');
-            }
             finalizeUpdate();
         }
 
@@ -1150,7 +1146,7 @@
             }
             const cashDisplay = document.getElementById('availableCashDisplay');
             if (cashDisplay) {
-                animateNumber(cashDisplay, cashPosition, 1000, false, 2, '');
+                animateNumber(cashDisplay, cashPosition, 1000, true, 0, '');
             }
             
             saveToStorage();
@@ -1218,7 +1214,7 @@
             }
             const cashDisplay = document.getElementById('availableCashDisplay');
             if (cashDisplay) {
-                animateNumber(cashDisplay, cashPosition, 1000, false, 2, '');
+                animateNumber(cashDisplay, cashPosition, 1000, true, 0, '');
             }
             
             closeModal('sellModal');
@@ -1490,7 +1486,7 @@
             pctDisp.className = `text-sm font-black font-bold leading-none ${totalProfit >= 0 ? 'text-rose-500' : 'text-emerald-500'}`;
             const cashDisplay = document.getElementById('availableCashDisplay');
             if (cashDisplay) {
-                animateNumber(cashDisplay, cashPosition, 1000, false, 2, '');
+                animateNumber(cashDisplay, cashPosition, 1000, true, 0, '');
             }
             drawMainCharts(grandTotal, cashPosition);
             drawTargetChart();
