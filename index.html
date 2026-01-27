@@ -593,8 +593,8 @@
                 <section>
                     <h4 class="text-cyan-400 font-black uppercase mb-2 tracking-tighter">📈 資產管理</h4>
                     <div class="space-y-2">
-                        <p><span class="text-white font-bold">● 新增部位：</span> 點擊 Portfolio 區塊的 <span class="text-cyan-500 font-bold">Add Position</span> 按鈕，輸入美股 (AAPL) 或台股 (2330.TW)。</p>
-                        <p><span class="text-white font-bold">● 買入/賣出：</span> 使用 <span class="text-emerald-400 font-bold">Buy</span> 或 <span class="text-rose-400 font-bold">Sell</span> 記錄交易，系統會自動更新平均成本與持股。</p>
+                        <p><span class="text-white font-bold">● 新增部位：</span> 點擊 Portfolio 區塊的 <span class="text-cyan-500 font-bold">Add Position</span> 按鈕，輸入代號。<span class="text-amber-400 font-bold">（注意：此功能僅用於快速建立初始持股，不會產生交易紀錄）</span></p>
+                        <p><span class="text-white font-bold">● 買入/賣出：</span> 使用 <span class="text-emerald-400 font-bold">Buy</span> 或 <span class="text-rose-400 font-bold">Sell</span> 記錄交易，系統會自動計算平均成本。<span class="text-cyan-400 font-bold">（交易紀錄可點擊列表中的資產名稱查看）</span></p>
                         <p><span class="text-white font-bold">● 即時更新：</span> 點擊 <span class="text-cyan-500 font-bold">Sync</span> 獲取最新市場價格 (Yahoo Finance)。</p>
                     </div>
                 </section>
@@ -768,7 +768,7 @@
                 <table class="w-full text-left border-separate border-spacing-y-2">
                     <thead>
                         <tr class="text-slate-500">
-                            <th class="px-4 py-3 text-center w-14 text-[9px] uppercase font-black tracking-widest">Goal</th>
+                            <th class="px-4 py-3 text-center w-14 text-[9px] uppercase font-black tracking-widest">Target</th>
                             <th class="px-3 py-3 text-[9px] uppercase font-black tracking-widest">Asset</th>
                             <th class="px-3 py-3 text-[9px] uppercase font-black tracking-widest">Shares</th>
                             <th class="px-3 py-3 text-right text-[9px] uppercase font-black tracking-widest">Cost</th>
@@ -1570,7 +1570,7 @@
                     </td>
                     <td class="px-4 py-4 text-right" id="prf${idSuffix}"></td>
                             <td class="px-4 py-4">
-                                <div class="flex items-center justify-end gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity duration-300">
+                                <div class="flex items-center justify-end gap-1">
                                     <button onclick="openEditModal(${item.id})" class="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-800/50 text-amber-500/60 hover:text-amber-400 hover:bg-slate-800 transition-all">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>
                                     </button>
