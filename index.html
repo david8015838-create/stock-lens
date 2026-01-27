@@ -588,20 +588,31 @@
 
     <div id="infoModal">
         <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-white/10 p-8 shadow-2xl max-h-[85vh] overflow-y-auto no-scrollbar">
-            <h3 class="text-xl font-black text-white italic mb-4 uppercase tracking-widest border-b border-white/10 pb-2">User Guide</h3>
+            <h3 class="text-xl font-black text-white italic mb-4 uppercase tracking-widest border-b border-white/10 pb-2">App Guide</h3>
             <div class="space-y-6 text-xs text-slate-400 leading-relaxed font-medium">
                 <section>
-                    <h4 class="text-cyan-400 font-black uppercase mb-2 tracking-tighter">🚀 快速開始</h4>
-                    <p>1. 點擊 <span class="text-white">「+ 新增」</span> 輸入標的。</p>
-                    <p>2. 點擊列表中的 <span class="text-white">「編輯」</span> 可修改股數、均價、槓桿及債券屬性。</p>
+                    <h4 class="text-cyan-400 font-black uppercase mb-2 tracking-tighter">📈 資產管理</h4>
+                    <div class="space-y-2">
+                        <p><span class="text-white font-bold">● 新增部位：</span> 點擊 Portfolio 區塊的 <span class="text-cyan-500 font-bold">Add Position</span> 按鈕，輸入美股 (AAPL) 或台股 (2330.TW)。</p>
+                        <p><span class="text-white font-bold">● 買入/賣出：</span> 使用 <span class="text-emerald-400 font-bold">Buy</span> 或 <span class="text-rose-400 font-bold">Sell</span> 記錄交易，系統會自動更新平均成本與持股。</p>
+                        <p><span class="text-white font-bold">● 即時更新：</span> 點擊 <span class="text-cyan-500 font-bold">Sync</span> 獲取最新市場價格 (Yahoo Finance)。</p>
+                    </div>
                 </section>
                 <section>
-                    <h4 class="text-rose-400 font-black uppercase mb-2 tracking-tighter">🗑️ 刪除資產</h4>
-                    <p>點擊列表右側的 <span class="text-rose-500 font-bold">垃圾桶圖示</span>，確認後即可將該資產移除。</p>
+                    <h4 class="text-amber-400 font-black uppercase mb-2 tracking-tighter">📊 數據分析</h4>
+                    <div class="space-y-2">
+                        <p><span class="text-white font-bold">● 隱私模式：</span> 點擊右上角 <span class="text-white">👁️ 眼睛圖示</span> 隱藏/顯示敏感金額數據。</p>
+                        <p><span class="text-white font-bold">● 目標配比：</span> 在列表最左側 <span class="text-cyan-500 font-bold">Target %</span> 欄位輸入您理想的資產占比。</p>
+                        <p><span class="text-white font-bold">● 缺口分析：</span> 下方圖表會顯示當前配比與目標的差距，協助您進行再平衡。</p>
+                    </div>
                 </section>
                 <section>
-                    <h4 class="text-emerald-400 font-black uppercase mb-2 tracking-tighter">🧮 複利計算</h4>
-                    <p>點擊頂部工具欄的 <span class="text-white">計算機圖示</span> 可進行試算，每月投入從第 2 個月開始計入。</p>
+                    <h4 class="text-indigo-400 font-black uppercase mb-2 tracking-tighter">💡 進階功能</h4>
+                    <div class="space-y-2">
+                        <p><span class="text-white font-bold">● 現金倉位：</span> 點擊 <span class="text-white font-bold">Cash Position</span> 區塊調整您的閒置資金。</p>
+                        <p><span class="text-white font-bold">● 槓桿與質押：</span> 編輯資產時可勾選「槓桿」或設定「質押股數」，精確追蹤資產狀況。</p>
+                        <p><span class="text-white font-bold">● 複利試算：</span> 點擊頂部 <span class="text-white font-bold">計算機圖示</span> 規劃長期投資目標。</p>
+                    </div>
                 </section>
             </div>
             <button onclick="closeModal('infoModal')" class="mt-8 w-full bg-cyan-500 text-black py-4 rounded-2xl font-black btn-action uppercase text-xs shadow-lg shadow-cyan-500/20">我知道了</button>
@@ -682,20 +693,33 @@
                 </div>
             </div>
 
-            <div class="glass-card px-5 py-5 rounded-2xl shadow-[0_10px_30px_rgba(2,6,23,0.45)] flex flex-col w-full">
-                <div class="flex justify-between items-end mb-4">
+            <div class="glass-card px-6 py-6 rounded-[2.5rem] shadow-[0_20px_50px_rgba(2,6,23,0.6)] flex flex-col w-full border border-white/[0.12] bg-white/[0.03] backdrop-blur-2xl relative overflow-hidden group">
+                <div class="absolute inset-0 bg-gradient-to-br from-white/[0.08] to-transparent pointer-events-none"></div>
+                <div class="flex justify-between items-end mb-6 relative z-10">
                     <div class="flex flex-col">
-                        <span class="text-[9px] text-slate-500 uppercase font-black tracking-widest mb-1 opacity-80">Total Cost</span>
-                        <div class="flex items-baseline"><span class="text-[9px] text-slate-500 font-mono mr-1">TWD</span><span id="totalCostDisplay" class="text-base font-mono font-bold text-slate-300 tracking-tighter">0</span></div>
+                        <span class="text-[9px] text-slate-400 uppercase font-black tracking-[0.2em] mb-2 opacity-70">Total Invested</span>
+                        <div class="flex items-baseline">
+                            <span class="text-[9px] text-slate-500 font-mono mr-1.5 font-bold">TWD</span>
+                            <span id="totalCostDisplay" class="text-lg font-mono font-black text-slate-200 tracking-tighter">0</span>
+                        </div>
                     </div>
                     <div class="flex flex-col items-end">
-                        <span class="text-[10px] text-cyan-400/80 uppercase font-black tracking-[0.18em] mb-1">Market Value</span>
-                        <div class="flex items-baseline overflow-hidden"><span class="text-[10px] text-slate-500 font-mono mr-1">TWD</span><span id="totalDisplay" class="text-[2rem] font-mono font-black text-white leading-none tracking-tighter">0</span></div>
+                        <span class="text-[10px] text-cyan-400 uppercase font-black tracking-[0.3em] mb-2">Market Value</span>
+                        <div class="flex items-baseline">
+                            <span class="text-[10px] text-slate-500 font-mono mr-2 font-bold">TWD</span>
+                            <span id="totalDisplay" class="text-[2.25rem] font-mono font-black text-white leading-none tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">0</span>
+                        </div>
                     </div>
                 </div>
-                <div class="flex items-center gap-4 border-t border-slate-700/50 pt-4 w-full justify-end">
-                    <div class="flex flex-col items-end"><span class="text-[8px] text-slate-500 uppercase font-bold tracking-tighter">Total P/L</span><span id="totalProfitDisplay" class="text-sm font-mono font-bold leading-none">0</span></div>
-                    <div class="flex flex-col items-end min-w-[50px]"><span class="text-[8px] text-slate-500 uppercase font-bold tracking-tighter">Return</span><span id="totalProfitPctDisplay" class="text-sm font-black leading-none">0%</span></div>
+                <div class="flex items-center gap-6 border-t border-white/[0.08] pt-5 w-full justify-end relative z-10">
+                    <div class="flex flex-col items-end">
+                        <span class="text-[8px] text-slate-500 uppercase font-black tracking-widest mb-1 opacity-60">Est. Profit</span>
+                        <span id="totalProfitDisplay" class="text-sm font-mono font-bold leading-none">0</span>
+                    </div>
+                    <div class="flex flex-col items-end min-w-[60px]">
+                        <span class="text-[8px] text-slate-500 uppercase font-black tracking-widest mb-1 opacity-60">Total Return</span>
+                        <span id="totalProfitPctDisplay" class="text-sm font-black leading-none">0%</span>
+                    </div>
                 </div>
             </div>
         </header>
@@ -1539,9 +1563,12 @@
                             <td class="px-3 py-4 text-[11px] font-mono text-slate-300 font-black">${formatVal(item.displayShares, 0, true)}</td>
                             <td class="px-3 py-4 text-right text-[11px] font-mono text-slate-500 font-bold" id="cst${idSuffix}">--</td>
                             <td class="px-3 py-4 text-right text-[11px] font-mono text-cyan-400 font-black" id="pri${idSuffix}">--</td>
-                            <td class="px-3 py-4 text-right text-[11px] font-mono text-slate-600 font-bold" id="inv${idSuffix}">0</td>
-                            <td class="px-3 py-4 text-right text-[11px] font-mono text-slate-100 font-black" id="mkt${idSuffix}">0</td>
-                            <td class="px-4 py-4 text-right" id="prf${idSuffix}"></td>
+                    <td class="px-3 py-4 text-right text-[11px] font-mono text-slate-600 font-bold" id="inv${idSuffix}">0</td>
+                    <td class="px-3 py-4 text-right relative">
+                        <div class="absolute inset-y-1.5 right-1 left-1 bg-white/[0.03] rounded-xl border border-white/[0.08] pointer-events-none backdrop-blur-[2px] shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]"></div>
+                        <div id="mkt${idSuffix}" class="text-[11px] font-mono text-slate-100 font-black relative z-10">0</div>
+                    </td>
+                    <td class="px-4 py-4 text-right" id="prf${idSuffix}"></td>
                             <td class="px-4 py-4">
                                 <div class="flex items-center justify-end gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity duration-300">
                                     <button onclick="openEditModal(${item.id})" class="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-800/50 text-amber-500/60 hover:text-amber-400 hover:bg-slate-800 transition-all">
