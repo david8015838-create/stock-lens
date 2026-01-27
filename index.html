@@ -705,28 +705,21 @@
             <!-- 裝飾背景 -->
             <div class="absolute inset-0 bg-gradient-to-b from-cyan-500/[0.02] to-transparent pointer-events-none"></div>
             
-            <div class="p-7 flex justify-between items-center relative z-10 border-b border-white/[0.05]">
-                <div class="flex items-center gap-4">
-                    <div class="w-10 h-10 rounded-2xl bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20 shadow-inner">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#22d3ee" viewBox="0 0 16 16">
-                            <path d="M6.5 2a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zM11 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/>
-                            <path d="M4.5 0A2.5 2.5 0 0 0 2 2.5V14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V2.5A2.5 2.5 0 0 0 11.5 0h-7zM3 2.5A1.5 1.5 0 0 1 4.5 1h7A1.5 1.5 0 0 1 13 2.5V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2.5z"/>
-                        </svg>
-                    </div>
+            <div class="px-6 py-6 flex flex-col gap-5 relative z-10 border-b border-white/[0.05]">
+                <div class="flex justify-between items-center w-full">
                     <div class="flex flex-col">
                         <h2 class="font-black text-[15px] text-white uppercase tracking-[0.25em] leading-tight">
                             Portfolio
                         </h2>
                         <span class="text-[9px] text-slate-500 font-bold uppercase mt-1 tracking-widest opacity-80">Assets & Positions Control</span>
                     </div>
+                    <button id="refreshBtn" onclick="handleRefreshClick()" class="bg-slate-800/80 text-cyan-400 text-[10px] px-4 py-2 rounded-xl font-black border border-white/5 btn-action uppercase tracking-tight hover:bg-cyan-500 hover:text-black transition-all duration-300">Sync</button>
                 </div>
-                <div class="flex gap-2.5">
-                    <button id="refreshBtn" onclick="handleRefreshClick()" class="bg-slate-800/80 text-cyan-400 text-[10px] px-4 py-2.5 rounded-2xl font-black border border-white/5 btn-action uppercase tracking-tight hover:bg-cyan-500 hover:text-black transition-all duration-300">Sync</button>
-                    <div class="flex items-center gap-1.5 bg-slate-950/40 p-1.5 rounded-2xl border border-white/5">
-                        <button onclick="openModal('sellModal')" class="text-rose-400 text-[10px] px-3.5 py-2 rounded-xl font-black btn-action uppercase tracking-tight hover:bg-rose-500/10 transition-all">Sell</button>
-                        <button onclick="openModal('buyModal')" class="text-emerald-400 text-[10px] px-3.5 py-2 rounded-xl font-black btn-action uppercase tracking-tight hover:bg-emerald-500/10 transition-all">Buy</button>
-                        <button onclick="openModal('addModal')" class="bg-cyan-500 text-black text-[10px] px-5 py-2 rounded-xl font-black btn-action uppercase tracking-tight shadow-lg shadow-cyan-500/30 hover:scale-105 active:scale-95 transition-all">Add</button>
-                    </div>
+                
+                <div class="flex items-center gap-1.5 bg-slate-950/40 p-1.5 rounded-2xl border border-white/5 w-full">
+                    <button onclick="openModal('sellModal')" class="flex-1 text-rose-400 text-[10px] py-2.5 rounded-xl font-black btn-action uppercase tracking-tight hover:bg-rose-500/10 transition-all border border-transparent hover:border-rose-500/20">Sell</button>
+                    <button onclick="openModal('buyModal')" class="flex-1 text-emerald-400 text-[10px] py-2.5 rounded-xl font-black btn-action uppercase tracking-tight hover:bg-emerald-500/10 transition-all border border-transparent hover:border-emerald-500/20">Buy</button>
+                    <button onclick="openModal('addModal')" class="flex-[1.5] bg-cyan-500 text-black text-[10px] py-2.5 rounded-xl font-black btn-action uppercase tracking-tight shadow-lg shadow-cyan-500/30 hover:scale-[1.02] active:scale-95 transition-all">Add Position</button>
                 </div>
             </div>
 
