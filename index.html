@@ -2127,13 +2127,14 @@
 
                 const currentValue = startValue + (targetValue - startValue) * easeProgress;
                 let formattedValue;
-
-                if (suffix === '%') {
-                    formattedValue = (currentValue > 0 ? '+' : '') + currentValue.toFixed(decimals) + '%';
+                const sign = (currentValue > 0 && suffix.includes('+')) ? '+' : '';
+                
+                if (suffix.includes('%')) {
+                    formattedValue = sign + currentValue.toFixed(decimals) + '%';
                 } else if (suffix.startsWith('+') || suffix.startsWith('-')) {
-                    formattedValue = (currentValue > 0 ? '+' : '') + formatVal(currentValue, decimals, isSensitive);
+                    formattedValue = sign + formatVal(currentValue, decimals, isSensitive);
                 } else {
-                    formattedValue = formatVal(currentValue, decimals, isSensitive);
+                    formattedValue = formatVal(currentValue, decimals, isSensitive) + suffix;
                 }
 
                 element.innerText = formattedValue;
@@ -2156,12 +2157,13 @@
                 if (progress < 1) {
                     requestAnimationFrame(updateNumber);
                 } else {
-                    if (suffix === '%') {
-                        element.innerText = (targetValue > 0 ? '+' : '') + targetValue.toFixed(decimals) + '%';
+                    const finalSign = (targetValue > 0 && suffix.includes('+')) ? '+' : '';
+                    if (suffix.includes('%')) {
+                        element.innerText = finalSign + targetValue.toFixed(decimals) + '%';
                     } else if (suffix.startsWith('+') || suffix.startsWith('-')) {
-                        element.innerText = (targetValue > 0 ? '+' : '') + formatVal(targetValue, decimals, isSensitive);
+                        element.innerText = finalSign + formatVal(targetValue, decimals, isSensitive);
                     } else {
-                        element.innerText = formatVal(targetValue, decimals, isSensitive);
+                        element.innerText = formatVal(targetValue, decimals, isSensitive) + suffix;
                     }
                     if (applyGlowing) {
                         setTimeout(() => {
