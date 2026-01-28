@@ -895,7 +895,7 @@
             document.getElementById('cashPosition').value = cashPosition;
             const cashDisplay = document.getElementById('availableCashDisplay');
             if (cashDisplay) {
-                cashDisplay.textContent = formatVal(cashPosition, 2, false);
+                cashDisplay.textContent = formatVal(cashPosition, 2, true);
             }
             updatePrivacyUI();
         }
@@ -921,10 +921,19 @@
 
         function updatePrivacyUI() {
             const icon = document.getElementById('eye-icon');
+            const cashInput = document.getElementById('cashPosition');
             if (isPrivacyOn) {
                 icon.innerHTML = `<path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7.028 7.028 0 0 0-2.79.588l.77.771A5.944 5.944 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.134 13.134 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755-.165.165-.337.328-.517.486l.708.709z"/><path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.828 2.829l.823.822zm-4.143 4.143c-1.701-1.518-2.641-3.238-2.641-3.238s3-5.5 8-5.5a7.028 7.028 0 0 1 2.79-.588l-.77-.771A5.944 5.944 0 0 0 8 14.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 0 1.172 8c.058-.087.122-.183.195-.288.335.48.83-1.12 1.465-1.755.165-.165-.337.328-.517.486l-.708-.709z"/><path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/><line x1="1" y1="1" x2="15" y2="15" stroke="currentColor" stroke-width="2"/>`;
+                if (cashInput) {
+                    cashInput.style.color = 'transparent';
+                    cashInput.style.textShadow = '0 0 10px rgba(52, 211, 153, 0.6)';
+                }
             } else {
                 icon.innerHTML = `<path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/><path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/>`;
+                if (cashInput) {
+                    cashInput.style.color = '';
+                    cashInput.style.textShadow = '';
+                }
             }
         }
 
@@ -944,12 +953,12 @@
             const requiredCashEl = document.getElementById('buyRequiredCash');
             const confirmBtn = document.getElementById('buyConfirmBtn');
 
-            availableCashEl.textContent = formatVal(cashPosition, 0, false);
+            availableCashEl.textContent = formatVal(cashPosition, 0, true);
 
             const shares = parseFloat(document.getElementById('buyShares').value) || 0;
             const price = parseFloat(document.getElementById('buyPrice').value) || 0;
             const required = shares * price;
-            requiredCashEl.textContent = formatVal(required, 0, false);
+            requiredCashEl.textContent = formatVal(required, 0, true);
 
             if (required > cashPosition) {
                 confirmBtn.disabled = true;
@@ -964,12 +973,12 @@
             const currentCashEl = document.getElementById('sellCurrentCash');
             const gainCashEl = document.getElementById('sellGainCash');
 
-            currentCashEl.textContent = formatVal(cashPosition, 0, false);
+            currentCashEl.textContent = formatVal(cashPosition, 0, true);
 
             const shares = parseFloat(document.getElementById('sellShares').value) || 0;
             const price = parseFloat(document.getElementById('sellPrice').value) || 0;
             const gain = shares * price;
-            gainCashEl.textContent = formatVal(gain, 0, false);
+            gainCashEl.textContent = formatVal(gain, 0, true);
         }
         function closeModal(id) { 
             document.getElementById(id).style.display = 'none'; 
@@ -1685,7 +1694,7 @@
             const available_cash = cashPosition;
 
             const cashDisplay = document.getElementById('availableCashDisplay');
-            animateNumber(cashDisplay, available_cash, 1000, false, 2, '');
+            animateNumber(cashDisplay, available_cash, 1000, true, 2, '');
 
             const rebalance_assets_orig = portfolio.filter(i => i.target > 0);
             if (rebalance_assets_orig.length === 0) {
@@ -1862,7 +1871,7 @@
                 }
             });
 
-            totalPnLEl.textContent = formatVal(Math.round(totalRealizedPnL), 0, false);
+            totalPnLEl.textContent = formatVal(Math.round(totalRealizedPnL), 0, true);
             totalPnLEl.className = `text-lg font-mono font-black ${totalRealizedPnL >= 0 ? 'text-emerald-500' : 'text-rose-500'}`;
 
             const sortedTrades = tradeHistory.slice().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
@@ -1895,11 +1904,11 @@
                             <div class="text-[7px] text-slate-500 font-bold mt-0.5">
                                 ${new Date(trade.timestamp).toLocaleDateString('zh-TW')} ${trade.shares}股 @ ${formatVal(trade.price, 2, false)}
                             </div>
-                            ${isSell ? `<div class="text-[7px] ${pnlColor} font-bold">實現損益: ${formatVal(Math.round(trade.realizedPnL), 0, false)}</div>` : ''}
+                            ${isSell ? `<div class="text-[7px] ${pnlColor} font-bold">實現損益: ${formatVal(Math.round(trade.realizedPnL), 0, true)}</div>` : ''}
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
-                        <span class="text-[8px] font-bold text-slate-400">${formatVal(Math.round(trade.amount), 0, false)} TWD</span>
+                        <span class="text-[8px] font-bold text-slate-400">${formatVal(Math.round(trade.amount), 0, true)} TWD</span>
                         <button class="edit-trade-btn text-amber-500/60 hover:text-amber-400 btn-action p-1" title="編輯" data-index="${originalIndex}">
                             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
                                 <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
@@ -2022,7 +2031,7 @@
 
             const cashDisplay = document.getElementById('availableCashDisplay');
             if (cashDisplay) {
-                animateNumber(cashDisplay, cashPosition, 1000, false, 2, '');
+                animateNumber(cashDisplay, cashPosition, 1000, true, 2, '');
             }
             saveToStorage();
             render();
@@ -2056,7 +2065,7 @@
             tradeHistory.splice(index, 1);
             const cashDisplay = document.getElementById('availableCashDisplay');
             if (cashDisplay) {
-                animateNumber(cashDisplay, cashPosition, 1000, false, 2, '');
+                animateNumber(cashDisplay, cashPosition, 1000, true, 2, '');
             }
             saveToStorage();
             render();
@@ -2101,7 +2110,7 @@
 
             const cashDisplay = document.getElementById('availableCashDisplay');
             if (cashDisplay) {
-                animateNumber(cashDisplay, cashPosition, 1000, false, 2, '');
+                animateNumber(cashDisplay, cashPosition, 1000, true, 2, '');
             }
             saveToStorage();
             render();
