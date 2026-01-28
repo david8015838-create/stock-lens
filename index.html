@@ -774,8 +774,12 @@
                             <th class="px-3 py-3 text-[9px] uppercase font-black tracking-widest">Shares</th>
                             <th class="px-3 py-3 text-right text-[9px] uppercase font-black tracking-widest">Cost</th>
                             <th class="px-3 py-3 text-right text-[9px] uppercase font-black tracking-widest">Price</th>
-                            <th class="px-3 py-3 text-right text-[9px] uppercase font-black tracking-widest">Total Cost</th>
-                            <th class="px-3 py-3 text-right text-[9px] uppercase font-black tracking-widest">Market Value</th>
+                            <th class="px-3 py-3 text-right text-[9px] uppercase font-black tracking-widest">
+                                <span class="hidden sm:inline">Total </span>Invested
+                            </th>
+                            <th class="px-3 py-3 text-right text-[9px] uppercase font-black tracking-widest">
+                                <span class="hidden sm:inline">Market </span>Value
+                            </th>
                             <th class="px-4 py-3 text-right text-[9px] uppercase font-black tracking-widest">P&L</th>
                             <th class="px-4 py-3"></th>
                         </tr>
@@ -1582,11 +1586,11 @@
                             <td class="px-3 py-4 text-[11px] font-mono text-slate-300 font-black">${formatVal(item.displayShares, 0, true)}</td>
                             <td class="px-3 py-4 text-right text-[11px] font-mono text-slate-500 font-bold" id="cst${idSuffix}">--</td>
                             <td class="px-3 py-4 text-right text-[11px] font-mono text-cyan-400 font-black" id="pri${idSuffix}">--</td>
-                    <td class="px-3 py-4 text-right text-[11px] font-mono text-slate-600 font-bold" id="inv${idSuffix}">0</td>
-                    <td class="px-3 py-4 text-right relative">
-                        <div class="absolute inset-y-1.5 right-1 left-1 bg-white/[0.005] rounded-xl border border-white/[0.03] pointer-events-none"></div>
-                        <div id="mkt${idSuffix}" class="text-[11px] font-mono text-slate-100 font-black relative z-10 transition-all duration-300 origin-right">0</div>
-                    </td>
+                            <td class="px-2 sm:px-3 py-4 text-right text-[11px] font-mono text-slate-600 font-bold" id="inv${idSuffix}">0</td>
+                            <td class="px-2 sm:px-3 py-4 text-right relative">
+                                <div class="absolute inset-y-1.5 right-1 left-1 bg-white/[0.005] rounded-xl border border-white/[0.03] pointer-events-none"></div>
+                                <div id="mkt${idSuffix}" class="text-[11px] font-mono text-slate-100 font-black relative z-10 transition-all duration-300 origin-right">0</div>
+                            </td>
                     <td class="px-4 py-4 text-right" id="prf${idSuffix}"></td>
                             <td class="px-4 py-4">
                                 <div class="flex items-center justify-end gap-1">
@@ -2135,21 +2139,24 @@
                 const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
 
                 const currentValue = startValue + (targetValue - startValue) * easeProgress;
+                const isFinal = progress === 1;
+                const valToFormat = isFinal ? targetValue : currentValue;
+                
                 let formattedValue;
-                const sign = (currentValue > 0 && suffix.includes('+')) ? '+' : '';
+                const sign = (valToFormat > 0 && suffix.includes('+')) ? '+' : '';
                 
                 if (suffix.includes('%')) {
-                    formattedValue = sign + currentValue.toFixed(decimals) + '%';
+                    formattedValue = sign + valToFormat.toFixed(decimals) + '%';
                 } else if (suffix.startsWith('+') || suffix.startsWith('-')) {
-                    formattedValue = sign + formatVal(currentValue, decimals, isSensitive);
+                    formattedValue = sign + formatVal(valToFormat, decimals, isSensitive);
                 } else {
-                    formattedValue = formatVal(currentValue, decimals, isSensitive) + suffix;
+                    formattedValue = formatVal(valToFormat, decimals, isSensitive) + suffix;
                 }
 
                 element.innerText = formattedValue;
 
                 // 自動縮放邏輯
-                if (element.id.startsWith('mkt-')) {
+                if (element.id.startsWith('mkt-') || element.id.startsWith('inv-')) {
                     const cleanVal = formattedValue.replace(/,/g, '');
                     const length = cleanVal.length;
                     if (length > 9) element.style.fontSize = '8px';
@@ -2166,14 +2173,6 @@
                 if (progress < 1) {
                     requestAnimationFrame(updateNumber);
                 } else {
-                    const finalSign = (targetValue > 0 && suffix.includes('+')) ? '+' : '';
-                    if (suffix.includes('%')) {
-                        element.innerText = finalSign + targetValue.toFixed(decimals) + '%';
-                    } else if (suffix.startsWith('+') || suffix.startsWith('-')) {
-                        element.innerText = finalSign + formatVal(targetValue, decimals, isSensitive);
-                    } else {
-                        element.innerText = formatVal(targetValue, decimals, isSensitive) + suffix;
-                    }
                     if (applyGlowing) {
                         setTimeout(() => {
                             element.classList.remove('glowing-effect');
