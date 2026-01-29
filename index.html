@@ -746,7 +746,7 @@
                     </div>
                     <div class="flex items-center gap-2">
                     <button id="refreshBtn" onclick="handleRefreshClick()" class="bg-slate-800/80 text-cyan-400 text-[10px] px-4 py-2 rounded-xl font-black border border-white/5 btn-action uppercase tracking-tight hover:bg-cyan-500 hover:text-black transition-all duration-300">Sync</button>
-                    <button onclick="forceHardReset()" class="bg-slate-800/50 text-slate-500 text-[8px] font-black px-2 py-2 rounded-lg border border-slate-700 uppercase tracking-tighter hover:text-rose-400 transition-all">V3.0.9</button>
+                    <button onclick="forceHardReset()" class="bg-slate-800/50 text-slate-500 text-[8px] font-black px-2 py-2 rounded-lg border border-slate-700 uppercase tracking-tighter hover:text-rose-400 transition-all">V3.1.0</button>
                 </div>
                 </div>
                 
@@ -1285,7 +1285,8 @@
                     const fetchUrl = proxyFn(url);
                     console.log(`[Fetch] Attempt ${i + 1} using ${proxyName}...`);
                     const controller = new AbortController();
-                    const timeoutMs = i < 2 ? 4000 : 7000;
+                    // 增加超時時間，給予移動端更穩定的請求空間
+                    const timeoutMs = i < 2 ? 6000 : 10000;
                     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
                     
                     const response = await fetch(fetchUrl, { 
@@ -1296,7 +1297,7 @@
                     
                     if (response.ok) {
                         const text = await response.text();
-                        if (!text || text.trim().length < 20) { // 太短的內容通常是錯誤頁面
+                        if (!text || text.trim().length < 20) { 
                             console.warn(`[Fetch] Content too short from ${proxyName}`);
                             continue;
                         }
@@ -1304,7 +1305,6 @@
                         let data;
                         try {
                             data = JSON.parse(text);
-                            // 處理 AllOrigins 類型的包裹
                             if (data && typeof data === 'object' && 'contents' in data) {
                                 let innerContent = data.contents;
                                 if (typeof innerContent === 'string' && innerContent.trim().startsWith('{')) {
@@ -1321,17 +1321,16 @@
                             }
                         }
 
-                        // 驗證數據是否有用 (針對 Yahoo Finance)
                         if (data && (data.quoteResponse || data.chart)) {
                             return data;
                         } else {
-                            console.warn(`[Fetch] Invalid data structure from ${proxyName}`);
+                            console.warn(`[Fetch] Invalid data structure from ${proxyName}:`, data);
                         }
                     }
                 } catch (e) {
                     console.warn(`[Fetch] Attempt ${i + 1} (${proxyName}) failed: ${e.name}`);
                 }
-                if (i < retries - 1) await new Promise(r => setTimeout(r, 300)); 
+                if (i < retries - 1) await new Promise(r => setTimeout(r, 500)); 
             }
             throw new Error(`Failed to fetch after ${retries} attempts`);
         }
@@ -1425,7 +1424,7 @@
 
         // 自動檢測版本並清除舊快取
         (function() {
-            const CURRENT_VERSION = '3.0.9';
+            const CURRENT_VERSION = '3.1.0';
             const lastVersion = localStorage.getItem('stocklens_version');
             if (lastVersion !== CURRENT_VERSION) {
                 console.log(`Version update: ${lastVersion} -> ${CURRENT_VERSION}`);
@@ -1436,6 +1435,8 @@
                         for (let name of names) caches.delete(name);
                     });
                 }
+                // 強制刷新以應用新版本，解決手機端快取問題
+                setTimeout(() => window.location.reload(true), 500);
             }
         })();
 
@@ -1583,7 +1584,13 @@
                     const prfEl = document.getElementById(`prf${suffix}`);
 
                     if (cstEl) animateNumber(cstEl, item.cost || 0, 1000, false, 2, '');
-                    if (priEl) animateNumber(priEl, item.price || 0, 1000, false, 2, '');
+                    if (priEl) {
+                        if (item.isUpdating) {
+                            priEl.innerText = "WAIT...";
+                        } else {
+                            animateNumber(priEl, item.price || 0, 1000, false, 2, '');
+                        }
+                    }
                     if (invEl) animateNumber(invEl, costVal, 1000, true, 0, '');
                     if (mktEl) animateNumber(mktEl, val, 1000, true, 0, '');
                     if (prfEl) {
