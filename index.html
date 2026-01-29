@@ -1320,17 +1320,27 @@
                             ];
 
                             for (const headers of headersConfigs) {
-                                const response = await fetch(proxyUrl, { headers });
-                                if (response.ok) {
-                                    const data = await response.json();
-                                    // Fugle intraday/quote 回傳格式中，最新價可能在 lastPrice 或最近一筆成交
-                                    const price = data.lastPrice || (data.trades && data.trades.length > 0 ? data.trades[0].price : null);
-                                    if (price) {
-                                        item.price = price;
-                                        item.name = data.name || item.name;
-                                        console.log(`[Price] ${rawSymbol}: ${item.price} (fugle-api-success)`);
-                                        return;
+                                try {
+                                    const response = await fetch(proxyUrl, { headers });
+                                    if (response.ok) {
+                                        const data = await response.json();
+                                        // 根據富果文件校準解析邏輯：優先取 lastPrice，若無則取 lastTrade.price 或 closePrice
+                                        const price = data.lastPrice || 
+                                                     (data.lastTrade && data.lastTrade.price) || 
+                                                     data.closePrice ||
+                                                     (data.trades && data.trades.length > 0 ? data.trades[0].price : null);
+                                        
+                                        if (price) {
+                                            item.price = price;
+                                            item.name = data.name || item.name;
+                                            console.log(`[Price] ${rawSymbol}: ${item.price} (fugle-api-success)`);
+                                            return;
+                                        }
+                                    } else if (response.status === 401) {
+                                        console.warn(`[Fugle] 401 Unauthorized for key: ${key.substring(0,5)}... Header: ${Object.keys(headers)[0]}`);
                                     }
+                                } catch (e) {
+                                    continue;
                                 }
                             }
                         } catch (err) {
