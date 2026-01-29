@@ -1270,13 +1270,11 @@
             renderTradeHistory();
         }
 
-        async function fetchWithRetry(url, retries = 5) {
+        async function fetchWithRetry(url, retries = 3) {
             const proxies = [
                 (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
                 (u) => `https://thingproxy.freeboard.io/fetch/${u}`,
-                (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-                (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-                (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`
+                (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
             ];
             
             for (let i = 0; i < retries; i++) {
@@ -1291,8 +1289,8 @@
                     const fetchUrl = proxyFn(url);
                     console.log(`[Fetch] Attempt ${i + 1} using ${proxyName}...`);
                     const controller = new AbortController();
-                    // 進一步增加超時時間，給代理更多回應空間
-                    const timeoutMs = i < 2 ? 12000 : 18000;
+                    // 縮短超時時間，快速切換下一個代理
+                    const timeoutMs = 7000; 
                     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
                     
                     const response = await fetch(fetchUrl, { 
@@ -1303,15 +1301,11 @@
                     
                     if (response.ok) {
                         const text = await response.text();
-                        if (!text || text.trim().length < 20) { 
-                            console.warn(`[Fetch] Content too short from ${proxyName}`);
-                            continue;
-                        }
+                        if (!text || text.trim().length < 20) continue;
 
                         let data;
                         try {
                             data = JSON.parse(text);
-                            // 處理 AllOrigins /get 模式包裝
                             if (data && typeof data === 'object' && 'contents' in data) {
                                 let innerContent = data.contents;
                                 if (typeof innerContent === 'string' && innerContent.trim().startsWith('{')) {
@@ -1330,22 +1324,16 @@
 
                         if (data && (data.quoteResponse || data.chart)) {
                             return data;
-                        } else {
-                            // 記錄異常的數據結構以便診斷
-                            const errorMsg = typeof data === 'string' ? data.substring(0, 50) : "Invalid structure";
-                            console.warn(`[Fetch] Data issue from ${proxyName}: ${errorMsg}`);
                         }
-                    } else {
-                        console.warn(`[Fetch] ${proxyName} returned status: ${response.status}`);
                     }
                 } catch (e) {
                     const isTimeout = e.name === 'AbortError';
-                    console.warn(`[Fetch] Attempt ${i + 1} (${proxyName}) ${isTimeout ? 'TIMED OUT' : 'FAILED'}: ${e.message}`);
+                    console.warn(`[Fetch] Attempt ${i + 1} (${proxyName}) ${isTimeout ? 'TIMEOUT' : 'FAIL'}`);
                 }
-                // 增加重試間隔，避免被代理連續封鎖
-                if (i < retries - 1) await new Promise(r => setTimeout(r, 1200 + i * 500)); 
+                // 縮短重試間隔
+                if (i < retries - 1) await new Promise(r => setTimeout(r, 500)); 
             }
-            throw new Error(`Failed to fetch after ${retries} attempts`);
+            throw new Error(`Failed after ${retries} attempts`);
         }
 
         async function fetchPriceAndInfo(item) {
@@ -1464,7 +1452,7 @@
                             btn.innerText = `SYNCING (${finished}/${total})`;
                             await fetchPriceAndInfo(item);
                             // 縮短間隔，因為多 Worker 會自然分散請求
-                            await new Promise(r => setTimeout(r, 300));
+                            await new Promise(r => setTimeout(r, 200));
                         } catch (e) {
                             console.warn(`Failed to update ${item.symbol}:`, e);
                         } finally {
@@ -1474,8 +1462,8 @@
                     }
                 };
                 
-                // 啟動 3 個並發 Worker，極速更新
-                await Promise.all([worker(), worker(), worker()]);
+                // 啟動 5 個並發 Worker，極速更新
+                await Promise.all([worker(), worker(), worker(), worker(), worker()]);
                 
                 saveToStorage();
                 render();
