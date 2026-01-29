@@ -1109,7 +1109,7 @@
             } else {
                 const info = getCategoryInfo(sym);
                 const newId = portfolio.length > 0 ? Math.max(...portfolio.map(i => i.id)) + 1 : 1;
-                const newItem = { id: newId, symbol: sym, name: "載入中...", category: info.cat, isLeverage: info.isLeverage, currency: info.cur, shares, cost, target: 0, price: 0 };
+                const newItem = { id: newId, symbol: sym, name: "", category: info.cat, isLeverage: info.isLeverage, currency: info.cur, shares, cost, target: 0, price: 0 };
                 portfolio.push(newItem);
                 saveToStorage(); 
                 render();
@@ -1154,7 +1154,7 @@
                 const newItem = {
                     id: newId,
                     symbol: sym,
-                    name: "載入中...",
+                    name: "",
                     category: info.cat,
                     isLeverage: info.isLeverage,
                     currency: info.cur,
@@ -1362,70 +1362,45 @@
             }
             
             item.isUpdating = true;
-            render(); // 立即觸發 UI 顯示「載入中」狀態
+            render(); 
             
             try {
-                /* 暫時停用 RapidAPI，因為頻繁出現 429/403 報錯，改為全面使用穩定 Proxy 模式
-                if (rapidApiKey) {
-                    ...
-                }
-                */
-
-                // Strategy 2: Proxy Fallback
                 for (let t of tickers) {
                     try {
-                        console.log(`[Fetch] Trying Proxy for ${t}...`);
+                        console.log(`[Fetch] Trying Price for ${t}...`);
                         const isTW = t.endsWith('.TW') || t.endsWith('.TWO');
                         
-                        // 優先嘗試 Chart API，因為它通常更穩定且結構簡單
+                        // 優先嘗試 Chart API，這是最快且最穩定的價格來源
                         const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d&t=${Date.now()}`;
                         const chartData = await fetchWithRetry(chartUrl);
                         
-                        if (chartData && chartData.chart && chartData.chart.result && chartData.chart.result[0]) {
-                            const chartResult = chartData.chart.result[0];
-                            if (chartResult.meta && chartResult.meta.regularMarketPrice && chartResult.meta.regularMarketPrice > 0) {
-                                console.log(`[Fetch] Chart API Success! Price for ${t}: ${chartResult.meta.regularMarketPrice}`);
-                                item.price = chartResult.meta.regularMarketPrice;
-                                if (!item.name || item.name === "載入中...") {
-                                    item.name = chartResult.meta.symbol || item.symbol;
-                                }
-                                return; // Success
-                            }
+                        if (chartData?.chart?.result?.[0]?.meta?.regularMarketPrice > 0) {
+                            const price = chartData.chart.result[0].meta.regularMarketPrice;
+                            console.log(`[Fetch] Chart API Success! Price for ${t}: ${price}`);
+                            item.price = price;
+                            return; // 價格抓到即回傳，不再浪費時間抓名稱
                         }
                         
-                        // 備援：Quote API
+                        // 備援：Quote API (僅在 Chart API 失敗時執行)
                         const params = isTW ? '&lang=zh-Hant-TW&region=TW' : '&lang=en-US&region=US';
                         const quoteUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${t}${params}&t=${Date.now()}`;
                         const data = await fetchWithRetry(quoteUrl);
                         
-                        if (data && data.quoteResponse && data.quoteResponse.result && data.quoteResponse.result[0]) {
-                            const result = data.quoteResponse.result[0];
-                            if (result.regularMarketPrice && result.regularMarketPrice > 0) {
-                                console.log(`[Fetch] Quote API Success! Price for ${t}: ${result.regularMarketPrice}`);
-                                item.price = result.regularMarketPrice;
-                                item.name = result.longName || result.shortName || item.symbol;
-                                const info = getCategoryInfo(item.symbol, item.name);
-                                if (item.name === "載入中...") item.isLeverage = info.isLeverage;
-                                return; // Success
-                            }
+                        if (data?.quoteResponse?.result?.[0]?.regularMarketPrice > 0) {
+                            const price = data.quoteResponse.result[0].regularMarketPrice;
+                            console.log(`[Fetch] Quote API Success! Price for ${t}: ${price}`);
+                            item.price = price;
+                            return; 
                         }
                     } catch (e) { 
-                        console.warn(`Proxy fetch failed for ${t}:`, e); 
+                        console.warn(`Price fetch failed for ${t}:`, e); 
                     }
                 }
-                // 如果跑到這裡，代表所有備援都失敗了
-                console.error(`[Fetch] All strategies failed for ${item.symbol}`);
-                if (item.price === 0) {
-                    item.name = `[FAIL] ${item.symbol}`;
-                }
+                console.error(`[Fetch] All price strategies failed for ${item.symbol}`);
             } catch (e) {
                 console.error(`[Fetch] Critical error for ${item.symbol}:`, e);
-                item.name = `[ERR] ${item.symbol}`;
             } finally {
                 item.isUpdating = false;
-                if (item.name === "載入中...") {
-                    item.name = item.symbol;
-                }
                 render();
             }
         }
@@ -1573,7 +1548,7 @@
         function triggerDeleteConfirm(id) {
             const item = portfolio.find(p => p.id === id);
             if (!item) return;
-            document.getElementById('deleteTargetName').innerText = `${item.symbol} (${item.name})`;
+            document.getElementById('deleteTargetName').innerText = `${item.symbol}`;
             const btn = document.getElementById('finalDeleteBtn');
             btn.onclick = () => {
                 portfolio = portfolio.filter(p => p.id !== id);
@@ -1738,7 +1713,6 @@
                                         ${item.isLeverage ? '<span class="px-1.5 py-0.5 rounded-md bg-rose-500/10 text-rose-500 text-[7px] font-black border border-rose-500/20">LVRG</span>' : ''}
                                         ${item.isVirtual ? '<span class="px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-500 text-[7px] font-black border border-amber-500/20">PLEDGE</span>' : ''}
                                     </div>
-                                    <div class="text-[9px] text-slate-500 font-bold mt-1 truncate max-w-[100px] uppercase tracking-tighter opacity-70">${item.name || '---'}</div>
                                 </div>
                             </td>
                             <td class="px-3 py-4 text-[11px] font-mono text-slate-300 font-black">${formatVal(item.displayShares, 0, true)}</td>
