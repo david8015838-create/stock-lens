@@ -1369,35 +1369,33 @@
                     try {
                         console.log(`[Fetch] Trying Proxy for ${t}...`);
                         const isTW = t.endsWith('.TW') || t.endsWith('.TWO');
-                        const params = isTW ? '&lang=zh-Hant-TW&region=TW' : '&lang=en-US&region=US';
-                        const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${t}${params}&t=${Date.now()}`;
                         
-                        const data = await fetchWithRetry(url);
-                        console.log(`[Fetch] Raw data received for ${t}:`, data);
-
-                        const result = data.quoteResponse?.result?.[0];
-                        
-                        if (result && result.regularMarketPrice) {
-                            console.log(`[Fetch] Success! Price for ${t}: ${result.regularMarketPrice}`);
-                            item.price = result.regularMarketPrice;
-                            item.name = result.longName || result.shortName || item.symbol;
-                            const info = getCategoryInfo(item.symbol, item.name);
-                            if (item.name === "載入中...") item.isLeverage = info.isLeverage;
-                            return; // Success
-                        }
-                        
-                        // Fallback to chart API
-                        console.log(`[Fetch] Quote API failed for ${t}, trying Chart API...`);
+                        // 優先嘗試 Chart API，因為它通常更穩定且結構簡單
                         const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d&t=${Date.now()}`;
                         const chartData = await fetchWithRetry(chartUrl);
                         const chartResult = chartData.chart?.result?.[0];
                         
-                        if (chartResult?.meta?.regularMarketPrice) {
+                        if (chartResult?.meta?.regularMarketPrice && chartResult.meta.regularMarketPrice > 0) {
                             console.log(`[Fetch] Chart API Success! Price for ${t}: ${chartResult.meta.regularMarketPrice}`);
                             item.price = chartResult.meta.regularMarketPrice;
                             if (!item.name || item.name === "載入中...") {
                                 item.name = chartResult.meta.symbol || item.symbol;
                             }
+                            return; // Success
+                        }
+
+                        // 備援：Quote API
+                        const params = isTW ? '&lang=zh-Hant-TW&region=TW' : '&lang=en-US&region=US';
+                        const quoteUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${t}${params}&t=${Date.now()}`;
+                        const data = await fetchWithRetry(quoteUrl);
+                        const result = data.quoteResponse?.result?.[0];
+                        
+                        if (result && result.regularMarketPrice && result.regularMarketPrice > 0) {
+                            console.log(`[Fetch] Quote API Success! Price for ${t}: ${result.regularMarketPrice}`);
+                            item.price = result.regularMarketPrice;
+                            item.name = result.longName || result.shortName || item.symbol;
+                            const info = getCategoryInfo(item.symbol, item.name);
+                            if (item.name === "載入中...") item.isLeverage = info.isLeverage;
                             return; // Success
                         }
                     } catch (e) { console.warn(`Proxy fetch failed for ${t}`, e); }
@@ -1523,19 +1521,28 @@
                     });
                     if (response.ok) {
                         const data = await response.json();
-                        globalFxRate = data.quoteResponse?.result?.[0]?.regularMarketPrice || 32.5;
-                        console.log(`FX Rate fetched via RapidAPI: ${globalFxRate}`);
-                        return;
+                        const rate = data.quoteResponse?.result?.[0]?.regularMarketPrice;
+                        if (rate && rate > 0) {
+                            globalFxRate = rate;
+                            console.log(`FX Rate fetched via RapidAPI: ${globalFxRate}`);
+                            return;
+                        }
                     }
                 }
                 
                 const url = `https://query1.finance.yahoo.com/v8/finance/chart/USDTWD=X?t=${Date.now()}`;
                 const data = await fetchWithRetry(url);
-                globalFxRate = data.chart?.result?.[0]?.meta?.regularMarketPrice || 32.5;
-                console.log(`FX Rate fetched via Proxy: ${globalFxRate}`);
+                const rate = data.chart?.result?.[0]?.meta?.regularMarketPrice;
+                if (rate && rate > 0) {
+                    globalFxRate = rate;
+                    console.log(`FX Rate fetched via Proxy: ${globalFxRate}`);
+                } else {
+                    throw new Error("Invalid FX rate from proxy");
+                }
             } catch (e) { 
                 console.warn("FX fetch failed, using fallback:", e);
-                globalFxRate = 32.5; 
+                // 只有在 globalFxRate 尚未設定過（等於初始值或 0）時才使用硬編碼
+                if (!globalFxRate || globalFxRate <= 0) globalFxRate = 32.5; 
             }
         }
 
