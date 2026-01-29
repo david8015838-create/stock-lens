@@ -1091,19 +1091,34 @@
             const shares = parseFloat(document.getElementById('modalShares').value) || 0;
             const cost = parseFloat(document.getElementById('modalCost').value) || 0;
             if (!sym || shares <= 0) return;
+
+            // 1. 立即關閉彈窗並清空輸入，防止重複點擊
+            closeModal('addModal');
+            
             const existingIndex = portfolio.findIndex(p => p.symbol === sym);
             if (existingIndex !== -1) {
                 const p = portfolio[existingIndex];
                 p.cost = ( (p.shares * p.cost) + (shares * cost) ) / (p.shares + shares);
                 p.shares += shares;
+                saveToStorage(); 
+                render();
             } else {
                 const info = getCategoryInfo(sym);
                 const newId = portfolio.length > 0 ? Math.max(...portfolio.map(i => i.id)) + 1 : 1;
                 const newItem = { id: newId, symbol: sym, name: "載入中...", category: info.cat, isLeverage: info.isLeverage, currency: info.cur, shares, cost, target: 0, price: 0 };
                 portfolio.push(newItem);
-                await fetchPriceAndInfo(newItem);
+                saveToStorage(); 
+                render();
+                
+                // 2. 在後台更新價格，不阻塞 UI
+                try {
+                    await fetchPriceAndInfo(newItem);
+                    saveToStorage(); 
+                    render();
+                } catch (e) {
+                    console.error("Initial fetch failed:", e);
+                }
             }
-            saveToStorage(); render(); closeModal('addModal');
         }
 
         function processBuyAsset() {
@@ -1119,6 +1134,9 @@
                 alert(`無法買入！\n原因：現金水位不足。\n\n需要金額：${formatVal(requiredCash, 0, false)} TWD\n可用現金：${formatVal(cashPosition, 0, false)} TWD\n不足金額：${formatVal(requiredCash - cashPosition, 0, false)} TWD\n\n請先增加現金水位或減少買入數量。`);
                 return;
             }
+
+            // 1. 立即關閉彈窗，防止重複點擊
+            closeModal('buyModal');
 
             const existingIndex = portfolio.findIndex(p => p.symbol === sym);
             if (existingIndex !== -1) {
@@ -1142,7 +1160,9 @@
                     price: 0
                 };
                 portfolio.push(newItem);
-                fetchPriceAndInfo(newItem);
+                fetchPriceAndInfo(newItem).then(() => {
+                    saveToStorage(); render();
+                });
             }
 
             const trade = {
@@ -2244,28 +2264,62 @@
         }
 
         window.onload = async () => {
+            // 1. 強制註銷所有 Service Worker (解決舊資料持久化問題)
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    for (let registration of registrations) {
+                        registration.unregister();
+                        console.log('ServiceWorker unregistered');
+                    }
+                });
+            }
+
             loadFromStorage();
             render();
             renderTradeHistory();
+
             if (portfolio.length > 0) {
                 const btn = document.getElementById('refreshBtn');
                 const originalText = btn.innerText;
                 btn.innerText = "WAIT..."; 
                 btn.disabled = true;
                 
-                // 1. 並行執行匯率與所有價格更新
-                const fxPromise = fetchFX();
-                const pricePromises = portfolio.map(item => fetchPriceAndInfo(item));
-                
-                await Promise.allSettled([fxPromise, ...pricePromises]);
-                
-                saveToStorage();
-                render();
-                setTimeout(() => {
+                try {
+                    // 2. 序列化更新匯率與價格，避免 429 錯誤
+                    await fetchFX();
+                    
+                    const queue = [...portfolio];
+                    const total = queue.length;
+                    let finished = 0;
+                    
+                    const worker = async () => {
+                        while (queue.length > 0) {
+                            const item = queue.shift();
+                            if (!item) continue;
+                            try {
+                                btn.innerText = `SYNC (${finished}/${total})`;
+                                await fetchPriceAndInfo(item);
+                                await new Promise(r => setTimeout(r, 600)); // 啟動時稍微慢一點，確保穩定
+                            } catch (e) {
+                                console.warn(`Initial update failed for ${item.symbol}:`, e);
+                            } finally {
+                                finished++;
+                                render();
+                            }
+                        }
+                    };
+                    
+                    await worker();
+                    
+                    saveToStorage();
+                    render();
+                } catch (error) {
+                    console.error("Startup update failed:", error);
+                } finally {
                     finalizeUpdate(false);
                     btn.innerText = originalText; 
                     btn.disabled = false;
-                }, 100);
+                }
             }
         };
         function switchTab(tabId, sourceEl) {
