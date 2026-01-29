@@ -1293,6 +1293,9 @@
             let tickers = /^\d+$/.test(rawSymbol) ? [`${rawSymbol}.TW`, `${rawSymbol}.TWO`] : [rawSymbol];
             
             const extractPrice = (data, symbol) => {
+                // 如果傳入的是 Google Finance 的解析價格 (Number)，直接回傳
+                if (typeof data === 'number') return data;
+                
                 // 處理不同的 API 回傳格式 (Quote 或 Chart)
                 const q = data.quoteResponse?.result?.[0] || data.result?.[0] || data.chart?.result?.[0];
                 if (!q) return null;
@@ -1385,18 +1388,49 @@
                 }
             }
 
-            // 調整 Endpoint 順序，加入更多備援，並針對台股優化
+            // 調整 Endpoint 順序，加入 Google Finance 作為最終備援
             const endpoints = [
                 (t) => `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d&_t=${timestamp}&s=${salt}`,
                 (t) => `https://query2.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d&_t=${timestamp}&s=${salt}`,
                 (t) => `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${t}&_t=${timestamp}&s=${salt}`,
-                (t) => `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${t}&_t=${timestamp}&s=${salt}`
+                // 最終備援：Google Finance (透過 Google Search 解析)
+                (t) => {
+                    const symbolOnly = t.split('.')[0];
+                    const exchange = t.includes('.TW') ? 'TPE' : (t.includes('.TWO') ? 'OTCPK' : '');
+                    const query = exchange ? `${exchange}:${symbolOnly}` : symbolOnly;
+                    return `https://www.google.com/search?q=finance+${query}&_t=${timestamp}&btnI=1`;
+                }
             ];
 
             for (let t of tickers) {
-                for (let getUrl of endpoints) {
+                for (let i = 0; i < endpoints.length; i++) {
+                    const getUrl = endpoints[i];
                     try {
-                        const data = await fetchWithRetry(getUrl(t));
+                        const url = getUrl(t);
+                        
+                        // 如果是 Google Search 備援 (最後一個 endpoint)
+                        if (i === endpoints.length - 1) {
+                            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+                            const resp = await fetch(proxyUrl);
+                            if (resp.ok) {
+                                const html = await resp.text();
+                                // 嘗試解析 Google Finance 的價格標籤 (常見格式)
+                                const match = html.match(/data-precision="2"[^>]*>([\d,.]+)</) || 
+                                              html.match(/class="YMl9ec[^>]*>([\d,.]+)</) ||
+                                              html.match(/\$([\d,.]+)/);
+                                if (match && match[1]) {
+                                    const p = parseFloat(match[1].replace(/,/g, ''));
+                                    if (p > 0) {
+                                        item.price = p;
+                                        console.log(`[Price] ${t}: ${p} (google-fallback)`);
+                                        return;
+                                    }
+                                }
+                            }
+                            continue;
+                        }
+
+                        const data = await fetchWithRetry(url);
                         const p = extractPrice(data, t);
                         
                         if (p > 0) {
