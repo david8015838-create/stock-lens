@@ -1238,9 +1238,9 @@
 
         async function fetchWithRetry(url, retries = 2) {
             const proxies = [
-                (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}&_r=${Math.random()}`,
-                (u) => `https://corsproxy.io/?${encodeURIComponent(u)}&_cachebuster=${Date.now()}`,
-                (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
+                (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u + '&bypass=' + Math.random())}`,
+                (u) => `https://corsproxy.io/?${encodeURIComponent(u + '&cb=' + Date.now())}`,
+                (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u + '&z=' + Math.random().toString(36).substring(7))}`
             ];
             
             const shuffledProxies = [...proxies].sort(() => Math.random() - 0.5);
@@ -1292,30 +1292,64 @@
             
             let tickers = /^\d+$/.test(rawSymbol) ? [`${rawSymbol}.TW`, `${rawSymbol}.TWO`] : [rawSymbol];
             
-            const extractPrice = (q) => {
+            const extractPrice = (data, symbol) => {
+                // 處理不同的 API 回傳格式 (Quote 或 Chart)
+                const q = data.quoteResponse?.result?.[0] || data.result?.[0] || data.chart?.result?.[0];
                 if (!q) return null;
-                // 優先判斷市場狀態來提取最即時價格
-                const state = (q.marketState || "").toUpperCase();
+
                 let price = null;
-                
-                // US 股：盤後交易時段或已收盤，優先取盤後價 (postMarketPrice)
-                if ((state.includes('POST') || state.includes('CLOSED')) && q.postMarketPrice) {
-                    price = q.postMarketPrice;
-                } else if (state.includes('PRE') && q.preMarketPrice) {
-                    price = q.preMarketPrice;
+                let source = "";
+
+                // 如果是 Chart API 格式
+                if (q.meta && q.indicators) {
+                    const meta = q.meta;
+                    const quotes = q.indicators.quote?.[0];
+                    const closes = quotes?.close || [];
+                    
+                    // 1. 優先嘗試從指標序列中抓取最後一個非空價格 (最即時)
+                    for (let i = closes.length - 1; i >= 0; i--) {
+                        if (closes[i] !== null && closes[i] > 0) {
+                            price = closes[i];
+                            source = "chart-indicator";
+                            break;
+                        }
+                    }
+
+                    // 2. 如果序列沒抓到，抓 meta 裡的價格
+                    if (!price || price <= 0) {
+                        price = meta.regularMarketPrice;
+                        source = "chart-meta";
+                    }
                 } else {
-                    price = q.regularMarketPrice || q.price || q.lastPrice;
+                    // 如果是 Quote API 格式
+                    const state = (q.marketState || "").toUpperCase();
+                    
+                    // 優先權：盤後 > 盤前 > 目前成交價
+                    if ((state.includes('POST') || state.includes('CLOSED')) && q.postMarketPrice) {
+                        price = q.postMarketPrice;
+                        source = "quote-post";
+                    } else if (state.includes('PRE') && q.preMarketPrice) {
+                        price = q.preMarketPrice;
+                        source = "quote-pre";
+                    } else {
+                        price = q.regularMarketPrice || q.price || q.lastPrice;
+                        source = "quote-reg";
+                    }
+
+                    // 備援：買賣價中位數
+                    if (!price || price <= 0) {
+                        if (q.bid > 0 && q.ask > 0) {
+                            price = (q.bid + q.ask) / 2;
+                            source = "quote-bidask";
+                        }
+                    }
                 }
-                
-                // 備援：如果沒有成交價，嘗試買賣價中位數 (適用於開盤前或交易不熱絡時)
-                if (!price || price <= 0) {
-                    if (q.bid > 0 && q.ask > 0) price = (q.bid + q.ask) / 2;
+
+                if (price > 0) {
+                    console.log(`[Price] ${symbol}: ${price} (${source})`);
+                    return price;
                 }
-                
-                // 最終備援：chart API 的 meta
-                if (!price || price <= 0) price = q.meta?.regularMarketPrice;
-                
-                return price;
+                return null;
             };
 
             if (rapidApiKey) {
@@ -1329,19 +1363,19 @@
                             headers: {
                                 'X-RapidAPI-Key': rapidApiKey,
                                 'X-RapidAPI-Host': 'apidojo-yahoo-finance-v1.p.rapidapi.com',
-                                'Cache-Control': 'no-cache, no-store, must-revalidate'
+                                'Cache-Control': 'no-cache'
                             },
                             signal: controller.signal
                         });
                         clearTimeout(timeoutId);
                         if (response.ok) {
                             const data = await response.json();
-                            const result = data.quoteResponse?.result?.[0];
-                            const p = extractPrice(result);
+                            const p = extractPrice(data, t);
                             if (p > 0) {
                                 item.price = p;
                                 if (!item.name || item.name === "載入中...") {
-                                    item.name = result.longName || result.shortName || item.symbol;
+                                    const result = data.quoteResponse?.result?.[0];
+                                    item.name = result?.longName || result?.shortName || item.symbol;
                                 }
                                 item.isLeverage = getCategoryInfo(item.symbol, item.name).isLeverage;
                                 return;
@@ -1351,9 +1385,10 @@
                 }
             }
 
-            // 調整 Endpoint 順序，將 chart 提到前面，因為它通常更即時且快取較少
+            // 調整 Endpoint 順序，加入更多備援，並針對台股優化
             const endpoints = [
                 (t) => `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d&_t=${timestamp}&s=${salt}`,
+                (t) => `https://query2.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d&_t=${timestamp}&s=${salt}`,
                 (t) => `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${t}&_t=${timestamp}&s=${salt}`,
                 (t) => `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${t}&_t=${timestamp}&s=${salt}`
             ];
@@ -1362,13 +1397,13 @@
                 for (let getUrl of endpoints) {
                     try {
                         const data = await fetchWithRetry(getUrl(t));
-                        const q = data.quoteResponse?.result?.[0] || data.result?.[0] || data.chart?.result?.[0]?.meta;
-                        const p = extractPrice(q);
+                        const p = extractPrice(data, t);
                         
                         if (p > 0) {
                             item.price = p;
                             if (!item.name || item.name === "載入中...") {
-                                item.name = q.longName || q.shortName || q.symbol || item.name;
+                                const q = data.quoteResponse?.result?.[0] || data.result?.[0] || data.chart?.result?.[0]?.meta;
+                                item.name = q?.longName || q?.shortName || q?.symbol || item.name;
                             }
                             item.isLeverage = getCategoryInfo(item.symbol, item.name).isLeverage;
                             return;
