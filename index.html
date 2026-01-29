@@ -1282,7 +1282,15 @@
         const proxyStatus = {}; 
 
         async function fetchWithRetry(url) {
+            // 自動在 query1 和 query2 之間切換以分散壓力
+            const urls = [
+                url,
+                url.replace('query1.finance.yahoo.com', 'query2.finance.yahoo.com')
+            ];
+            const targetUrl = urls[Math.floor(Math.random() * urls.length)];
+
             const proxyConfigs = [
+                { name: 'Direct', fn: (u) => u }, // 優先嘗試直連
                 { name: 'AllOrigins-Raw', fn: (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
                 { name: 'CodeTabs', fn: (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
                 { name: 'CORSProxy-IO', fn: (u) => `https://corsproxy.io/?${encodeURIComponent(u)}` },
@@ -1292,30 +1300,28 @@
             ];
 
             const fetchFromProxy = async (config, delay = 0) => {
-                // 檢查是否在冷卻中
                 const now = Date.now();
                 if (proxyStatus[config.name] && now < proxyStatus[config.name]) {
-                    throw new Error(`${config.name} in cooldown`);
+                    throw new Error(`${config.name} cooling`);
                 }
 
                 if (delay > 0) await new Promise(r => setTimeout(r, delay));
                 
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 8000); 
+                const timeoutId = setTimeout(() => controller.abort(), config.name === 'Direct' ? 3000 : 8000); 
                 
                 try {
-                    const proxyUrl = config.fn(url);
-                    const response = await fetch(proxyUrl, { 
+                    const finalUrl = config.fn(targetUrl);
+                    const response = await fetch(finalUrl, { 
                         signal: controller.signal,
                         cache: 'no-store'
                     });
                     
                     if (response.status === 429 || response.status === 403) {
-                        // 進入冷卻：429 休息 15 秒，403 休息 30 秒
-                        const cooldownMs = response.status === 429 ? 15000 : 30000;
+                        // 429 縮短冷卻至 10 秒，403 保持 30 秒
+                        const cooldownMs = response.status === 429 ? 10000 : 30000;
                         proxyStatus[config.name] = Date.now() + cooldownMs;
-                        console.warn(`[Proxy] ${config.name} blocked (${response.status}), cooling down...`);
-                        throw new Error(`Proxy ${response.status}`);
+                        throw new Error(`Status ${response.status}`);
                     }
 
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -1336,11 +1342,12 @@
                     }
 
                     if (data && (data.quoteResponse || data.chart)) {
-                        console.log(`[Race] Winner: ${config.name}`);
+                        console.log(`[Fetch] Winner: ${config.name}`);
                         return data;
                     }
                     throw new Error('Invalid Data');
                 } catch (err) {
+                    if (config.name === 'Direct') throw new Error('CORS/Blocked');
                     if (err.name === 'AbortError') throw new Error('Timeout');
                     throw err;
                 } finally {
@@ -1348,28 +1355,29 @@
                 }
             };
 
-            // 競爭模式：只挑選「不在冷卻中」的代理
+            // 競爭模式邏輯優化
             const getActiveProxies = () => {
                 const now = Date.now();
-                return proxyConfigs.filter(p => !proxyStatus[p.name] || now > proxyStatus[p.name]);
+                return proxyConfigs.filter(p => p.name !== 'Direct' && (!proxyStatus[p.name] || now > proxyStatus[p.name]));
             };
 
-            const active = getActiveProxies();
-            if (active.length === 0) {
-                // 如果全部掛掉，強行嘗試前兩個（死馬當活馬醫）
-                active.push(proxyConfigs[0], proxyConfigs[1]);
+            // 1. 嘗試直連 (最快，如果成功就不需要代理)
+            try {
+                return await fetchFromProxy(proxyConfigs[0]);
+            } catch (e) {
+                // 直連失敗是正常的 (CORS)，繼續嘗試代理
             }
-            
-            // 隨機打亂
+
+            const active = getActiveProxies();
+            if (active.length === 0) active.push(proxyConfigs[1], proxyConfigs[2]);
             active.sort(() => Math.random() - 0.5);
 
             try {
-                // 第一輪：嘗試前兩個可用的
+                // 第一輪：前兩個可用代理
                 return await Promise.any(active.slice(0, 2).map((p, i) => fetchFromProxy(p, i * 400)));
             } catch (e) {
-                console.warn('[Race] First batch failed, trying backup...');
                 try {
-                    // 第二輪：嘗試剩下所有可用的
+                    // 第二輪：剩下的代理
                     return await Promise.any(active.slice(2).map((p, i) => fetchFromProxy(p, i * 400)));
                 } catch (e2) {
                     throw new Error('All proxies failed');
