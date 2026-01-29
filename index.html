@@ -746,7 +746,7 @@
                     </div>
                     <div class="flex items-center gap-2">
                     <button id="refreshBtn" onclick="handleRefreshClick()" class="bg-slate-800/80 text-cyan-400 text-[10px] px-4 py-2 rounded-xl font-black border border-white/5 btn-action uppercase tracking-tight hover:bg-cyan-500 hover:text-black transition-all duration-300">Sync</button>
-                    <button onclick="forceHardReset()" class="bg-slate-800/50 text-slate-500 text-[8px] font-black px-2 py-2 rounded-lg border border-slate-700 uppercase tracking-tighter hover:text-rose-400 transition-all">V3.0.6</button>
+                    <button onclick="forceHardReset()" class="bg-slate-800/50 text-slate-500 text-[8px] font-black px-2 py-2 rounded-lg border border-slate-700 uppercase tracking-tighter hover:text-rose-400 transition-all">V3.0.7</button>
                 </div>
                 </div>
                 
@@ -1269,34 +1269,44 @@
             renderTradeHistory();
         }
 
-        async function fetchWithRetry(url, retries = 3) {
+        async function fetchWithRetry(url, retries = 4) {
             const proxies = [
                 (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-                (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-                (u) => `https://thingproxy.freeboard.io/fetch/${u}`,
-                (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`
+                (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+                (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+                (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`
             ];
             
             for (let i = 0; i < retries; i++) {
                 const proxyFn = proxies[i % proxies.length];
+                const proxyName = proxyFn.toString().split('`')[1].split('/')[2];
                 try {
                     const fetchUrl = proxyFn(url);
+                    console.log(`[Fetch] Attempt ${i + 1} using ${proxyName}...`);
                     const controller = new AbortController();
-                    // 更加激進的超時控制
-                    const timeoutMs = i < 2 ? 3000 : 5000;
+                    // 增加超時寬容度
+                    const timeoutMs = i < 2 ? 4000 : 6000;
                     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
                     
-                    const response = await fetch(fetchUrl, { signal: controller.signal });
+                    const response = await fetch(fetchUrl, { 
+                        signal: controller.signal,
+                        cache: 'no-store'
+                    });
                     clearTimeout(timeoutId);
                     
                     if (response.ok) {
                         const text = await response.text();
+                        if (!text || text.trim().length === 0) {
+                            console.warn(`[Fetch] Empty response from ${proxyName}`);
+                            continue;
+                        }
+
                         try {
                             // 1. 處理 AllOrigins 類型的包裹
                             let data = JSON.parse(text);
                             if (data && typeof data === 'object' && 'contents' in data) {
                                 let innerContent = data.contents;
-                                if (typeof innerContent === 'string') {
+                                if (typeof innerContent === 'string' && innerContent.trim().startsWith('{')) {
                                     try {
                                         return JSON.parse(innerContent);
                                     } catch (e) {
@@ -1308,14 +1318,23 @@
                             // 2. 處理普通 JSON 或已經解開的內容
                             return data;
                         } catch (e) {
-                            // 3. 如果不是 JSON，直接回傳文本（可能是某些代理的回傳方式）
+                            // 3. 如果不是 JSON，但看起來像 JSON（例如某些代理返回純文字）
+                            if (text.trim().startsWith('{')) {
+                                try {
+                                    return JSON.parse(text);
+                                } catch (parseErr) {
+                                    return text;
+                                }
+                            }
                             return text;
                         }
+                    } else {
+                        console.warn(`[Fetch] ${proxyName} returned status ${response.status}`);
                     }
                 } catch (e) {
-                    console.warn(`Fetch attempt ${i + 1} failed (${e.name})`);
+                    console.warn(`[Fetch] Attempt ${i + 1} (${proxyName}) failed: ${e.name}`);
                 }
-                if (i < retries - 1) await new Promise(r => setTimeout(r, 100)); // 極短等待
+                if (i < retries - 1) await new Promise(r => setTimeout(r, 200)); 
             }
             throw new Error(`Failed to fetch after ${retries} attempts`);
         }
