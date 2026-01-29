@@ -1474,10 +1474,24 @@
             }
         })();
 
+        let isSyncing = false;
+        let lastSyncTime = 0;
+        const SYNC_COOLDOWN = 30000; // 30 秒冷卻時間
+
         async function handleRefreshClick() {
-            if (portfolio.length === 0) return;
+            if (portfolio.length === 0 || isSyncing) return;
+            
+            const now = Date.now();
+            if (now - lastSyncTime < SYNC_COOLDOWN) {
+                const remaining = Math.ceil((SYNC_COOLDOWN - (now - lastSyncTime)) / 1000);
+                alert(`請稍候 ${remaining} 秒再進行更新，頻繁更新會導致代理伺服器封鎖您的連線。`);
+                return;
+            }
+
             const btn = document.getElementById('refreshBtn');
             const originalText = btn.innerText;
+            
+            isSyncing = true;
             btn.innerText = "WAIT..."; btn.disabled = true;
             
             try {
@@ -1497,8 +1511,8 @@
                         try {
                             btn.innerText = `SYNC (${finished}/${total})`;
                             await fetchPriceAndInfo(item);
-                            // 增加隨機間隔 (Jitter)
-                            await new Promise(r => setTimeout(r, 600 + Math.random() * 400));
+                            // 增加隨機間隔 (Jitter)，讓行為更像真人
+                            await new Promise(r => setTimeout(r, 800 + Math.random() * 700));
                         } catch (e) {
                             console.warn(`Failed to update ${item.symbol}:`, e);
                         } finally {
@@ -1508,33 +1522,43 @@
                     }
                 };
                 
-                // 降低至 2 個並行 Worker，避免觸發代理伺服器的 429 限流
+                // 限制為 2 個並行 Worker，避免觸發 429 限流
                 await Promise.all([worker(), worker()]);
                 
                 saveToStorage();
                 render();
                 finalizeUpdate(true);
+                lastSyncTime = Date.now();
 
                 // 增加手機端 UI 回饋
                 if (window.navigator.vibrate) {
-                    window.navigator.vibrate(50); // 微小震動
+                    window.navigator.vibrate(50);
                 }
                 
-                // 顯示更新成功提示
-                const originalBtnText = originalText;
                 btn.innerText = "SUCCESS ✓";
                 btn.classList.add('text-emerald-400');
-                setTimeout(() => {
-                    btn.innerText = originalBtnText;
-                    btn.classList.remove('text-emerald-400');
-                    btn.disabled = false;
-                }, 2000);
+                
+                // 開始倒數冷卻
+                let cooldownRemaining = SYNC_COOLDOWN / 1000;
+                const cooldownTimer = setInterval(() => {
+                    cooldownRemaining--;
+                    if (cooldownRemaining <= 0) {
+                        clearInterval(cooldownTimer);
+                        btn.innerText = originalText;
+                        btn.classList.remove('text-emerald-400');
+                        btn.disabled = false;
+                        isSyncing = false;
+                    } else {
+                        btn.innerText = `COOLDOWN (${cooldownRemaining}s)`;
+                    }
+                }, 1000);
 
             } catch (error) {
                 console.error("Refresh failed:", error);
                 alert("更新失敗，請檢查網路連線或稍後再試。");
                 btn.innerText = originalText; 
                 btn.disabled = false;
+                isSyncing = false;
             }
         }
 
