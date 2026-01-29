@@ -1306,27 +1306,35 @@
                     for (const key of keys) {
                         if (!key) continue;
                         const fugleUrl = `https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${symbolOnly}?ts=${timestamp}`;
-                        // 同時帶上使用者要求的 X-Fugle-Token 與官方標準的 X-API-KEY
-                        const headers = { 'X-Fugle-Token': key, 'X-API-KEY': key };
                         
                         // 透過代理轉發以解決跨域 (CORS) 限制
+                        // 注意：AllOrigins 的 /raw 模式會直接回傳原始 JSON，不需要額外解析 contents
                         const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(fugleUrl)}`;
                         
                         try {
-                            const response = await fetch(proxyUrl, { headers });
-                            if (response.ok) {
-                                const data = await response.json();
-                                // Fugle intraday/quote 回傳格式中，最新價可能在 lastPrice 或最近一筆成交
-                                const price = data.lastPrice || (data.trades && data.trades.length > 0 ? data.trades[0].price : null);
-                                if (price) {
-                                    item.price = price;
-                                    item.name = data.name || item.name;
-                                    console.log(`[Price] ${rawSymbol}: ${item.price} (fugle-api)`);
-                                    return;
+                            // 嘗試多種 Header 組合以解決 401 問題
+                            const headersConfigs = [
+                                { 'X-Fugle-Token': key },
+                                { 'X-API-KEY': key },
+                                { 'Authorization': `Bearer ${key}` }
+                            ];
+
+                            for (const headers of headersConfigs) {
+                                const response = await fetch(proxyUrl, { headers });
+                                if (response.ok) {
+                                    const data = await response.json();
+                                    // Fugle intraday/quote 回傳格式中，最新價可能在 lastPrice 或最近一筆成交
+                                    const price = data.lastPrice || (data.trades && data.trades.length > 0 ? data.trades[0].price : null);
+                                    if (price) {
+                                        item.price = price;
+                                        item.name = data.name || item.name;
+                                        console.log(`[Price] ${rawSymbol}: ${item.price} (fugle-api-success)`);
+                                        return;
+                                    }
                                 }
                             }
                         } catch (err) {
-                            console.warn(`[Fugle] Key ${key.substring(0,5)}... failed, trying next or fallback.`);
+                            console.warn(`[Fugle] Request failed for key ${key.substring(0,5)}...`);
                         }
                     }
                 } else if (!rawSymbol.includes('.') && API_KEYS.finnhub) {
