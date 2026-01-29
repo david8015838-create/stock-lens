@@ -1275,18 +1275,28 @@
          * 核心抓取函數：採用「代理競爭 (Race)」模式
          * 同時向多個代理發送請求，誰快就用誰，大幅縮短等待時間
          */
+        /**
+         * 核心抓取函數：優化後的競爭模式
+         * 1. 減少並行量以避開 429 限流
+         * 2. 隨機化代理順序，分散壓力
+         * 3. 增加 Jitter (隨機延遲)
+         */
         async function fetchWithRetry(url) {
             const proxyConfigs = [
                 { name: 'CORSProxy-IO', fn: (u) => `https://corsproxy.io/?${encodeURIComponent(u)}` },
-                { name: 'AllOrigins-Raw', fn: (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
                 { name: 'CodeTabs', fn: (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
+                { name: 'AllOrigins-Raw', fn: (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
                 { name: 'AllOrigins-Get', fn: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}` }
             ];
 
-            // 封裝單個代理的抓取行為
-            const fetchFromProxy = async (config) => {
+            // 隨機打亂代理順序，避免所有請求都撞同一個
+            const shuffled = [...proxyConfigs].sort(() => Math.random() - 0.5);
+
+            const fetchFromProxy = async (config, delay = 0) => {
+                if (delay > 0) await new Promise(r => setTimeout(r, delay));
+                
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 7000); // 單次代理超時設為 7s
+                const timeoutId = setTimeout(() => controller.abort(), 8000); 
                 
                 try {
                     const proxyUrl = config.fn(url);
@@ -1295,6 +1305,8 @@
                         cache: 'no-store'
                     });
                     
+                    // 處理 429 錯誤
+                    if (response.status === 429) throw new Error('429 Too Many Requests');
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     
                     let text = await response.text();
@@ -1303,7 +1315,6 @@
                     let data;
                     try {
                         data = JSON.parse(text);
-                        // 處理 AllOrigins /get 模式
                         if (data && data.contents) {
                             const inner = data.contents;
                             data = typeof inner === 'string' && inner.trim().startsWith('{') ? JSON.parse(inner) : inner;
@@ -1313,34 +1324,31 @@
                         else throw new Error('Not JSON');
                     }
 
-                    // 驗證是否為 Yahoo Finance 的有效數據
                     if (data && (data.quoteResponse || data.chart)) {
                         console.log(`[Race] Winner: ${config.name}`);
                         return data;
                     }
-                    throw new Error('Invalid Data Format');
+                    throw new Error('Invalid Data');
                 } finally {
                     clearTimeout(timeoutId);
                 }
             };
 
-            // 第一輪：同時發送前兩個最快的代理
+            // 競爭模式：給予不同代理不同的微小延遲 (Jitter)，分散請求壓力
             try {
                 return await Promise.any([
-                    fetchFromProxy(proxyConfigs[0]),
-                    fetchFromProxy(proxyConfigs[1])
+                    fetchFromProxy(shuffled[0], 0),
+                    fetchFromProxy(shuffled[1], 300 + Math.random() * 500)
                 ]);
             } catch (e) {
-                console.warn('[Race] First batch failed, trying backup proxies...');
-                // 第二輪：嘗試所有剩下的代理
+                console.warn('[Race] First batch failed, trying backup...');
                 try {
                     return await Promise.any([
-                        fetchFromProxy(proxyConfigs[1]), // 重試第二個
-                        fetchFromProxy(proxyConfigs[2]),
-                        fetchFromProxy(proxyConfigs[3])
+                        fetchFromProxy(shuffled[2], 0),
+                        fetchFromProxy(shuffled[3], 300 + Math.random() * 500)
                     ]);
                 } catch (e2) {
-                    throw new Error('All proxies failed or timed out');
+                    throw new Error('All proxies failed');
                 }
             }
         }
@@ -1457,16 +1465,16 @@
                 const total = queue.length;
                 let finished = 0;
                 
-                // 3. 定義 Worker (並行更新，提高效率)
+                // 3. 定義 Worker (降低並行量以避開限流)
                 const worker = async () => {
                     while (queue.length > 0) {
                         const item = queue.shift();
                         if (!item) continue;
                         try {
-                            btn.innerText = `SYNCING (${finished}/${total})`;
+                            btn.innerText = `SYNC (${finished}/${total})`;
                             await fetchPriceAndInfo(item);
-                            // 適度間隔，避免並行過多導致瀏覽器卡頓
-                            await new Promise(r => setTimeout(r, 300));
+                            // 增加隨機間隔 (Jitter)
+                            await new Promise(r => setTimeout(r, 600 + Math.random() * 400));
                         } catch (e) {
                             console.warn(`Failed to update ${item.symbol}:`, e);
                         } finally {
@@ -1476,8 +1484,8 @@
                     }
                 };
                 
-                // 啟動 5 個並發 Worker，極速更新
-                await Promise.all([worker(), worker(), worker(), worker(), worker()]);
+                // 降低至 2 個並行 Worker，避免觸發代理伺服器的 429 限流
+                await Promise.all([worker(), worker()]);
                 
                 saveToStorage();
                 render();
@@ -2354,7 +2362,8 @@
                             try {
                                 btn.innerText = `SYNC (${finished}/${total})`;
                                 await fetchPriceAndInfo(item);
-                                await new Promise(r => setTimeout(r, 400)); // 啟動時稍微加快
+                                // 增加隨機間隔
+                                await new Promise(r => setTimeout(r, 800 + Math.random() * 400));
                             } catch (e) {
                                 console.warn(`Initial update failed for ${item.symbol}:`, e);
                             } finally {
@@ -2364,8 +2373,8 @@
                         }
                     };
                     
-                    // 啟動 3 個 Worker
-                    await Promise.all([worker(), worker(), worker()]);
+                    // 降低啟動時的並行量
+                    await Promise.all([worker(), worker()]);
                     
                     saveToStorage();
                     render();
