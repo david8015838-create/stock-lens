@@ -885,9 +885,11 @@
         let tradeHistory = JSON.parse(localStorage.getItem('stocklens_tradeHistory')) || [];
         let accumulatedRealizedPnL = parseFloat(localStorage.getItem('stocklens_accumulatedPnL')) || 0;
         let rapidApiKey = 'c28a529e37mshd701a238b609e33p101918jsn640a3594892c'; 
+        // 內部使用的 API Keys (包含使用者提供的)
         const API_KEYS = {
             finnhub: 'd5th861r01qt62njc35gd5th861r01qt62njc360',
-            fugle: '' 
+            // MTVkMWI0MjQtY2Y5Ny00ZTNmLWJmMTUtNmJlMGVlNDc5ZjE1IDQ4YWM4MDAxLWE2OTctNGU2OC1iODE5LTc0YTgzOWUyY2E3MQ==
+            fugle: 'MTVkMWI0MjQtY2Y5Ny00ZTNmLWJmMTUtNmJlMGVlNDc5ZjE1IDQ4YWM4MDAxLWE2OTctNGU2OC1iODE5LTc0YTgzOWUyY2E3MQ==' 
         };
         let globalFxRate = 32.5;
         let mainChart = null, strategyChart = null, targetChart = null;
@@ -898,7 +900,6 @@
             localStorage.setItem('stocklens_cashPosition', cashPosition.toString());
             localStorage.setItem('stocklens_tradeHistory', JSON.stringify(tradeHistory));
             localStorage.setItem('stocklens_accumulatedPnL', accumulatedRealizedPnL.toString());
-            localStorage.setItem('stocklens_apiKeys', JSON.stringify(apiKeys));
         }
 
         function loadFromStorage() {
@@ -955,18 +956,7 @@
                 updateBuyModalCash();
             } else if (id === 'sellModal') {
                 updateSellModalCash();
-            } else if (id === 'settingsModal') {
-                document.getElementById('finnhubKey').value = apiKeys.finnhub || '';
-                document.getElementById('fugleKey').value = apiKeys.fugle || '';
             }
-        }
-
-        function saveSettings() {
-            apiKeys.finnhub = document.getElementById('finnhubKey').value.trim();
-            apiKeys.fugle = document.getElementById('fugleKey').value.trim();
-            saveToStorage();
-            closeModal('settingsModal');
-            alert('設置已儲存，下次更新將使用新 API Key。');
         }
 
         function updateBuyModalCash() {
@@ -1321,6 +1311,8 @@
                             console.log(`[Price] ${rawSymbol}: ${item.price} (fugle)`);
                             return;
                         }
+                    } else if (response.status === 429) {
+                        console.warn(`[Fugle] Rate limit reached, falling back to Yahoo...`);
                     }
                 } else if (!rawSymbol.includes('.') && API_KEYS.finnhub) {
                     // 修正：Finnhub 對美股代號不需後綴
