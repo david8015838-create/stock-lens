@@ -1273,8 +1273,9 @@
         async function fetchWithRetry(url, retries = 3) {
             const proxies = [
                 (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-                (u) => `https://thingproxy.freeboard.io/fetch/${u}`,
-                (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
+                (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+                (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+                (u) => `https://yacdn.org/proxy/${u}`
             ];
             
             for (let i = 0; i < retries; i++) {
@@ -1289,8 +1290,8 @@
                     const fetchUrl = proxyFn(url);
                     console.log(`[Fetch] Attempt ${i + 1} using ${proxyName}...`);
                     const controller = new AbortController();
-                    // 縮短超時時間，快速切換下一個代理
-                    const timeoutMs = 7000; 
+                    // 放寬超時時間到 10 秒，因為 AllOrigins 有時較慢
+                    const timeoutMs = 10000; 
                     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
                     
                     const response = await fetch(fetchUrl, { 
@@ -1306,12 +1307,13 @@
                         let data;
                         try {
                             data = JSON.parse(text);
+                            // 處理 AllOrigins /get 模式包裝的內容
                             if (data && typeof data === 'object' && 'contents' in data) {
-                                let innerContent = data.contents;
-                                if (typeof innerContent === 'string' && innerContent.trim().startsWith('{')) {
-                                    data = JSON.parse(innerContent);
+                                let inner = data.contents;
+                                if (typeof inner === 'string' && inner.trim().startsWith('{')) {
+                                    data = JSON.parse(inner);
                                 } else {
-                                    data = innerContent;
+                                    data = inner;
                                 }
                             }
                         } catch (e) {
@@ -1330,8 +1332,8 @@
                     const isTimeout = e.name === 'AbortError';
                     console.warn(`[Fetch] Attempt ${i + 1} (${proxyName}) ${isTimeout ? 'TIMEOUT' : 'FAIL'}`);
                 }
-                // 縮短重試間隔
-                if (i < retries - 1) await new Promise(r => setTimeout(r, 500)); 
+                // 適度重試間隔
+                if (i < retries - 1) await new Promise(r => setTimeout(r, 800)); 
             }
             throw new Error(`Failed after ${retries} attempts`);
         }
@@ -1451,8 +1453,8 @@
                         try {
                             btn.innerText = `SYNCING (${finished}/${total})`;
                             await fetchPriceAndInfo(item);
-                            // 縮短間隔，因為多 Worker 會自然分散請求
-                            await new Promise(r => setTimeout(r, 200));
+                            // 增加間隔，避免並行請求過於密集導致代理封鎖
+                            await new Promise(r => setTimeout(r, 500));
                         } catch (e) {
                             console.warn(`Failed to update ${item.symbol}:`, e);
                         } finally {
