@@ -1292,12 +1292,25 @@
                     if (response.ok) {
                         const text = await response.text();
                         try {
+                            // 1. 處理 AllOrigins 類型的包裹
                             let data = JSON.parse(text);
-                            if (data && data.contents) {
-                                try { return JSON.parse(data.contents); } catch (e) { return data.contents; }
+                            if (data && typeof data === 'object' && 'contents' in data) {
+                                let innerContent = data.contents;
+                                if (typeof innerContent === 'string') {
+                                    try {
+                                        return JSON.parse(innerContent);
+                                    } catch (e) {
+                                        return innerContent;
+                                    }
+                                }
+                                return innerContent;
                             }
+                            // 2. 處理普通 JSON 或已經解開的內容
                             return data;
-                        } catch (e) { return text; }
+                        } catch (e) {
+                            // 3. 如果不是 JSON，直接回傳文本（可能是某些代理的回傳方式）
+                            return text;
+                        }
                     }
                 } catch (e) {
                     console.warn(`Fetch attempt ${i + 1} failed (${e.name})`);
@@ -1354,14 +1367,18 @@
                 // Strategy 2: Proxy Fallback
                 for (let t of tickers) {
                     try {
+                        console.log(`[Fetch] Trying Proxy for ${t}...`);
                         const isTW = t.endsWith('.TW') || t.endsWith('.TWO');
                         const params = isTW ? '&lang=zh-Hant-TW&region=TW' : '&lang=en-US&region=US';
                         const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${t}${params}&t=${Date.now()}`;
                         
                         const data = await fetchWithRetry(url);
+                        console.log(`[Fetch] Raw data received for ${t}:`, data);
+
                         const result = data.quoteResponse?.result?.[0];
                         
                         if (result && result.regularMarketPrice) {
+                            console.log(`[Fetch] Success! Price for ${t}: ${result.regularMarketPrice}`);
                             item.price = result.regularMarketPrice;
                             item.name = result.longName || result.shortName || item.symbol;
                             const info = getCategoryInfo(item.symbol, item.name);
@@ -1370,11 +1387,13 @@
                         }
                         
                         // Fallback to chart API
+                        console.log(`[Fetch] Quote API failed for ${t}, trying Chart API...`);
                         const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d&t=${Date.now()}`;
                         const chartData = await fetchWithRetry(chartUrl);
                         const chartResult = chartData.chart?.result?.[0];
                         
                         if (chartResult?.meta?.regularMarketPrice) {
+                            console.log(`[Fetch] Chart API Success! Price for ${t}: ${chartResult.meta.regularMarketPrice}`);
                             item.price = chartResult.meta.regularMarketPrice;
                             if (!item.name || item.name === "載入中...") {
                                 item.name = chartResult.meta.symbol || item.symbol;
