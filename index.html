@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <!-- 禁止緩存 Meta 標籤 -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
     <title>StockLens Owen</title>
     
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1283,7 +1289,7 @@
             if (rapidApiKey) {
                 for (let t of tickers) {
                     try {
-                        const url = `https://apidojo-yahoo-finance-v1.p.rapidapi.com/market/v2/get-quotes?symbols=${t}&region=US`;
+                        const url = `https://apidojo-yahoo-finance-v1.p.rapidapi.com/market/v2/get-quotes?symbols=${t}&region=US&t=${Date.now()}`;
                         const response = await fetch(url, {
                             method: 'GET',
                             headers: {
@@ -1316,7 +1322,7 @@
                     const isTW = t.endsWith('.TW') || t.endsWith('.TWO');
                     // Try the standard quote API first
                     const params = isTW ? '&lang=zh-Hant-TW&region=TW' : '&lang=en-US&region=US';
-                    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${t}${params}`;
+                    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${t}${params}&t=${Date.now()}`;
                     
                     const data = await fetchWithRetry(url);
                     const result = data.quoteResponse?.result?.[0] || data.result?.[0]; // Handle different proxy wrappings
@@ -1331,7 +1337,7 @@
                     }
                     
                     // Fallback to chart API if quote fails
-                    const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d`;
+                    const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d&t=${Date.now()}`;
                     const chartData = await fetchWithRetry(chartUrl);
                     const chartResult = chartData.chart?.result?.[0];
                     
@@ -1365,6 +1371,21 @@
                 saveToStorage();
                 render();
                 finalizeUpdate(true);
+
+                // 增加手機端 UI 回饋
+                if (window.navigator.vibrate) {
+                    window.navigator.vibrate(50); // 微小震動
+                }
+                
+                // 顯示更新成功提示
+                const originalBtnText = originalText;
+                btn.innerText = "SUCCESS ✓";
+                btn.classList.add('text-emerald-400');
+                setTimeout(() => {
+                    btn.innerText = originalBtnText;
+                    btn.classList.remove('text-emerald-400');
+                }, 2000);
+
             } catch (error) {
                 console.error("Refresh failed:", error);
                 alert("更新失敗，請檢查網路連線或稍後再試。");
@@ -1377,7 +1398,7 @@
         async function fetchFX() {
             try {
                 if (rapidApiKey) {
-                    const url = `https://apidojo-yahoo-finance-v1.p.rapidapi.com/market/v2/get-quotes?symbols=USDTWD=X&region=US`;
+                    const url = `https://apidojo-yahoo-finance-v1.p.rapidapi.com/market/v2/get-quotes?symbols=USDTWD=X&region=US&t=${Date.now()}`;
                     const response = await fetch(url, {
                         method: 'GET',
                         headers: {
@@ -1392,7 +1413,7 @@
                     }
                 }
                 
-                const url = 'https://query1.finance.yahoo.com/v8/finance/chart/USDTWD=X';
+                const url = `https://query1.finance.yahoo.com/v8/finance/chart/USDTWD=X?t=${Date.now()}`;
                 const data = await fetchWithRetry(url);
                 globalFxRate = data.chart.result[0].meta.regularMarketPrice || 32.5;
             } catch (e) { 
