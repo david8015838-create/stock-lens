@@ -737,6 +737,7 @@
                             Portfolio
                         </h2>
                         <span class="text-[9px] text-slate-500 font-bold uppercase mt-1 tracking-widest opacity-80">Assets & Positions Control</span>
+                        <span id="lastUpdated" class="text-[7px] text-slate-600 font-bold uppercase mt-0.5 tracking-[0.1em] opacity-60"></span>
                     </div>
                     <button id="refreshBtn" onclick="handleRefreshClick()" class="bg-slate-800/80 text-cyan-400 text-[10px] px-4 py-2 rounded-xl font-black border border-white/5 btn-action uppercase tracking-tight hover:bg-cyan-500 hover:text-black transition-all duration-300">Sync</button>
                 </div>
@@ -1235,10 +1236,10 @@
             renderTradeHistory();
         }
 
-        async function fetchWithRetry(url, retries = 3) {
+        async function fetchWithRetry(url, retries = 2) {
             const proxies = [
-                (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-                (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+                (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}&_r=${Math.random()}`,
+                (u) => `https://corsproxy.io/?${encodeURIComponent(u)}&_cachebuster=${Date.now()}`,
                 (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
             ];
             
@@ -1250,14 +1251,13 @@
                 
                 try {
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 7000); 
+                    const timeoutId = setTimeout(() => controller.abort(), 5000); // 縮短至 5 秒
                     
                     const response = await fetch(currentUrl, {
                         headers: { 
                             'Accept': 'application/json',
                             'Cache-Control': 'no-cache, no-store, must-revalidate',
-                            'Pragma': 'no-cache',
-                            'Expires': '0'
+                            'Pragma': 'no-cache'
                         },
                         signal: controller.signal
                     });
@@ -1279,7 +1279,7 @@
                 }
                 
                 if (i < retries - 1) {
-                    await new Promise(r => setTimeout(r, 300));
+                    await new Promise(r => setTimeout(r, 200)); // 縮短等待時間
                 }
             }
             throw new Error(`Failed to fetch after ${retries} attempts`);
@@ -1294,25 +1294,42 @@
             
             const extractPrice = (q) => {
                 if (!q) return null;
-                // US 股優先順序：盤後 > 盤前 > 目前價格 > 買入/賣出價中間值 > 收盤價
-                return q.postMarketPrice || q.preMarketPrice || q.regularMarketPrice || 
-                       ((q.bid > 0 && q.ask > 0) ? (q.bid + q.ask) / 2 : null) || 
-                       q.price || q.lastPrice;
+                // 優先判斷市場狀態來提取最即時價格
+                const state = (q.marketState || "").toUpperCase();
+                let price = null;
+                
+                // US 股：盤後交易時段或已收盤，優先取盤後價 (postMarketPrice)
+                if ((state.includes('POST') || state.includes('CLOSED')) && q.postMarketPrice) {
+                    price = q.postMarketPrice;
+                } else if (state.includes('PRE') && q.preMarketPrice) {
+                    price = q.preMarketPrice;
+                } else {
+                    price = q.regularMarketPrice || q.price || q.lastPrice;
+                }
+                
+                // 備援：如果沒有成交價，嘗試買賣價中位數 (適用於開盤前或交易不熱絡時)
+                if (!price || price <= 0) {
+                    if (q.bid > 0 && q.ask > 0) price = (q.bid + q.ask) / 2;
+                }
+                
+                // 最終備援：chart API 的 meta
+                if (!price || price <= 0) price = q.meta?.regularMarketPrice;
+                
+                return price;
             };
 
             if (rapidApiKey) {
                 for (let t of tickers) {
                     try {
                         const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 6000);
+                        const timeoutId = setTimeout(() => controller.abort(), 5000);
                         const url = `https://apidojo-yahoo-finance-v1.p.rapidapi.com/market/v2/get-quotes?symbols=${t}&region=US&_t=${timestamp}&s=${salt}`;
                         const response = await fetch(url, {
                             method: 'GET',
                             headers: {
                                 'X-RapidAPI-Key': rapidApiKey,
                                 'X-RapidAPI-Host': 'apidojo-yahoo-finance-v1.p.rapidapi.com',
-                                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                                'Pragma': 'no-cache'
+                                'Cache-Control': 'no-cache, no-store, must-revalidate'
                             },
                             signal: controller.signal
                         });
@@ -1334,10 +1351,11 @@
                 }
             }
 
+            // 調整 Endpoint 順序，將 chart 提到前面，因為它通常更即時且快取較少
             const endpoints = [
+                (t) => `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d&_t=${timestamp}&s=${salt}`,
                 (t) => `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${t}&_t=${timestamp}&s=${salt}`,
-                (t) => `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${t}&_t=${timestamp}&s=${salt}`,
-                (t) => `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d&_t=${timestamp}&s=${salt}`
+                (t) => `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${t}&_t=${timestamp}&s=${salt}`
             ];
 
             for (let t of tickers) {
@@ -1392,10 +1410,15 @@
                     }
                 };
                 
-                // 使用 4 個並發工作者 (Concurrency Pool)
+                // 使用 6 個並發工作者 (Concurrency Pool)
                 // 這比分批處理 (Batching) 更快，因為快的一完成就會抓下一個，不會被慢的卡住
-                await Promise.all([worker(0), worker(1), worker(2), worker(3)]);
+                await Promise.all([worker(0), worker(1), worker(2), worker(3), worker(4), worker(5)]);
                 await fxPromise;
+                
+                // 更新「最後更新時間」
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                document.getElementById('lastUpdated').innerText = `LAST SYNC: ${timeStr}`;
                 
                 const failed = portfolio.filter(item => !item.price || item.price === 0);
                 saveToStorage();
