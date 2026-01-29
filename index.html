@@ -743,6 +743,9 @@
                 </div>
                 
                 <div class="flex items-center gap-1.5 bg-slate-950/40 p-1.5 rounded-2xl border border-white/5 w-full">
+                    <button onclick="openModal('settingsModal')" class="w-10 bg-slate-800/80 text-slate-400 p-2 rounded-xl flex items-center justify-center transition-all active:scale-95 border border-white/5 hover:text-white">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    </button>
                     <button onclick="openModal('sellModal')" class="flex-1 text-rose-400 text-[10px] py-2.5 rounded-xl font-black btn-action uppercase tracking-tight hover:bg-rose-500/10 transition-all border border-transparent hover:border-rose-500/20">Sell</button>
                     <button onclick="openModal('buyModal')" class="flex-1 text-emerald-400 text-[10px] py-2.5 rounded-xl font-black btn-action uppercase tracking-tight hover:bg-emerald-500/10 transition-all border border-transparent hover:border-emerald-500/20">Buy</button>
                     <button onclick="openModal('addModal')" class="flex-[1.5] bg-cyan-500 text-black text-[10px] py-2.5 rounded-xl font-black btn-action uppercase tracking-tight shadow-lg shadow-cyan-500/30 hover:scale-[1.02] active:scale-95 transition-all">Add Position</button>
@@ -877,6 +880,27 @@
         </div>
     </div>
 
+    <!-- 設置 Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <h3 class="text-xl font-bold mb-4">系統設置</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Finnhub API Key (美股即時)</label>
+                    <input type="text" id="finnhubKey" class="w-full bg-slate-800 border-slate-700 rounded p-2" placeholder="貼上您的 Finnhub Token">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Fugle API Key (台股即時)</label>
+                    <input type="text" id="fugleKey" class="w-full bg-slate-800 border-slate-700 rounded p-2" placeholder="貼上您的 Fugle API Key">
+                </div>
+            </div>
+            <div class="mt-6 flex gap-2">
+                <button onclick="saveSettings()" class="flex-1 bg-blue-600 hover:bg-blue-700 p-2 rounded font-bold">儲存設置</button>
+                <button onclick="closeModal('settingsModal')" class="flex-1 bg-slate-700 hover:bg-slate-600 p-2 rounded">取消</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         Chart.register(ChartDataLabels);
         let portfolio = JSON.parse(localStorage.getItem('stocklens_portfolio')) || [];
@@ -885,6 +909,10 @@
         let tradeHistory = JSON.parse(localStorage.getItem('stocklens_tradeHistory')) || [];
         let accumulatedRealizedPnL = parseFloat(localStorage.getItem('stocklens_accumulatedPnL')) || 0;
         let rapidApiKey = 'c28a529e37mshd701a238b609e33p101918jsn640a3594892c'; 
+        let apiKeys = JSON.parse(localStorage.getItem('stocklens_apiKeys')) || {
+            finnhub: '',
+            fugle: ''
+        };
         let globalFxRate = 32.5;
         let mainChart = null, strategyChart = null, targetChart = null;
 
@@ -894,6 +922,7 @@
             localStorage.setItem('stocklens_cashPosition', cashPosition.toString());
             localStorage.setItem('stocklens_tradeHistory', JSON.stringify(tradeHistory));
             localStorage.setItem('stocklens_accumulatedPnL', accumulatedRealizedPnL.toString());
+            localStorage.setItem('stocklens_apiKeys', JSON.stringify(apiKeys));
         }
 
         function loadFromStorage() {
@@ -950,7 +979,18 @@
                 updateBuyModalCash();
             } else if (id === 'sellModal') {
                 updateSellModalCash();
+            } else if (id === 'settingsModal') {
+                document.getElementById('finnhubKey').value = apiKeys.finnhub || '';
+                document.getElementById('fugleKey').value = apiKeys.fugle || '';
             }
+        }
+
+        function saveSettings() {
+            apiKeys.finnhub = document.getElementById('finnhubKey').value.trim();
+            apiKeys.fugle = document.getElementById('fugleKey').value.trim();
+            saveToStorage();
+            closeModal('settingsModal');
+            alert('設置已儲存，下次更新將使用新 API Key。');
         }
 
         function updateBuyModalCash() {
@@ -1290,6 +1330,37 @@
             const rawSymbol = item.symbol.trim().toUpperCase();
             const timestamp = Date.now();
             const salt = Math.random().toString(36).substring(7);
+
+            // --- 策略 A: 官方 API (Finnhub / Fugle) ---
+            try {
+                if ((rawSymbol.includes('.TW') || rawSymbol.includes('.TWO') || /^\d+$/.test(rawSymbol)) && apiKeys.fugle) {
+                    const symbolOnly = rawSymbol.split('.')[0];
+                    const fugleUrl = `https://api.fugle.tw/marketdata/v1.0/stock/snapshot/quotes/${symbolOnly}`;
+                    const response = await fetch(fugleUrl, { headers: { 'X-API-KEY': apiKeys.fugle } });
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data && data.lastPrice) {
+                            item.price = data.lastPrice;
+                            item.name = data.name || item.name;
+                            console.log(`[Price] ${rawSymbol}: ${item.price} (fugle)`);
+                            return;
+                        }
+                    }
+                } else if (!rawSymbol.includes('.') && apiKeys.finnhub) {
+                    const finnhubUrl = `https://finnhub.io/api/v1/quote?symbol=${rawSymbol}&token=${apiKeys.finnhub}`;
+                    const response = await fetch(finnhubUrl);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data && data.c > 0) {
+                            item.price = data.c;
+                            console.log(`[Price] ${rawSymbol}: ${item.price} (finnhub)`);
+                            return;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn(`[Official API] Failed for ${rawSymbol}, trying Yahoo/Google...`);
+            }
             
             let tickers = /^\d+$/.test(rawSymbol) ? [`${rawSymbol}.TW`, `${rawSymbol}.TWO`] : [rawSymbol];
             
