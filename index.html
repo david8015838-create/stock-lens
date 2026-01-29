@@ -744,7 +744,10 @@
                         </h2>
                         <span class="text-[9px] text-slate-500 font-bold uppercase mt-1 tracking-widest opacity-80">Assets & Positions Control</span>
                     </div>
+                    <div class="flex items-center gap-2">
                     <button id="refreshBtn" onclick="handleRefreshClick()" class="bg-slate-800/80 text-cyan-400 text-[10px] px-4 py-2 rounded-xl font-black border border-white/5 btn-action uppercase tracking-tight hover:bg-cyan-500 hover:text-black transition-all duration-300">Sync</button>
+                    <button onclick="forceHardReset()" class="bg-slate-800/50 text-slate-500 text-[8px] font-black px-2 py-2 rounded-lg border border-slate-700 uppercase tracking-tighter hover:text-rose-400 transition-all">V3.0.6</button>
+                </div>
                 </div>
                 
                 <div class="flex items-center gap-1.5 bg-slate-950/40 p-1.5 rounded-2xl border border-white/5 w-full">
@@ -1160,9 +1163,14 @@
                     price: 0
                 };
                 portfolio.push(newItem);
+                saveToStorage(); 
+                render();
+                
+                // 在後台更新價格
                 fetchPriceAndInfo(newItem).then(() => {
-                    saveToStorage(); render();
-                });
+                    saveToStorage(); 
+                    render();
+                }).catch(e => console.error("Initial buy fetch failed:", e));
             }
 
             const trade = {
@@ -1263,8 +1271,9 @@
 
         async function fetchWithRetry(url, retries = 3) {
             const proxies = [
-                (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
                 (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+                (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+                (u) => `https://thingproxy.freeboard.io/fetch/${u}`,
                 (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`
             ];
             
@@ -1273,8 +1282,8 @@
                 try {
                     const fetchUrl = proxyFn(url);
                     const controller = new AbortController();
-                    // 超激進超時：第一優先級 3秒，其餘 5秒
-                    const timeoutMs = i === 0 ? 3500 : 5000;
+                    // 更加激進的超時控制
+                    const timeoutMs = i < 2 ? 3000 : 5000;
                     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
                     
                     const response = await fetch(fetchUrl, { signal: controller.signal });
@@ -1300,12 +1309,10 @@
 
         async function fetchPriceAndInfo(item) {
             const rawSymbol = item.symbol.trim().toUpperCase();
-            
-            // 1. 優化代碼判定：如果是 00 開頭且 5 位數以上，優先嘗試 .TW
             let tickers = [];
             if (/^\d/.test(rawSymbol)) {
                 if (rawSymbol.startsWith('00') && rawSymbol.length >= 5) {
-                    tickers = [`${rawSymbol}.TW`]; // ETF 幾乎都在上市
+                    tickers = [`${rawSymbol}.TW`];
                 } else {
                     tickers = [`${rawSymbol}.TW`, `${rawSymbol}.TWO`];
                 }
@@ -1313,81 +1320,112 @@
                 tickers = [rawSymbol];
             }
             
-            // 2. 標記正在更新
             item.isUpdating = true;
+            render(); // 立即觸發 UI 顯示「載入中」狀態
             
-            // If RapidAPI key is present...
-            if (rapidApiKey) {
+            try {
+                // Strategy 1: RapidAPI
+                if (rapidApiKey) {
+                    for (let t of tickers) {
+                        try {
+                            const url = `https://apidojo-yahoo-finance-v1.p.rapidapi.com/market/v2/get-quotes?symbols=${t}&region=US&t=${Date.now()}`;
+                            const response = await fetch(url, {
+                                method: 'GET',
+                                headers: {
+                                    'X-RapidAPI-Key': rapidApiKey,
+                                    'X-RapidAPI-Host': 'apidojo-yahoo-finance-v1.p.rapidapi.com'
+                                }
+                            });
+                            if (response.ok) {
+                                const data = await response.json();
+                                const result = data.quoteResponse?.result?.[0];
+                                if (result && result.regularMarketPrice) {
+                                    item.price = result.regularMarketPrice;
+                                    item.name = result.longName || result.shortName || item.symbol;
+                                    const info = getCategoryInfo(item.symbol, item.name);
+                                    if (item.name === "載入中...") item.isLeverage = info.isLeverage;
+                                    return; // Success
+                                }
+                            }
+                        } catch (e) { console.warn("RapidAPI failed", e); }
+                    }
+                }
+
+                // Strategy 2: Proxy Fallback
                 for (let t of tickers) {
                     try {
-                        const url = `https://apidojo-yahoo-finance-v1.p.rapidapi.com/market/v2/get-quotes?symbols=${t}&region=US&t=${Date.now()}`;
-                        const response = await fetch(url, {
-                            method: 'GET',
-                            headers: {
-                                'X-RapidAPI-Key': rapidApiKey,
-                                'X-RapidAPI-Host': 'apidojo-yahoo-finance-v1.p.rapidapi.com'
-                            }
-                        });
-                        if (response.ok) {
-                            const data = await response.json();
-                            const result = data.quoteResponse?.result?.[0];
-                            if (result) {
-                                item.price = result.regularMarketPrice;
-                                item.name = result.longName || result.shortName || item.symbol;
-                                const info = getCategoryInfo(item.symbol, item.name);
-                                if (item.name === "載入中...") item.isLeverage = info.isLeverage;
-                                if (item.price > 0) return;
-                            }
-                        } else {
-                            console.warn(`RapidAPI responded with status: ${response.status} for ${t}`);
-                        }
-                    } catch (e) {
-                        console.warn(`RapidAPI fetch failed for ${t}:`, e);
-                    }
-                }
-            }
-
-            // Fallback to proxy-based fetching if RapidAPI fails or key is missing
-            for (let t of tickers) {
-                try {
-                    const isTW = t.endsWith('.TW') || t.endsWith('.TWO');
-                    // Try the standard quote API first
-                    const params = isTW ? '&lang=zh-Hant-TW&region=TW' : '&lang=en-US&region=US';
-                    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${t}${params}&t=${Date.now()}`;
-                    
-                    const data = await fetchWithRetry(url);
-                    console.log(`Data received for ${t}:`, data);
-                    const result = data.quoteResponse?.result?.[0];
-                    
-                    if (result && result.regularMarketPrice) {
-                        item.price = result.regularMarketPrice;
-                        item.name = result.longName || result.shortName || item.symbol;
-                        console.log(`Successfully fetched price for ${t}: ${item.price}`);
+                        const isTW = t.endsWith('.TW') || t.endsWith('.TWO');
+                        const params = isTW ? '&lang=zh-Hant-TW&region=TW' : '&lang=en-US&region=US';
+                        const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${t}${params}&t=${Date.now()}`;
                         
-                        const info = getCategoryInfo(item.symbol, item.name);
-                        if (item.name === "載入中...") item.isLeverage = info.isLeverage;
-                        if (item.price > 0) return; // Success
-                    }
-                    
-                    // Fallback to chart API if quote fails
-                    const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d&t=${Date.now()}`;
-                    const chartData = await fetchWithRetry(chartUrl);
-                    console.log(`Chart data received for ${t}:`, chartData);
-                    const chartResult = chartData.chart?.result?.[0];
-                    
-                    if (chartResult?.meta?.regularMarketPrice) {
-                        item.price = chartResult.meta.regularMarketPrice;
-                        if (!item.name || item.name === "載入中...") {
-                            item.name = chartResult.meta.symbol || item.symbol;
+                        const data = await fetchWithRetry(url);
+                        const result = data.quoteResponse?.result?.[0];
+                        
+                        if (result && result.regularMarketPrice) {
+                            item.price = result.regularMarketPrice;
+                            item.name = result.longName || result.shortName || item.symbol;
+                            const info = getCategoryInfo(item.symbol, item.name);
+                            if (item.name === "載入中...") item.isLeverage = info.isLeverage;
+                            return; // Success
                         }
-                        console.log(`Successfully fetched price via chart for ${t}: ${item.price}`);
-                        if (item.price > 0) return;
-                    }
-                } catch (e) { 
-                    console.warn(`All fetch methods failed for ${t}:`, e);
+                        
+                        // Fallback to chart API
+                        const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d&t=${Date.now()}`;
+                        const chartData = await fetchWithRetry(chartUrl);
+                        const chartResult = chartData.chart?.result?.[0];
+                        
+                        if (chartResult?.meta?.regularMarketPrice) {
+                            item.price = chartResult.meta.regularMarketPrice;
+                            if (!item.name || item.name === "載入中...") {
+                                item.name = chartResult.meta.symbol || item.symbol;
+                            }
+                            return; // Success
+                        }
+                    } catch (e) { console.warn(`Proxy fetch failed for ${t}`, e); }
                 }
+            } finally {
+                item.isUpdating = false;
+                // 如果最後還是載入中，設定為代號，避免 UI 卡死
+                if (item.name === "載入中...") {
+                    item.name = item.symbol;
+                }
+                // 強制觸發重繪，確保「載入中」狀態被移除
+                render();
             }
         }
+
+        // 強制重置快取功能
+        function forceHardReset() {
+            if (confirm("確定要強制清除快取並重啟嗎？這將會清除瀏覽器快取並重新載入網頁，但不會刪除您的股票資產資料。")) {
+                // 1. 清除 Cache Storage (如果有 PWA 緩存)
+                if ('caches' in window) {
+                    caches.keys().then(names => {
+                        for (let name of names) caches.delete(name);
+                    });
+                }
+                
+                // 2. 加上時間戳強制重新整理
+                const url = new URL(window.location.href);
+                url.searchParams.set('v', Date.now());
+                window.location.replace(url.href);
+            }
+        }
+
+        // 自動檢測版本並清除舊快取
+        (function() {
+            const CURRENT_VERSION = '3.0.6';
+            const lastVersion = localStorage.getItem('stocklens_version');
+            if (lastVersion !== CURRENT_VERSION) {
+                console.log(`Version update: ${lastVersion} -> ${CURRENT_VERSION}`);
+                localStorage.setItem('stocklens_version', CURRENT_VERSION);
+                // 如果是舊版本更新，嘗試清除快取
+                if ('caches' in window) {
+                    caches.keys().then(names => {
+                        for (let name of names) caches.delete(name);
+                    });
+                }
+            }
+        })();
 
         async function handleRefreshClick() {
             if (portfolio.length === 0) return;
