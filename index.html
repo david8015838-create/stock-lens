@@ -1242,7 +1242,6 @@
                 (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
             ];
             
-            // 隨機打亂代理順序，避免所有請求都卡在同一個慢速代理
             const shuffledProxies = [...proxies].sort(() => Math.random() - 0.5);
             
             for (let i = 0; i < retries; i++) {
@@ -1251,13 +1250,14 @@
                 
                 try {
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 7000); // 縮短至 7 秒
+                    const timeoutId = setTimeout(() => controller.abort(), 7000); 
                     
                     const response = await fetch(currentUrl, {
                         headers: { 
                             'Accept': 'application/json',
-                            'Cache-Control': 'no-cache',
-                            'Pragma': 'no-cache'
+                            'Cache-Control': 'no-cache, no-store, must-revalidate',
+                            'Pragma': 'no-cache',
+                            'Expires': '0'
                         },
                         signal: controller.signal
                     });
@@ -1266,7 +1266,6 @@
                     
                     if (response.ok) {
                         let data = await response.json();
-                        // 處理 allorigins 的包裝格式
                         if (data && data.contents && typeof data.contents === 'string') {
                             try { data = JSON.parse(data.contents); } catch (e) {}
                         }
@@ -1280,7 +1279,6 @@
                 }
                 
                 if (i < retries - 1) {
-                    // 縮短等待時間
                     await new Promise(r => setTimeout(r, 300));
                 }
             }
@@ -1294,6 +1292,14 @@
             
             let tickers = /^\d+$/.test(rawSymbol) ? [`${rawSymbol}.TW`, `${rawSymbol}.TWO`] : [rawSymbol];
             
+            const extractPrice = (q) => {
+                if (!q) return null;
+                // US 股優先順序：盤後 > 盤前 > 目前價格 > 買入/賣出價中間值 > 收盤價
+                return q.postMarketPrice || q.preMarketPrice || q.regularMarketPrice || 
+                       ((q.bid > 0 && q.ask > 0) ? (q.bid + q.ask) / 2 : null) || 
+                       q.price || q.lastPrice;
+            };
+
             if (rapidApiKey) {
                 for (let t of tickers) {
                     try {
@@ -1305,7 +1311,7 @@
                             headers: {
                                 'X-RapidAPI-Key': rapidApiKey,
                                 'X-RapidAPI-Host': 'apidojo-yahoo-finance-v1.p.rapidapi.com',
-                                'Cache-Control': 'no-cache',
+                                'Cache-Control': 'no-cache, no-store, must-revalidate',
                                 'Pragma': 'no-cache'
                             },
                             signal: controller.signal
@@ -1314,8 +1320,9 @@
                         if (response.ok) {
                             const data = await response.json();
                             const result = data.quoteResponse?.result?.[0];
-                            if (result && result.regularMarketPrice > 0) {
-                                item.price = result.regularMarketPrice;
+                            const p = extractPrice(result);
+                            if (p > 0) {
+                                item.price = p;
                                 if (!item.name || item.name === "載入中...") {
                                     item.name = result.longName || result.shortName || item.symbol;
                                 }
@@ -1327,9 +1334,9 @@
                 }
             }
 
-            // 2. 備援方案：使用代理伺服器抓取 Yahoo Finance
             const endpoints = [
                 (t) => `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${t}&_t=${timestamp}&s=${salt}`,
+                (t) => `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${t}&_t=${timestamp}&s=${salt}`,
                 (t) => `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d&_t=${timestamp}&s=${salt}`
             ];
 
@@ -1338,7 +1345,8 @@
                     try {
                         const data = await fetchWithRetry(getUrl(t));
                         const q = data.quoteResponse?.result?.[0] || data.result?.[0] || data.chart?.result?.[0]?.meta;
-                        const p = q?.regularMarketPrice || q?.price;
+                        const p = extractPrice(q);
+                        
                         if (p > 0) {
                             item.price = p;
                             if (!item.name || item.name === "載入中...") {
