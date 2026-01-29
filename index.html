@@ -888,8 +888,8 @@
         // 內部使用的 API Keys (包含使用者提供的)
         const API_KEYS = {
             finnhub: 'd5th861r01qt62njc35gd5th861r01qt62njc360',
-            // MTVkMWI0MjQtY2Y5Ny00ZTNmLWJmMTUtNmJlMGVlNDc5ZjE1IDQ4YWM4MDAxLWE2OTctNGU2OC1iODE5LTc0YTgzOWUyY2E3MQ==
-            fugle: 'MTVkMWI0MjQtY2Y5Ny00ZTNmLWJmMTUtNmJlMGVlNDc5ZjE1IDQ4YWM4MDAxLWE2OTctNGU2OC1iODE5LTc0YTgzOWUyY2E3MQ==' 
+            // 富果 API Key (已從 Base64 解碼)
+            fugle: '15d1b424-cf97-4e3f-bf15-6be0ee479f15 48ac8001-a697-4e68-b819-74a839e2ca71' 
         };
         let globalFxRate = 32.5;
         let mainChart = null, strategyChart = null, targetChart = null;
@@ -1301,18 +1301,33 @@
             try {
                 if ((rawSymbol.includes('.TW') || rawSymbol.includes('.TWO') || /^\d+$/.test(rawSymbol)) && API_KEYS.fugle) {
                     const symbolOnly = rawSymbol.split('.')[0];
-                    const fugleUrl = `https://api.fugle.tw/marketdata/v1.0/stock/snapshot/quotes/${symbolOnly}`;
-                    const response = await fetch(fugleUrl, { headers: { 'X-API-KEY': API_KEYS.fugle } });
-                    if (response.ok) {
-                        const data = await response.json();
-                        if (data && data.lastPrice) {
-                            item.price = data.lastPrice;
-                            item.name = data.name || item.name;
-                            console.log(`[Price] ${rawSymbol}: ${item.price} (fugle)`);
-                            return;
+                    const keys = API_KEYS.fugle.trim().split(/\s+/);
+                    
+                    for (const key of keys) {
+                        if (!key) continue;
+                        const fugleUrl = `https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${symbolOnly}?ts=${timestamp}`;
+                        // 同時帶上使用者要求的 X-Fugle-Token 與官方標準的 X-API-KEY
+                        const headers = { 'X-Fugle-Token': key, 'X-API-KEY': key };
+                        
+                        // 透過代理轉發以解決跨域 (CORS) 限制
+                        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(fugleUrl)}`;
+                        
+                        try {
+                            const response = await fetch(proxyUrl, { headers });
+                            if (response.ok) {
+                                const data = await response.json();
+                                // Fugle intraday/quote 回傳格式中，最新價可能在 lastPrice 或最近一筆成交
+                                const price = data.lastPrice || (data.trades && data.trades.length > 0 ? data.trades[0].price : null);
+                                if (price) {
+                                    item.price = price;
+                                    item.name = data.name || item.name;
+                                    console.log(`[Price] ${rawSymbol}: ${item.price} (fugle-api)`);
+                                    return;
+                                }
+                            }
+                        } catch (err) {
+                            console.warn(`[Fugle] Key ${key.substring(0,5)}... failed, trying next or fallback.`);
                         }
-                    } else if (response.status === 429) {
-                        console.warn(`[Fugle] Rate limit reached, falling back to Yahoo...`);
                     }
                 } else if (!rawSymbol.includes('.') && API_KEYS.finnhub) {
                     // 修正：Finnhub 對美股代號不需後綴
