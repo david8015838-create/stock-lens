@@ -1276,23 +1276,28 @@
          * 同時向多個代理發送請求，誰快就用誰，大幅縮短等待時間
          */
         /**
-         * 核心抓取函數：優化後的競爭模式
-         * 1. 減少並行量以避開 429 限流
-         * 2. 隨機化代理順序，分散壓力
-         * 3. 增加 Jitter (隨機延遲)
+         * 代理狀態管理：實作冷卻機制 (Cooldown)
+         * 避免對已經回傳 403 或 429 的代理進行無謂請求
          */
+        const proxyStatus = {}; 
+
         async function fetchWithRetry(url) {
             const proxyConfigs = [
-                { name: 'CORSProxy-IO', fn: (u) => `https://corsproxy.io/?${encodeURIComponent(u)}` },
-                { name: 'CodeTabs', fn: (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
                 { name: 'AllOrigins-Raw', fn: (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
-                { name: 'AllOrigins-Get', fn: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}` }
+                { name: 'CodeTabs', fn: (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
+                { name: 'CORSProxy-IO', fn: (u) => `https://corsproxy.io/?${encodeURIComponent(u)}` },
+                { name: 'AllOrigins-Get', fn: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}` },
+                { name: 'CORS-Proxy-Htmldriven', fn: (u) => `https://cors-proxy.htmldriven.com/?url=${encodeURIComponent(u)}` },
+                { name: 'ThingProxy', fn: (u) => `https://thingproxy.freeboard.io/fetch/${u}` }
             ];
 
-            // 隨機打亂代理順序，避免所有請求都撞同一個
-            const shuffled = [...proxyConfigs].sort(() => Math.random() - 0.5);
-
             const fetchFromProxy = async (config, delay = 0) => {
+                // 檢查是否在冷卻中
+                const now = Date.now();
+                if (proxyStatus[config.name] && now < proxyStatus[config.name]) {
+                    throw new Error(`${config.name} in cooldown`);
+                }
+
                 if (delay > 0) await new Promise(r => setTimeout(r, delay));
                 
                 const controller = new AbortController();
@@ -1305,12 +1310,18 @@
                         cache: 'no-store'
                     });
                     
-                    // 處理 429 錯誤
-                    if (response.status === 429) throw new Error('429 Too Many Requests');
+                    if (response.status === 429 || response.status === 403) {
+                        // 進入冷卻：429 休息 15 秒，403 休息 30 秒
+                        const cooldownMs = response.status === 429 ? 15000 : 30000;
+                        proxyStatus[config.name] = Date.now() + cooldownMs;
+                        console.warn(`[Proxy] ${config.name} blocked (${response.status}), cooling down...`);
+                        throw new Error(`Proxy ${response.status}`);
+                    }
+
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     
                     let text = await response.text();
-                    if (!text || text.length < 20) throw new Error('Empty response');
+                    if (!text || text.length < 20) throw new Error('Empty');
 
                     let data;
                     try {
@@ -1329,24 +1340,37 @@
                         return data;
                     }
                     throw new Error('Invalid Data');
+                } catch (err) {
+                    if (err.name === 'AbortError') throw new Error('Timeout');
+                    throw err;
                 } finally {
                     clearTimeout(timeoutId);
                 }
             };
 
-            // 競爭模式：給予不同代理不同的微小延遲 (Jitter)，分散請求壓力
+            // 競爭模式：只挑選「不在冷卻中」的代理
+            const getActiveProxies = () => {
+                const now = Date.now();
+                return proxyConfigs.filter(p => !proxyStatus[p.name] || now > proxyStatus[p.name]);
+            };
+
+            const active = getActiveProxies();
+            if (active.length === 0) {
+                // 如果全部掛掉，強行嘗試前兩個（死馬當活馬醫）
+                active.push(proxyConfigs[0], proxyConfigs[1]);
+            }
+            
+            // 隨機打亂
+            active.sort(() => Math.random() - 0.5);
+
             try {
-                return await Promise.any([
-                    fetchFromProxy(shuffled[0], 0),
-                    fetchFromProxy(shuffled[1], 300 + Math.random() * 500)
-                ]);
+                // 第一輪：嘗試前兩個可用的
+                return await Promise.any(active.slice(0, 2).map((p, i) => fetchFromProxy(p, i * 400)));
             } catch (e) {
                 console.warn('[Race] First batch failed, trying backup...');
                 try {
-                    return await Promise.any([
-                        fetchFromProxy(shuffled[2], 0),
-                        fetchFromProxy(shuffled[3], 300 + Math.random() * 500)
-                    ]);
+                    // 第二輪：嘗試剩下所有可用的
+                    return await Promise.any(active.slice(2).map((p, i) => fetchFromProxy(p, i * 400)));
                 } catch (e2) {
                     throw new Error('All proxies failed');
                 }
@@ -1357,18 +1381,18 @@
             const rawSymbol = item.symbol.trim().toUpperCase();
             let tickers = [];
             if (/^\d/.test(rawSymbol)) {
-                // 台股邏輯：4位數字通常是上市 (.TW)，5位數字以上通常是 ETF 或權證
+                // 台股邏輯：精確化優先級
                 if (rawSymbol.length === 4) {
                     // 2330, 2317 等主要股票優先嘗試 .TW
                     tickers = [`${rawSymbol}.TW`, `${rawSymbol}.TWO`];
                 } else if (rawSymbol.startsWith('00') && rawSymbol.length >= 5) {
-                    // 0050, 00878 等 ETF 優先嘗試 .TW
+                    // 0050, 00878 等 ETF 都在上市 (.TW)
                     tickers = [`${rawSymbol}.TW`];
                 } else {
                     tickers = [`${rawSymbol}.TW`, `${rawSymbol}.TWO`];
                 }
             } else {
-                tickers = [rawSymbol];
+                tickers = [rawSymbol.includes('.') ? rawSymbol : `${rawSymbol}`];
             }
             
             item.isUpdating = true;
