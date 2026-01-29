@@ -746,7 +746,7 @@
                     </div>
                     <div class="flex items-center gap-2">
                     <button id="refreshBtn" onclick="handleRefreshClick()" class="bg-slate-800/80 text-cyan-400 text-[10px] px-4 py-2 rounded-xl font-black border border-white/5 btn-action uppercase tracking-tight hover:bg-cyan-500 hover:text-black transition-all duration-300">Sync</button>
-                    <button onclick="forceHardReset()" class="bg-slate-800/50 text-slate-500 text-[8px] font-black px-2 py-2 rounded-lg border border-slate-700 uppercase tracking-tighter hover:text-rose-400 transition-all">V3.1.0</button>
+                    <button onclick="forceHardReset()" class="bg-slate-800/50 text-slate-500 text-[8px] font-black px-2 py-2 rounded-lg border border-slate-700 uppercase tracking-tighter hover:text-rose-400 transition-all">V3.1.1</button>
                 </div>
                 </div>
                 
@@ -1367,40 +1367,52 @@
                         // 優先嘗試 Chart API，因為它通常更穩定且結構簡單
                         const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d&t=${Date.now()}`;
                         const chartData = await fetchWithRetry(chartUrl);
-                        const chartResult = chartData.chart?.result?.[0];
                         
-                        if (chartResult?.meta?.regularMarketPrice && chartResult.meta.regularMarketPrice > 0) {
-                            console.log(`[Fetch] Chart API Success! Price for ${t}: ${chartResult.meta.regularMarketPrice}`);
-                            item.price = chartResult.meta.regularMarketPrice;
-                            if (!item.name || item.name === "載入中...") {
-                                item.name = chartResult.meta.symbol || item.symbol;
+                        if (chartData && chartData.chart && chartData.chart.result && chartData.chart.result[0]) {
+                            const chartResult = chartData.chart.result[0];
+                            if (chartResult.meta && chartResult.meta.regularMarketPrice && chartResult.meta.regularMarketPrice > 0) {
+                                console.log(`[Fetch] Chart API Success! Price for ${t}: ${chartResult.meta.regularMarketPrice}`);
+                                item.price = chartResult.meta.regularMarketPrice;
+                                if (!item.name || item.name === "載入中...") {
+                                    item.name = chartResult.meta.symbol || item.symbol;
+                                }
+                                return; // Success
                             }
-                            return; // Success
                         }
-
+                        
                         // 備援：Quote API
                         const params = isTW ? '&lang=zh-Hant-TW&region=TW' : '&lang=en-US&region=US';
                         const quoteUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${t}${params}&t=${Date.now()}`;
                         const data = await fetchWithRetry(quoteUrl);
-                        const result = data.quoteResponse?.result?.[0];
                         
-                        if (result && result.regularMarketPrice && result.regularMarketPrice > 0) {
-                            console.log(`[Fetch] Quote API Success! Price for ${t}: ${result.regularMarketPrice}`);
-                            item.price = result.regularMarketPrice;
-                            item.name = result.longName || result.shortName || item.symbol;
-                            const info = getCategoryInfo(item.symbol, item.name);
-                            if (item.name === "載入中...") item.isLeverage = info.isLeverage;
-                            return; // Success
+                        if (data && data.quoteResponse && data.quoteResponse.result && data.quoteResponse.result[0]) {
+                            const result = data.quoteResponse.result[0];
+                            if (result.regularMarketPrice && result.regularMarketPrice > 0) {
+                                console.log(`[Fetch] Quote API Success! Price for ${t}: ${result.regularMarketPrice}`);
+                                item.price = result.regularMarketPrice;
+                                item.name = result.longName || result.shortName || item.symbol;
+                                const info = getCategoryInfo(item.symbol, item.name);
+                                if (item.name === "載入中...") item.isLeverage = info.isLeverage;
+                                return; // Success
+                            }
                         }
-                    } catch (e) { console.warn(`Proxy fetch failed for ${t}`, e); }
+                    } catch (e) { 
+                        console.warn(`Proxy fetch failed for ${t}:`, e); 
+                    }
                 }
+                // 如果跑到這裡，代表所有備援都失敗了
+                console.error(`[Fetch] All strategies failed for ${item.symbol}`);
+                if (item.price === 0) {
+                    item.name = `[FAIL] ${item.symbol}`;
+                }
+            } catch (e) {
+                console.error(`[Fetch] Critical error for ${item.symbol}:`, e);
+                item.name = `[ERR] ${item.symbol}`;
             } finally {
                 item.isUpdating = false;
-                // 如果最後還是載入中，設定為代號，避免 UI 卡死
                 if (item.name === "載入中...") {
                     item.name = item.symbol;
                 }
-                // 強制觸發重繪，確保「載入中」狀態被移除
                 render();
             }
         }
@@ -1424,7 +1436,7 @@
 
         // 自動檢測版本並清除舊快取
         (function() {
-            const CURRENT_VERSION = '3.1.0';
+            const CURRENT_VERSION = '3.1.1';
             const lastVersion = localStorage.getItem('stocklens_version');
             if (lastVersion !== CURRENT_VERSION) {
                 console.log(`Version update: ${lastVersion} -> ${CURRENT_VERSION}`);
