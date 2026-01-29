@@ -1235,27 +1235,29 @@
             renderTradeHistory();
         }
 
-        async function fetchWithRetry(url, retries = 4) {
+        async function fetchWithRetry(url, retries = 3) {
             const proxies = [
                 (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
                 (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
                 (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
             ];
             
+            // 隨機打亂代理順序，避免所有請求都卡在同一個慢速代理
+            const shuffledProxies = [...proxies].sort(() => Math.random() - 0.5);
+            
             for (let i = 0; i < retries; i++) {
-                const proxyFn = proxies[i % proxies.length];
+                const proxyFn = shuffledProxies[i % shuffledProxies.length];
                 const currentUrl = proxyFn(url);
                 
                 try {
-                    console.log(`[Fetch] Attempt ${i + 1} for ${url.split('/').pop().split('?')[0]} via ${new URL(currentUrl).hostname}`);
-                    
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 10000); 
+                    const timeoutId = setTimeout(() => controller.abort(), 7000); // 縮短至 7 秒
                     
                     const response = await fetch(currentUrl, {
                         headers: { 
                             'Accept': 'application/json',
-                            'Cache-Control': 'no-cache'
+                            'Cache-Control': 'no-cache',
+                            'Pragma': 'no-cache'
                         },
                         signal: controller.signal
                     });
@@ -1264,107 +1266,88 @@
                     
                     if (response.ok) {
                         let data = await response.json();
+                        // 處理 allorigins 的包裝格式
                         if (data && data.contents && typeof data.contents === 'string') {
-                            try {
-                                data = JSON.parse(data.contents);
-                            } catch (e) {
-                                console.warn("Failed to parse wrapped content", e);
-                            }
+                            try { data = JSON.parse(data.contents); } catch (e) {}
                         }
                         
                         if (data && (data.quoteResponse || data.chart || data.result)) {
                             return data;
                         }
-                        console.warn(`[Fetch] Response OK but data invalid from ${new URL(currentUrl).hostname}`);
-                    } else {
-                        console.warn(`[Fetch] HTTP ${response.status} from ${new URL(currentUrl).hostname}`);
                     }
                 } catch (e) {
-                    const errorMsg = e.name === 'AbortError' ? 'Timeout' : e.message;
-                    console.warn(`[Fetch] Attempt ${i + 1} failed: ${errorMsg}`);
+                    if (i === retries - 1) console.warn(`[Fetch] Final attempt failed for ${url}`);
                 }
                 
                 if (i < retries - 1) {
-                    const waitTime = 500 * (i + 1) + Math.random() * 500;
-                    await new Promise(r => setTimeout(r, waitTime));
+                    // 縮短等待時間
+                    await new Promise(r => setTimeout(r, 300));
                 }
             }
-            throw new Error(`Failed to fetch ${url} after ${retries} attempts`);
+            throw new Error(`Failed to fetch after ${retries} attempts`);
         }
 
         async function fetchPriceAndInfo(item) {
             const rawSymbol = item.symbol.trim().toUpperCase();
             const timestamp = Date.now();
+            const salt = Math.random().toString(36).substring(7);
             
-            let tickers = [];
-            if (/^\d+$/.test(rawSymbol)) {
-                tickers = [`${rawSymbol}.TW`, `${rawSymbol}.TWO`];
-            } else {
-                tickers = [rawSymbol];
-            }
+            let tickers = /^\d+$/.test(rawSymbol) ? [`${rawSymbol}.TW`, `${rawSymbol}.TWO`] : [rawSymbol];
             
             if (rapidApiKey) {
                 for (let t of tickers) {
                     try {
-                        const url = `https://apidojo-yahoo-finance-v1.p.rapidapi.com/market/v2/get-quotes?symbols=${t}&region=US&_t=${timestamp}`;
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 6000);
+                        const url = `https://apidojo-yahoo-finance-v1.p.rapidapi.com/market/v2/get-quotes?symbols=${t}&region=US&_t=${timestamp}&s=${salt}`;
                         const response = await fetch(url, {
                             method: 'GET',
                             headers: {
                                 'X-RapidAPI-Key': rapidApiKey,
-                                'X-RapidAPI-Host': 'apidojo-yahoo-finance-v1.p.rapidapi.com'
-                            }
+                                'X-RapidAPI-Host': 'apidojo-yahoo-finance-v1.p.rapidapi.com',
+                                'Cache-Control': 'no-cache',
+                                'Pragma': 'no-cache'
+                            },
+                            signal: controller.signal
                         });
+                        clearTimeout(timeoutId);
                         if (response.ok) {
                             const data = await response.json();
                             const result = data.quoteResponse?.result?.[0];
                             if (result && result.regularMarketPrice > 0) {
                                 item.price = result.regularMarketPrice;
-                                item.name = result.longName || result.shortName || item.symbol;
-                                const info = getCategoryInfo(item.symbol, item.name);
-                                item.isLeverage = info.isLeverage;
+                                if (!item.name || item.name === "載入中...") {
+                                    item.name = result.longName || result.shortName || item.symbol;
+                                }
+                                item.isLeverage = getCategoryInfo(item.symbol, item.name).isLeverage;
                                 return;
                             }
                         }
-                    } catch (e) {
-                        console.warn(`RapidAPI failed for ${t}`);
-                    }
+                    } catch (e) {}
                 }
             }
 
+            // 2. 備援方案：使用代理伺服器抓取 Yahoo Finance
             const endpoints = [
-                (t) => `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${t}&_t=${timestamp}`,
-                (t) => `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${t}&_t=${timestamp}`,
-                (t) => `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d&_t=${timestamp}`
+                (t) => `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${t}&_t=${timestamp}&s=${salt}`,
+                (t) => `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d&_t=${timestamp}&s=${salt}`
             ];
 
             for (let t of tickers) {
                 for (let getUrl of endpoints) {
                     try {
-                        const url = getUrl(t);
-                        const data = await fetchWithRetry(url);
-                        
-                        const quoteResult = data.quoteResponse?.result?.[0] || data.result?.[0];
-                        if (quoteResult && quoteResult.regularMarketPrice > 0) {
-                            item.price = quoteResult.regularMarketPrice;
-                            item.name = quoteResult.longName || quoteResult.shortName || item.symbol;
-                            const info = getCategoryInfo(item.symbol, item.name);
-                            item.isLeverage = info.isLeverage;
-                            return;
-                        }
-
-                        const chartResult = data.chart?.result?.[0];
-                        if (chartResult && chartResult.meta?.regularMarketPrice > 0) {
-                            item.price = chartResult.meta.regularMarketPrice;
+                        const data = await fetchWithRetry(getUrl(t));
+                        const q = data.quoteResponse?.result?.[0] || data.result?.[0] || data.chart?.result?.[0]?.meta;
+                        const p = q?.regularMarketPrice || q?.price;
+                        if (p > 0) {
+                            item.price = p;
                             if (!item.name || item.name === "載入中...") {
-                                item.name = chartResult.meta.symbol || t.split('.')[0];
+                                item.name = q.longName || q.shortName || q.symbol || item.name;
                             }
-                            const info = getCategoryInfo(item.symbol, item.name);
-                            item.isLeverage = info.isLeverage;
+                            item.isLeverage = getCategoryInfo(item.symbol, item.name).isLeverage;
                             return;
                         }
-                    } catch (e) {
-                        continue;
-                    }
+                    } catch (e) { continue; }
                 }
             }
             console.error(`All fetch attempts failed for ${item.symbol}`);
@@ -1374,40 +1357,50 @@
             if (portfolio.length === 0) return;
             const btn = document.getElementById('refreshBtn');
             const originalText = btn.innerText;
-            btn.innerText = "WAIT..."; btn.disabled = true;
+            btn.disabled = true;
+            
             try {
-                // 1. 同步執行匯率更新
                 const fxPromise = fetchFX();
+                const queue = [...portfolio];
+                const total = queue.length;
+                let finished = 0;
                 
-                // 2. 分批執行價格更新，避免手機端瀏覽器或代理伺服器過載
-                const batchSize = 5;
-                const results = [];
-                for (let i = 0; i < portfolio.length; i += batchSize) {
-                    const batch = portfolio.slice(i, i + batchSize);
-                    const batchPromises = batch.map(item => fetchPriceAndInfo(item));
-                    results.push(...await Promise.allSettled(batchPromises));
-                    // 批次間稍微停頓 100ms
-                    if (i + batchSize < portfolio.length) {
-                        await new Promise(r => setTimeout(r, 100));
+                btn.innerText = `WAIT (0/${total})...`;
+                
+                const worker = async (id) => {
+                    // 稍微錯開啟動時間，避免瞬間爆發大量請求
+                    await new Promise(r => setTimeout(r, id * 200)); 
+                    while (queue.length > 0) {
+                        const item = queue.shift();
+                        if (!item) continue;
+                        try {
+                            await fetchPriceAndInfo(item);
+                        } catch (e) {
+                            console.warn(`[Refresh] Failed for ${item.symbol}`);
+                        } finally {
+                            finished++;
+                            btn.innerText = `WAIT (${finished}/${total})...`;
+                        }
                     }
-                }
+                };
                 
-                await fxPromise; // 等待匯率更新完成
+                // 使用 4 個並發工作者 (Concurrency Pool)
+                // 這比分批處理 (Batching) 更快，因為快的一完成就會抓下一個，不會被慢的卡住
+                await Promise.all([worker(0), worker(1), worker(2), worker(3)]);
+                await fxPromise;
                 
-                // 檢查是否有抓取失敗的股票
-                const failedStocks = portfolio.filter(item => !item.price || item.price === 0);
-                
+                const failed = portfolio.filter(item => !item.price || item.price === 0);
                 saveToStorage();
                 render();
                 finalizeUpdate(true);
                 
-                if (failedStocks.length > 0) {
-                    const names = failedStocks.map(s => s.symbol).join(', ');
-                    alert(`部分代號抓取失敗 (${names})，請確認代號是否正確或稍後再試。`);
+                if (failed.length > 0) {
+                    const names = failed.map(s => s.symbol).join(', ');
+                    alert(`部分代號更新失敗 (${names})，請稍後再試。`);
                 }
             } catch (error) {
                 console.error("Refresh failed:", error);
-                alert("更新失敗，請檢查網路連線或稍後再試。");
+                alert("更新失敗，請檢查網路連線。");
             } finally {
                 btn.innerText = originalText; 
                 btn.disabled = false;
@@ -1417,29 +1410,34 @@
         async function fetchFX() {
             try {
                 const timestamp = Date.now();
+                const salt = Math.random().toString(36).substring(7);
                 if (rapidApiKey) {
-                    const url = `https://apidojo-yahoo-finance-v1.p.rapidapi.com/market/v2/get-quotes?symbols=USDTWD=X&region=US&_t=${timestamp}`;
-                    const response = await fetch(url, {
-                        method: 'GET',
-                        headers: {
-                            'X-RapidAPI-Key': rapidApiKey,
-                            'X-RapidAPI-Host': 'apidojo-yahoo-finance-v1.p.rapidapi.com'
+                    try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 6000);
+                        const url = `https://apidojo-yahoo-finance-v1.p.rapidapi.com/market/v2/get-quotes?symbols=USDTWD=X&region=US&_t=${timestamp}&s=${salt}`;
+                        const response = await fetch(url, {
+                            method: 'GET',
+                            headers: {
+                                'X-RapidAPI-Key': rapidApiKey,
+                                'X-RapidAPI-Host': 'apidojo-yahoo-finance-v1.p.rapidapi.com',
+                                'Cache-Control': 'no-cache',
+                                'Pragma': 'no-cache'
+                            },
+                            signal: controller.signal
+                        });
+                        clearTimeout(timeoutId);
+                        if (response.ok) {
+                            const data = await response.json();
+                            const rate = data.quoteResponse?.result?.[0]?.regularMarketPrice;
+                            if (rate > 0) { globalFxRate = rate; return; }
                         }
-                    });
-                    if (response.ok) {
-                        const data = await response.json();
-                        const rate = data.quoteResponse?.result?.[0]?.regularMarketPrice;
-                        if (rate > 0) {
-                            globalFxRate = rate;
-                            return;
-                        }
-                    }
+                    } catch (e) {}
                 }
                 
                 const endpoints = [
-                    `https://query1.finance.yahoo.com/v8/finance/chart/USDTWD=X?_t=${timestamp}`,
-                    `https://query2.finance.yahoo.com/v8/finance/chart/USDTWD=X?_t=${timestamp}`,
-                    `https://query1.finance.yahoo.com/v7/finance/quote?symbols=USDTWD=X&_t=${timestamp}`
+                    `https://query1.finance.yahoo.com/v8/finance/chart/USDTWD=X?_t=${timestamp}&s=${salt}`,
+                    `https://query1.finance.yahoo.com/v7/finance/quote?symbols=USDTWD=X&_t=${timestamp}&s=${salt}`
                 ];
 
                 for (let url of endpoints) {
@@ -1447,18 +1445,12 @@
                         const data = await fetchWithRetry(url);
                         const rate = data.chart?.result?.[0]?.meta?.regularMarketPrice || 
                                      data.quoteResponse?.result?.[0]?.regularMarketPrice;
-                        if (rate > 0) {
-                            globalFxRate = rate;
-                            return;
-                        }
-                    } catch (e) {
-                        continue;
-                    }
+                        if (rate > 0) { globalFxRate = rate; return; }
+                    } catch (e) { continue; }
                 }
             } catch (e) { 
                 console.warn("FX fetch failed, using fallback:", e);
             }
-            // Fallback stays as it is if all else fails
         }
 
         function getCategoryInfo(symbol, name = "") {
