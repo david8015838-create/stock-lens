@@ -1263,9 +1263,9 @@
 
         async function fetchWithRetry(url, retries = 3) {
             const proxies = [
+                (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
                 (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-                (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
-                (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`
+                (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`
             ];
             
             for (let i = 0; i < retries; i++) {
@@ -1273,8 +1273,8 @@
                 try {
                     const fetchUrl = proxyFn(url);
                     const controller = new AbortController();
-                    // 針對不同代理設置超時：第一優先級更激進
-                    const timeoutMs = i === 0 ? 5000 : 8000;
+                    // 超激進超時：第一優先級 3秒，其餘 5秒
+                    const timeoutMs = i === 0 ? 3500 : 5000;
                     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
                     
                     const response = await fetch(fetchUrl, { signal: controller.signal });
@@ -1291,19 +1291,32 @@
                         } catch (e) { return text; }
                     }
                 } catch (e) {
-                    console.warn(`Fetch attempt ${i + 1} failed (${e.name}):`, e.message);
+                    console.warn(`Fetch attempt ${i + 1} failed (${e.name})`);
                 }
-                // 減少重試等待，加速切換代理
-                if (i < retries - 1) await new Promise(r => setTimeout(r, 300));
+                if (i < retries - 1) await new Promise(r => setTimeout(r, 100)); // 極短等待
             }
             throw new Error(`Failed to fetch after ${retries} attempts`);
         }
 
         async function fetchPriceAndInfo(item) {
             const rawSymbol = item.symbol.trim().toUpperCase();
-            let tickers = /^\d/.test(rawSymbol) ? [`${rawSymbol}.TW`, `${rawSymbol}.TWO`] : [rawSymbol];
             
-            // If RapidAPI key is present, use a more stable source
+            // 1. 優化代碼判定：如果是 00 開頭且 5 位數以上，優先嘗試 .TW
+            let tickers = [];
+            if (/^\d/.test(rawSymbol)) {
+                if (rawSymbol.startsWith('00') && rawSymbol.length >= 5) {
+                    tickers = [`${rawSymbol}.TW`]; // ETF 幾乎都在上市
+                } else {
+                    tickers = [`${rawSymbol}.TW`, `${rawSymbol}.TWO`];
+                }
+            } else {
+                tickers = [rawSymbol];
+            }
+            
+            // 2. 標記正在更新
+            item.isUpdating = true;
+            
+            // If RapidAPI key is present...
             if (rapidApiKey) {
                 for (let t of tickers) {
                     try {
@@ -1410,8 +1423,8 @@
                     }
                 };
                 
-                // 啟動 2 個並發 Worker，平衡速度與 API 限制
-                await Promise.all([worker(), worker()]);
+                // 啟動 3 個並發 Worker，極速更新
+                await Promise.all([worker(), worker(), worker()]);
                 
                 saveToStorage();
                 render();
@@ -2298,8 +2311,8 @@
                         }
                     };
                     
-                    // 啟動 2 個 Worker
-                    await Promise.all([worker(), worker()]);
+                    // 啟動 3 個 Worker
+                    await Promise.all([worker(), worker(), worker()]);
                     
                     saveToStorage();
                     render();
