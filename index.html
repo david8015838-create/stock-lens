@@ -1254,6 +1254,7 @@
                     const timeoutId = setTimeout(() => controller.abort(), 5000); // 縮短至 5 秒
                     
                     const response = await fetch(currentUrl, {
+                        cache: 'no-store',
                         headers: { 
                             'Accept': 'application/json',
                             'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -1460,7 +1461,7 @@
                 const total = queue.length;
                 let finished = 0;
                 
-                btn.innerText = `WAIT (0/${total})...`;
+                btn.innerText = `正在連線即時行情... (0/${total})`;
                 
                 const worker = async (id) => {
                     // 稍微錯開啟動時間，避免瞬間爆發大量請求
@@ -1474,7 +1475,7 @@
                             console.warn(`[Refresh] Failed for ${item.symbol}`);
                         } finally {
                             finished++;
-                            btn.innerText = `WAIT (${finished}/${total})...`;
+                            btn.innerText = `正在連線即時行情... (${finished}/${total})`;
                         }
                     }
                 };
@@ -1487,7 +1488,8 @@
                 // 更新「最後更新時間」
                 const now = new Date();
                 const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                document.getElementById('lastUpdated').innerText = `LAST SYNC: ${timeStr}`;
+                const dateStr = now.toLocaleDateString([], { month: '2-digit', day: '2-digit' });
+                document.getElementById('lastUpdated').innerText = `最後同步: ${dateStr} ${timeStr}`;
                 
                 const failed = portfolio.filter(item => !item.price || item.price === 0);
                 saveToStorage();
