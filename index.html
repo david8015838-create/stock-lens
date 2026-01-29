@@ -1270,79 +1270,89 @@
             renderTradeHistory();
         }
 
-        async function fetchWithRetry(url, retries = 3) {
-            const proxies = [
-                (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-                (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-                (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
-                (u) => `https://yacdn.org/proxy/${u}`
+        /**
+         * 核心抓取函數：採用「代理競爭 (Race)」模式
+         * 同時向多個代理發送請求，誰快就用誰，大幅縮短等待時間
+         */
+        async function fetchWithRetry(url) {
+            const proxyConfigs = [
+                { name: 'AllOrigins-Raw', fn: (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
+                { name: 'CodeTabs', fn: (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
+                { name: 'AllOrigins-Get', fn: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}` },
+                { name: 'YaCDN', fn: (u) => `https://yacdn.org/proxy/${u}` }
             ];
-            
-            for (let i = 0; i < retries; i++) {
-                const proxyFn = proxies[i % proxies.length];
-                let proxyName = "Unknown";
-                try {
-                    const testUrl = proxyFn("http://test.com");
-                    proxyName = new URL(testUrl).hostname;
-                } catch(e) {}
 
+            // 封裝單個代理的抓取行為
+            const fetchFromProxy = async (config) => {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000); // 單次代理超時設為 8s
+                
                 try {
-                    const fetchUrl = proxyFn(url);
-                    console.log(`[Fetch] Attempt ${i + 1} using ${proxyName}...`);
-                    const controller = new AbortController();
-                    // 放寬超時時間到 10 秒，因為 AllOrigins 有時較慢
-                    const timeoutMs = 10000; 
-                    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-                    
-                    const response = await fetch(fetchUrl, { 
+                    const proxyUrl = config.fn(url);
+                    const response = await fetch(proxyUrl, { 
                         signal: controller.signal,
                         cache: 'no-store'
                     });
-                    clearTimeout(timeoutId);
                     
-                    if (response.ok) {
-                        const text = await response.text();
-                        if (!text || text.trim().length < 20) continue;
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    
+                    let text = await response.text();
+                    if (!text || text.length < 20) throw new Error('Empty response');
 
-                        let data;
-                        try {
-                            data = JSON.parse(text);
-                            // 處理 AllOrigins /get 模式包裝的內容
-                            if (data && typeof data === 'object' && 'contents' in data) {
-                                let inner = data.contents;
-                                if (typeof inner === 'string' && inner.trim().startsWith('{')) {
-                                    data = JSON.parse(inner);
-                                } else {
-                                    data = inner;
-                                }
-                            }
-                        } catch (e) {
-                            if (text.trim().startsWith('{')) {
-                                try { data = JSON.parse(text); } catch (e2) { data = text; }
-                            } else {
-                                data = text;
-                            }
+                    let data;
+                    try {
+                        data = JSON.parse(text);
+                        // 處理 AllOrigins /get 模式
+                        if (data && data.contents) {
+                            const inner = data.contents;
+                            data = typeof inner === 'string' && inner.trim().startsWith('{') ? JSON.parse(inner) : inner;
                         }
-
-                        if (data && (data.quoteResponse || data.chart)) {
-                            return data;
-                        }
+                    } catch (e) {
+                        if (text.trim().startsWith('{')) data = JSON.parse(text);
+                        else throw new Error('Not JSON');
                     }
-                } catch (e) {
-                    const isTimeout = e.name === 'AbortError';
-                    console.warn(`[Fetch] Attempt ${i + 1} (${proxyName}) ${isTimeout ? 'TIMEOUT' : 'FAIL'}`);
+
+                    // 驗證是否為 Yahoo Finance 的有效數據
+                    if (data && (data.quoteResponse || data.chart)) {
+                        console.log(`[Race] Winner: ${config.name}`);
+                        return data;
+                    }
+                    throw new Error('Invalid Data Format');
+                } finally {
+                    clearTimeout(timeoutId);
                 }
-                // 適度重試間隔
-                if (i < retries - 1) await new Promise(r => setTimeout(r, 800)); 
+            };
+
+            // 第一輪：同時發送前兩個最快的代理
+            try {
+                return await Promise.any([
+                    fetchFromProxy(proxyConfigs[0]),
+                    fetchFromProxy(proxyConfigs[1])
+                ]);
+            } catch (e) {
+                console.warn('[Race] First batch failed, trying backup proxies...');
+                // 第二輪：如果前兩個都失敗，嘗試後兩個備援
+                try {
+                    return await Promise.any([
+                        fetchFromProxy(proxyConfigs[2]),
+                        fetchFromProxy(proxyConfigs[3])
+                    ]);
+                } catch (e2) {
+                    throw new Error('All proxies failed or timed out');
+                }
             }
-            throw new Error(`Failed after ${retries} attempts`);
         }
 
         async function fetchPriceAndInfo(item) {
             const rawSymbol = item.symbol.trim().toUpperCase();
             let tickers = [];
             if (/^\d/.test(rawSymbol)) {
-                if (rawSymbol.startsWith('00') && rawSymbol.length >= 5) {
+                // 台股邏輯：4位數字通常是上市 (.TW)，5位數字以上通常是 ETF 或權證
+                if (rawSymbol.length === 4) {
+                    // 2330, 2317 等主要股票優先嘗試 .TW
+                    tickers = [`${rawSymbol}.TW`, `${rawSymbol}.TWO`];
+                } else if (rawSymbol.startsWith('00') && rawSymbol.length >= 5) {
+                    // 0050, 00878 等 ETF 優先嘗試 .TW
                     tickers = [`${rawSymbol}.TW`];
                 } else {
                     tickers = [`${rawSymbol}.TW`, `${rawSymbol}.TWO`];
@@ -1453,8 +1463,8 @@
                         try {
                             btn.innerText = `SYNCING (${finished}/${total})`;
                             await fetchPriceAndInfo(item);
-                            // 增加間隔，避免並行請求過於密集導致代理封鎖
-                            await new Promise(r => setTimeout(r, 500));
+                            // 適度間隔，避免並行過多導致瀏覽器卡頓
+                            await new Promise(r => setTimeout(r, 300));
                         } catch (e) {
                             console.warn(`Failed to update ${item.symbol}:`, e);
                         } finally {
