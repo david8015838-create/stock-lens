@@ -10,6 +10,7 @@
     <meta http-equiv="Expires" content="0">
     
     <title>StockLens Owen</title>
+    <link rel="icon" href="data:,">
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1276,16 +1277,16 @@
          */
         async function fetchWithRetry(url) {
             const proxyConfigs = [
+                { name: 'CORSProxy-IO', fn: (u) => `https://corsproxy.io/?${encodeURIComponent(u)}` },
                 { name: 'AllOrigins-Raw', fn: (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
                 { name: 'CodeTabs', fn: (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
-                { name: 'AllOrigins-Get', fn: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}` },
-                { name: 'YaCDN', fn: (u) => `https://yacdn.org/proxy/${u}` }
+                { name: 'AllOrigins-Get', fn: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}` }
             ];
 
             // 封裝單個代理的抓取行為
             const fetchFromProxy = async (config) => {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 8000); // 單次代理超時設為 8s
+                const timeoutId = setTimeout(() => controller.abort(), 7000); // 單次代理超時設為 7s
                 
                 try {
                     const proxyUrl = config.fn(url);
@@ -1331,9 +1332,10 @@
                 ]);
             } catch (e) {
                 console.warn('[Race] First batch failed, trying backup proxies...');
-                // 第二輪：如果前兩個都失敗，嘗試後兩個備援
+                // 第二輪：嘗試所有剩下的代理
                 try {
                     return await Promise.any([
+                        fetchFromProxy(proxyConfigs[1]), // 重試第二個
                         fetchFromProxy(proxyConfigs[2]),
                         fetchFromProxy(proxyConfigs[3])
                     ]);
