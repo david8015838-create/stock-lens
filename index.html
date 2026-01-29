@@ -1294,6 +1294,7 @@
 
         async function fetchPriceAndInfo(item) {
             const rawSymbol = item.symbol.trim().toUpperCase();
+            const timestamp = Date.now();
             
             let tickers = [];
             if (/^\d+$/.test(rawSymbol)) {
@@ -1305,7 +1306,7 @@
             if (rapidApiKey) {
                 for (let t of tickers) {
                     try {
-                        const url = `https://apidojo-yahoo-finance-v1.p.rapidapi.com/market/v2/get-quotes?symbols=${t}&region=US`;
+                        const url = `https://apidojo-yahoo-finance-v1.p.rapidapi.com/market/v2/get-quotes?symbols=${t}&region=US&_t=${timestamp}`;
                         const response = await fetch(url, {
                             method: 'GET',
                             headers: {
@@ -1331,9 +1332,9 @@
             }
 
             const endpoints = [
-                (t) => `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${t}`,
-                (t) => `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${t}`,
-                (t) => `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d`
+                (t) => `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${t}&_t=${timestamp}`,
+                (t) => `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${t}&_t=${timestamp}`,
+                (t) => `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d&_t=${timestamp}`
             ];
 
             for (let t of tickers) {
@@ -1375,13 +1376,23 @@
             const originalText = btn.innerText;
             btn.innerText = "WAIT..."; btn.disabled = true;
             try {
-                // 1. 同步執行匯率更新與所有價格更新
+                // 1. 同步執行匯率更新
                 const fxPromise = fetchFX();
-                const pricePromises = portfolio.map(item => fetchPriceAndInfo(item));
                 
-                // 2. 使用 Promise.allSettled 代替 Promise.all
-                // 這樣即使其中一支股票 API 壞了，其他的還是能正常顯示，不會整批卡死
-                await Promise.allSettled([fxPromise, ...pricePromises]);
+                // 2. 分批執行價格更新，避免手機端瀏覽器或代理伺服器過載
+                const batchSize = 5;
+                const results = [];
+                for (let i = 0; i < portfolio.length; i += batchSize) {
+                    const batch = portfolio.slice(i, i + batchSize);
+                    const batchPromises = batch.map(item => fetchPriceAndInfo(item));
+                    results.push(...await Promise.allSettled(batchPromises));
+                    // 批次間稍微停頓 100ms
+                    if (i + batchSize < portfolio.length) {
+                        await new Promise(r => setTimeout(r, 100));
+                    }
+                }
+                
+                await fxPromise; // 等待匯率更新完成
                 
                 // 檢查是否有抓取失敗的股票
                 const failedStocks = portfolio.filter(item => !item.price || item.price === 0);
@@ -1405,8 +1416,9 @@
 
         async function fetchFX() {
             try {
+                const timestamp = Date.now();
                 if (rapidApiKey) {
-                    const url = `https://apidojo-yahoo-finance-v1.p.rapidapi.com/market/v2/get-quotes?symbols=USDTWD=X&region=US`;
+                    const url = `https://apidojo-yahoo-finance-v1.p.rapidapi.com/market/v2/get-quotes?symbols=USDTWD=X&region=US&_t=${timestamp}`;
                     const response = await fetch(url, {
                         method: 'GET',
                         headers: {
@@ -1425,9 +1437,9 @@
                 }
                 
                 const endpoints = [
-                    'https://query1.finance.yahoo.com/v8/finance/chart/USDTWD=X',
-                    'https://query2.finance.yahoo.com/v8/finance/chart/USDTWD=X',
-                    'https://query1.finance.yahoo.com/v7/finance/quote?symbols=USDTWD=X'
+                    `https://query1.finance.yahoo.com/v8/finance/chart/USDTWD=X?_t=${timestamp}`,
+                    `https://query2.finance.yahoo.com/v8/finance/chart/USDTWD=X?_t=${timestamp}`,
+                    `https://query1.finance.yahoo.com/v7/finance/quote?symbols=USDTWD=X&_t=${timestamp}`
                 ];
 
                 for (let url of endpoints) {
