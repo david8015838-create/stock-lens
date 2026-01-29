@@ -1243,40 +1243,49 @@
 
         async function fetchWithRetry(url, retries = 3) {
             const proxies = [
-                (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-                (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-                (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
+                (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+                (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+                (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`
             ];
             
             for (let i = 0; i < retries; i++) {
                 const proxyFn = proxies[i % proxies.length];
                 try {
                     const fetchUrl = proxyFn(url);
-                    console.log(`Fetching via proxy: ${fetchUrl}`);
+                    console.log(`Attempt ${i + 1}: Fetching via ${fetchUrl.split('/')[2]}`);
                     
-                    // 使用 AbortController 設置 8 秒逾時，避免單個請求卡死 30 秒
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 8000);
+                    const timeoutId = setTimeout(() => controller.abort(), 10000); // 增加到 10 秒
                     
                     const response = await fetch(fetchUrl, {
-                        headers: { 'Accept': 'application/json' },
                         signal: controller.signal
                     });
                     
                     clearTimeout(timeoutId);
                     
                     if (response.ok) {
-                        let data = await response.json();
-                        if (data.contents && typeof data.contents === 'string') {
-                            data = JSON.parse(data.contents);
+                        const text = await response.text();
+                        try {
+                            let data = JSON.parse(text);
+                            // 處理 AllOrigins 的包裝格式
+                            if (data && data.contents) {
+                                try {
+                                    return JSON.parse(data.contents);
+                                } catch (e) {
+                                    return data.contents; // 如果 contents 不是 JSON 字串，直接回傳
+                                }
+                            }
+                            return data;
+                        } catch (e) {
+                            // 如果不是 JSON，可能是某些代理直接回傳的字串
+                            console.warn("Response is not JSON, returning raw text");
+                            return text;
                         }
-                        return data;
                     }
                 } catch (e) {
-                    console.warn(`Fetch attempt ${i + 1} failed for ${url}:`, e.name === 'AbortError' ? 'Timeout' : e);
+                    console.warn(`Fetch attempt ${i + 1} failed:`, e.message);
                 }
-                // 減少重試等待時間
-                if (i < retries - 1) await new Promise(r => setTimeout(r, 500));
+                if (i < retries - 1) await new Promise(r => setTimeout(r, 1000)); // 增加重試間隔
             }
             throw new Error(`Failed to fetch after ${retries} attempts`);
         }
@@ -1325,11 +1334,13 @@
                     const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${t}${params}&t=${Date.now()}`;
                     
                     const data = await fetchWithRetry(url);
-                    const result = data.quoteResponse?.result?.[0] || data.result?.[0]; // Handle different proxy wrappings
+                    console.log(`Data received for ${t}:`, data);
+                    const result = data.quoteResponse?.result?.[0];
                     
-                    if (result) {
+                    if (result && result.regularMarketPrice) {
                         item.price = result.regularMarketPrice;
                         item.name = result.longName || result.shortName || item.symbol;
+                        console.log(`Successfully fetched price for ${t}: ${item.price}`);
                         
                         const info = getCategoryInfo(item.symbol, item.name);
                         if (item.name === "載入中...") item.isLeverage = info.isLeverage;
@@ -1339,6 +1350,7 @@
                     // Fallback to chart API if quote fails
                     const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d&t=${Date.now()}`;
                     const chartData = await fetchWithRetry(chartUrl);
+                    console.log(`Chart data received for ${t}:`, chartData);
                     const chartResult = chartData.chart?.result?.[0];
                     
                     if (chartResult?.meta?.regularMarketPrice) {
@@ -1346,6 +1358,7 @@
                         if (!item.name || item.name === "載入中...") {
                             item.name = chartResult.meta.symbol || item.symbol;
                         }
+                        console.log(`Successfully fetched price via chart for ${t}: ${item.price}`);
                         if (item.price > 0) return;
                     }
                 } catch (e) { 
@@ -1359,14 +1372,37 @@
             const btn = document.getElementById('refreshBtn');
             const originalText = btn.innerText;
             btn.innerText = "WAIT..."; btn.disabled = true;
+            
             try {
-                // 1. 同步執行匯率更新與所有價格更新
-                const fxPromise = fetchFX();
-                const pricePromises = portfolio.map(item => fetchPriceAndInfo(item));
+                // 1. 先更新匯率
+                await fetchFX();
                 
-                // 2. 使用 Promise.allSettled 代替 Promise.all
-                // 這樣即使其中一支股票 API 壞了，其他的還是能正常顯示，不會整批卡死
-                await Promise.allSettled([fxPromise, ...pricePromises]);
+                // 2. 準備更新佇列
+                const queue = [...portfolio];
+                const total = queue.length;
+                let finished = 0;
+                
+                // 3. 定義 Worker (單線程更新，避免 429)
+                const worker = async () => {
+                    while (queue.length > 0) {
+                        const item = queue.shift();
+                        if (!item) continue;
+                        try {
+                            btn.innerText = `SYNCING (${finished}/${total})`;
+                            await fetchPriceAndInfo(item);
+                            // 每次請求間隔 500ms，保護 IP
+                            await new Promise(r => setTimeout(r, 500));
+                        } catch (e) {
+                            console.warn(`Failed to update ${item.symbol}:`, e);
+                        } finally {
+                            finished++;
+                            render(); // 即時更新 UI
+                        }
+                    }
+                };
+                
+                // 啟動 1 個 Worker (可視情況增加到 2)
+                await worker();
                 
                 saveToStorage();
                 render();
@@ -1384,12 +1420,12 @@
                 setTimeout(() => {
                     btn.innerText = originalBtnText;
                     btn.classList.remove('text-emerald-400');
+                    btn.disabled = false;
                 }, 2000);
 
             } catch (error) {
                 console.error("Refresh failed:", error);
                 alert("更新失敗，請檢查網路連線或稍後再試。");
-            } finally {
                 btn.innerText = originalText; 
                 btn.disabled = false;
             }
@@ -1409,13 +1445,15 @@
                     if (response.ok) {
                         const data = await response.json();
                         globalFxRate = data.quoteResponse?.result?.[0]?.regularMarketPrice || 32.5;
+                        console.log(`FX Rate fetched via RapidAPI: ${globalFxRate}`);
                         return;
                     }
                 }
                 
                 const url = `https://query1.finance.yahoo.com/v8/finance/chart/USDTWD=X?t=${Date.now()}`;
                 const data = await fetchWithRetry(url);
-                globalFxRate = data.chart.result[0].meta.regularMarketPrice || 32.5;
+                globalFxRate = data.chart?.result?.[0]?.meta?.regularMarketPrice || 32.5;
+                console.log(`FX Rate fetched via Proxy: ${globalFxRate}`);
             } catch (e) { 
                 console.warn("FX fetch failed, using fallback:", e);
                 globalFxRate = 32.5; 
