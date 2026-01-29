@@ -1263,8 +1263,8 @@
 
         async function fetchWithRetry(url, retries = 3) {
             const proxies = [
-                (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
                 (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+                (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
                 (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`
             ];
             
@@ -1272,40 +1272,29 @@
                 const proxyFn = proxies[i % proxies.length];
                 try {
                     const fetchUrl = proxyFn(url);
-                    console.log(`Attempt ${i + 1}: Fetching via ${fetchUrl.split('/')[2]}`);
-                    
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 10000); // 增加到 10 秒
+                    // 針對不同代理設置超時：第一優先級更激進
+                    const timeoutMs = i === 0 ? 5000 : 8000;
+                    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
                     
-                    const response = await fetch(fetchUrl, {
-                        signal: controller.signal
-                    });
-                    
+                    const response = await fetch(fetchUrl, { signal: controller.signal });
                     clearTimeout(timeoutId);
                     
                     if (response.ok) {
                         const text = await response.text();
                         try {
                             let data = JSON.parse(text);
-                            // 處理 AllOrigins 的包裝格式
                             if (data && data.contents) {
-                                try {
-                                    return JSON.parse(data.contents);
-                                } catch (e) {
-                                    return data.contents; // 如果 contents 不是 JSON 字串，直接回傳
-                                }
+                                try { return JSON.parse(data.contents); } catch (e) { return data.contents; }
                             }
                             return data;
-                        } catch (e) {
-                            // 如果不是 JSON，可能是某些代理直接回傳的字串
-                            console.warn("Response is not JSON, returning raw text");
-                            return text;
-                        }
+                        } catch (e) { return text; }
                     }
                 } catch (e) {
-                    console.warn(`Fetch attempt ${i + 1} failed:`, e.message);
+                    console.warn(`Fetch attempt ${i + 1} failed (${e.name}):`, e.message);
                 }
-                if (i < retries - 1) await new Promise(r => setTimeout(r, 1000)); // 增加重試間隔
+                // 減少重試等待，加速切換代理
+                if (i < retries - 1) await new Promise(r => setTimeout(r, 300));
             }
             throw new Error(`Failed to fetch after ${retries} attempts`);
         }
@@ -1402,7 +1391,7 @@
                 const total = queue.length;
                 let finished = 0;
                 
-                // 3. 定義 Worker (單線程更新，避免 429)
+                // 3. 定義 Worker (並行更新，提高效率)
                 const worker = async () => {
                     while (queue.length > 0) {
                         const item = queue.shift();
@@ -1410,19 +1399,19 @@
                         try {
                             btn.innerText = `SYNCING (${finished}/${total})`;
                             await fetchPriceAndInfo(item);
-                            // 每次請求間隔 500ms，保護 IP
-                            await new Promise(r => setTimeout(r, 500));
+                            // 縮短間隔，因為多 Worker 會自然分散請求
+                            await new Promise(r => setTimeout(r, 300));
                         } catch (e) {
                             console.warn(`Failed to update ${item.symbol}:`, e);
                         } finally {
                             finished++;
-                            render(); // 即時更新 UI
+                            render();
                         }
                     }
                 };
                 
-                // 啟動 1 個 Worker (可視情況增加到 2)
-                await worker();
+                // 啟動 2 個並發 Worker，平衡速度與 API 限制
+                await Promise.all([worker(), worker()]);
                 
                 saveToStorage();
                 render();
@@ -2299,7 +2288,7 @@
                             try {
                                 btn.innerText = `SYNC (${finished}/${total})`;
                                 await fetchPriceAndInfo(item);
-                                await new Promise(r => setTimeout(r, 600)); // 啟動時稍微慢一點，確保穩定
+                                await new Promise(r => setTimeout(r, 400)); // 啟動時稍微加快
                             } catch (e) {
                                 console.warn(`Initial update failed for ${item.symbol}:`, e);
                             } finally {
@@ -2309,7 +2298,8 @@
                         }
                     };
                     
-                    await worker();
+                    // 啟動 2 個 Worker
+                    await Promise.all([worker(), worker()]);
                     
                     saveToStorage();
                     render();
