@@ -1,3 +1,6 @@
 braces.txt
 braces_close.txt
 check_braces.py
+node_modules
+.vercel
+.DS_Store

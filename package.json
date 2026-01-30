@@ -1,0 +1,13 @@
+{
+  "name": "stock-lens",
+  "version": "4.0.0",
+  "description": "Stock Lens - Yahoo Finance Portfolio Tracker",
+  "main": "index.html",
+  "scripts": {
+    "start": "python3 -m http.server 8000"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {}
+}

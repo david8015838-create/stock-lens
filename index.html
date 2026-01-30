@@ -1003,7 +1003,7 @@
         let rapidApiKey = 'c28a529e37mshd701a238b609e33p101918jsn640a3594892c'; 
         let globalFxRate = 32.5;
         let mainChart = null, strategyChart = null, targetChart = null;
-        let GAS_API_URL = 'https://script.google.com/macros/s/AKfycbwVMx7JahVp8j3rVQQnabEhBObjD-XSI0M65srY6qoigOsJbhDlcSDdgzo2aHOxHqpD/exec'; // 已更換為帶有 Header 偽裝的新 GAS 網址
+        let GAS_API_URL = 'https://script.google.com/macros/s/AKfycby8RCR-IF8rjbKVt2vaV6d2KtZC2dGqQh9tLhfXu1ngZPfnNuiSvF_9T6a-AHnc_sPO/exec'; // 已更換為針對 chart 接口優化的新網址 GAS
 
         function saveToStorage() {
             localStorage.setItem('stocklens_portfolio', JSON.stringify(portfolio));
@@ -1334,6 +1334,8 @@
                 const totalCost = (p.shares * p.cost + sharesToBuy * buyPrice) / (p.shares + sharesToBuy);
                 p.cost = totalCost;
                 p.shares += sharesToBuy;
+                p.isUpdating = true; // 即使是現有股票，買入後也同步更新價格
+                updateSinglePrice(p);
             } else {
                 const info = getCategoryInfo(sym);
                 const newId = portfolio.length > 0 ? Math.max(...portfolio.map(i => i.id)) + 1 : 1;
@@ -1347,17 +1349,15 @@
                     shares: sharesToBuy,
                     cost: buyPrice,
                     target: 0,
-                    price: 0
+                    price: 0,
+                    isUpdating: true // 標記為更新中
                 };
                 portfolio.push(newItem);
                 saveToStorage(); 
                 render();
                 
                 // 在後台更新價格
-                updateSinglePrice(newItem).then(() => {
-                    saveToStorage(); 
-                    render();
-                }).catch(e => console.error("Initial buy fetch failed:", e));
+                updateSinglePrice(newItem).catch(e => console.error("Initial buy fetch failed:", e));
             }
 
             const trade = {
@@ -1471,6 +1471,7 @@
             const timeoutId = setTimeout(() => controller.abort(), 30000); 
 
             try {
+                // 使用搜尋建議接口的新 URL 格式
                 const url = GAS_API_URL + "?symbols=" + encodeURIComponent(symbols) + "&t=" + Date.now();
                 const response = await fetch(url, { signal: controller.signal });
                 clearTimeout(timeoutId);
@@ -1478,24 +1479,58 @@
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const data = await response.json();
                 
-                // 大神親傳：Yahoo Finance 內部接口專用解析邏輯
-                console.log("【決戰數據內容】", JSON.stringify(data, null, 2));
-                
-                // 重點：Yahoo 的資料可能藏在 finance.result 或 finance.error 裡
-                const results = (data.finance && data.finance.result) ? data.finance.result : 
-                                (data.finance && data.finance.results) ? data.finance.results :
-                                (data.quoteResponse && data.quoteResponse.result) ? data.quoteResponse.result : null;
+                console.log("【GAS 原始數據】", data);
 
-                if (results && Array.isArray(results) && results.length > 0) {
-                    return results.map(item => ({
-                        symbol: item.symbol,
-                        price: item.regularMarketPrice || item.price || 0,
-                        change: item.regularMarketChangePercent || 0,
-                        prevClose: item.regularMarketPreviousClose || 0,
-                        name: item.shortName || item.longName || item.symbol
-                    }));
+                // 解析新結構：資料主要在 data.quotes 中
+                let results = [];
+                if (data.quotes && Array.isArray(data.quotes)) {
+                    results = data.quotes;
+                } else if (data.finance && data.finance.result) {
+                    if (Array.isArray(data.finance.result)) {
+                        if (data.finance.result[0] && data.finance.result[0].quotes) {
+                            results = data.finance.result[0].quotes;
+                        } else {
+                            results = data.finance.result;
+                        }
+                    } else {
+                        results = [data.finance.result];
+                    }
+                } else if (data.quoteResponse && data.quoteResponse.result) {
+                    results = data.quoteResponse.result;
+                }
+
+                if (results && Array.isArray(results)) {
+                    return results.map(item => {
+                        const extractNum = (val) => {
+                            if (val === null || val === undefined) return 0;
+                            if (typeof val === 'object') return val.raw !== undefined ? val.raw : (val.value !== undefined ? val.value : 0);
+                            return parseFloat(val) || 0;
+                        };
+
+                        // 針對新 chart 接口結構優化
+                        const price = extractNum(item.price) || extractNum(item.regularMarketPrice) || 0;
+                        const prevClose = extractNum(item.prevClose) || extractNum(item.previousClose) || 0;
+                        
+                        // 如果有價格與昨收，則計算漲跌幅
+                        let change = 0;
+                        if (price > 0 && prevClose > 0) {
+                            change = ((price - prevClose) / prevClose) * 100;
+                        } else {
+                            change = extractNum(item.regularMarketChangePercent) || extractNum(item.changePercent) || 0;
+                        }
+                        
+                        console.log(`[解析成功] ${item.symbol}: 價格=${price}, 昨收=${prevClose}, 漲跌=${change.toFixed(2)}%`);
+
+                        return {
+                            symbol: item.symbol,
+                            price: price,
+                            prevClose: prevClose,
+                            change: change,
+                            name: item.shortName || item.longName || item.symbol
+                        };
+                    });
                 } else {
-                    console.error("❌ 結構對接失敗，請看上方 JSON.stringify 的內容");
+                    console.warn("無法解析 quotes 陣列，原始資料：", data);
                     return [];
                 }
             } catch (error) {
@@ -1510,21 +1545,39 @@
         }
 
         function applyData(results) {
-            if (!results || results.length === 0) return;
+            if (!results || results.length === 0) {
+                console.warn("applyData: 沒有收到任何結果");
+                return;
+            }
+            
+            console.log(`開始匹配 ${results.length} 筆資料到持股清單 (portfolio)...`);
+            
             results.forEach(item => {
-                const yahooSymbol = item.symbol.split('.')[0].toUpperCase();
-                // 適配當前代碼的變數名稱: portfolio
-                const asset = portfolio.find(p => p.symbol.split('.')[0].toUpperCase() === yahooSymbol);
+                if (!item.symbol) return;
                 
-                if (asset) {
+                // 尋找匹配的資產 (使用 includes 進行匹配，確保如 0050.TW 能對上 0050)
+                const asset = portfolio.find(a => {
+                    const yahooSymbol = item.symbol.toUpperCase();
+                    const localSymbol = a.symbol.toUpperCase();
+                    return yahooSymbol.includes(localSymbol);
+                });
+                
+                if (asset && item.price) {
                     asset.price = item.price;
-                    asset.change = item.change;
+                    asset.change = item.change || 0;
                     asset.lastUpdate = new Date().toLocaleTimeString();
                     asset.error = false;
-                    console.log(`✅ 成功更新 ${asset.symbol}: ${asset.price}`);
+                    asset.isUpdating = false; // 更新完成，解除等待狀態
+                    console.log(`✅ [匹配成功] 資產:${asset.symbol} <-> Yahoo:${item.symbol} | 價格:${asset.price}`);
+                } else {
+                    console.log(`ℹ️ [未匹配] Yahoo 回傳 ${item.symbol}，但持股清單中找不到對應代號或價格為空`);
                 }
             });
-            render(); // 強制重新渲染畫面
+            
+            // 只要有資料就執行計算並重繪
+            finalizeUpdate();
+            render(); 
+            console.log("✅ 介面已重繪完成 (finalizeUpdate + render)");
         }
 
         async function updateAllPrices() {
@@ -1534,6 +1587,10 @@
             }
             
             console.log("GAS 方案：開始更新價格...");
+            // 統一設置更新狀態
+            portfolio.forEach(a => a.isUpdating = true);
+            render();
+
             const symbols = portfolio.map(a => {
                 let s = a.symbol.trim().toUpperCase();
                 return (/^\d/.test(s) && !s.includes('.')) ? `${s}.TW` : s;
@@ -1559,13 +1616,27 @@
 
         async function fetchFX() {
             try {
-                console.log("GAS 方案：開始更新匯率...");
+                console.log("GAS 方案：開始更新匯率 (USDTWD=X)...");
                 const results = await fetchFromGAS("USDTWD=X");
                 if (results && results.length > 0) {
                     const price = results[0].price;
                     if (price > 0) {
                         globalFxRate = price;
                         console.log(`GAS 匯率更新成功: ${globalFxRate}`);
+                        return;
+                    }
+                }
+                
+                // Fallback for different currency symbol if first one fails
+                console.log("嘗試備用匯率代號 (TWD=X)...");
+                const resultsFallback = await fetchFromGAS("TWD=X");
+                if (resultsFallback && resultsFallback.length > 0) {
+                    const price = resultsFallback[0].price;
+                    if (price > 0) {
+                        // TWD=X might return 1/32.5 or 32.5 depending on Yahoo's mood
+                        // Usually TWD=X is USD to TWD
+                        globalFxRate = price;
+                        console.log(`GAS 備用匯率更新成功: ${globalFxRate}`);
                     }
                 }
             } catch (e) { 
