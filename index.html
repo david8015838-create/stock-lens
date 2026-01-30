@@ -1388,9 +1388,13 @@
         async function fetchPriceAndInfo(item) {
             const rawSymbol = item.symbol.trim().toUpperCase();
             let tickers = [];
-            if (/^\d/.test(rawSymbol)) {
-                // 台股邏輯：精確化優先級
-                if (rawSymbol.length === 4) {
+            
+            // 判斷是否為台股/台灣債券格式 (數字開頭，或 B 開頭加數字)
+            if (/^\d/.test(rawSymbol) || /^B\d/.test(rawSymbol)) {
+                if (rawSymbol.startsWith('B')) {
+                    // 台灣政府公債 (如 B20255) 大多在櫃買中心 (.TWO)
+                    tickers = [`${rawSymbol}.TWO`, `${rawSymbol}.TW`];
+                } else if (rawSymbol.length === 4) {
                     // 2330, 2317 等主要股票優先嘗試 .TW
                     tickers = [`${rawSymbol}.TW`, `${rawSymbol}.TWO`];
                 } else if (rawSymbol.startsWith('00')) {
@@ -1407,6 +1411,7 @@
                     tickers = [`${rawSymbol}.TW`, `${rawSymbol}.TWO`];
                 }
             } else {
+                // 美股或已帶後綴的代碼
                 tickers = [rawSymbol.includes('.') ? rawSymbol : `${rawSymbol}`];
             }
             
