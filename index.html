@@ -53,19 +53,22 @@
         
         /* 統一輸入框樣式，修復禁用 preflight 後的白色外觀 */
         input, select, textarea {
-            background-color: #0f172a; /* bg-slate-900 */
-            color: #ffffff;
-            border: 1px solid rgba(148, 163, 184, 0.2); /* border-slate-700/20 */
-            outline: none;
+            background-color: #0f172a !important; /* bg-slate-900 */
+            color: #ffffff !important;
+            border: 1px solid rgba(148, 163, 184, 0.2) !important; /* border-slate-700/20 */
+            outline: none !important;
+            -webkit-appearance: none; /* 移除 iOS 默認外觀 */
+            border-radius: 1rem; /* 預設圓角 */
         }
         
         input:focus, select:focus {
-            border-color: rgba(34, 211, 238, 0.4); /* focus:border-cyan-500/40 */
+            border-color: #22d3ee !important; /* neon */
+            box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.25) !important;
         }
 
         /* 佔位符樣式 */
         ::placeholder {
-            color: rgba(148, 163, 184, 0.5); /* text-slate-400/50 */
+            color: rgba(148, 163, 184, 0.5) !important;
             opacity: 1;
         }
 
@@ -73,8 +76,8 @@
         input:-webkit-autofill,
         input:-webkit-autofill:hover, 
         input:-webkit-autofill:focus {
-            -webkit-text-fill-color: white;
-            -webkit-box-shadow: 0 0 0px 1000px #0f172a inset;
+            -webkit-text-fill-color: white !important;
+            -webkit-box-shadow: 0 0 0px 1000px #0f172a inset !important;
             transition: background-color 5000s ease-in-out 0s;
         }
         
@@ -246,7 +249,7 @@
 
         input { 
             transition: all 0.2s; 
-            background-color: rgba(30, 41, 59, 0.5) !important; 
+            background-color: #0f172a !important; 
             border: 1px solid rgba(148, 163, 184, 0.25); 
             color: #e5e7eb; 
             font-size: 14px !important; 
@@ -1000,27 +1003,38 @@
             render();
         }
 
-        // 數據管理：匯出
+        /* 數據管理：匯出 */
         function exportData() {
-            const data = {
-                portfolio,
-                isPrivacyOn,
-                cashPosition,
-                tradeHistory,
-                accumulatedRealizedPnL,
-                version: CURRENT_VERSION,
-                exportDate: new Date().toISOString()
-            };
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `stocklens_backup_${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
+            try {
+                console.log('Exporting data...');
+                const data = {
+                    portfolio,
+                    isPrivacyOn,
+                    cashPosition,
+                    tradeHistory,
+                    accumulatedRealizedPnL,
+                    version: typeof CURRENT_VERSION !== 'undefined' ? CURRENT_VERSION : '3.0',
+                    exportDate: new Date().toISOString()
+                };
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `stocklens_backup_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a); // 確保在 DOM 中
+                a.click();
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 0);
+                console.log('Export successful');
+            } catch (error) {
+                console.error('Export failed:', error);
+                alert('匯出失敗: ' + error.message);
+            }
         }
 
-        // 數據管理：匯入
+        /* 數據管理：匯入 */
         function importData(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -1028,6 +1042,7 @@
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
+                    console.log('Importing data...');
                     const data = JSON.parse(e.target.result);
                     
                     if (confirm('匯入將會覆蓋目前的數據，確定要繼續嗎？')) {
