@@ -1,0 +1,411 @@
+16:        :root { --neon: #00f2ff; --bg: #0b0f1a; --card: #161c2d; }
+18:        html, body {
+27:        }
+29:        body { 
+33:        }
+35:        .neon-text { 
+39:        }
+40:        .glass-card { background: rgba(22, 28, 45, 0.8); backdrop-filter: blur(10px); }
+42:        .scroll-container { 
+46:        }
+48:        .no-scrollbar::-webkit-scrollbar { display: none; }
+50:        input { 
+56:        }
+57:        input:focus { border-color: var(--neon) !important; outline: none; }
+59:        .btn-action:active { transform: scale(0.96); opacity: 0.8; }
+61:        .number-animate {
+63:        }
+65:        @keyframes numberRoll {
+66:            0% { text-shadow: 0 0 5px rgba(0, 242, 255, 0.3); color: rgba(255, 255, 255, 0.7); }
+67:            50% { text-shadow: 0 0 15px rgba(0, 242, 255, 0.8), 0 0 25px rgba(0, 242, 255, 0.4); color: rgba(255, 255, 255, 1); }
+68:            100% { text-shadow: 0 0 5px rgba(0, 242, 255, 0.2); color: rgba(255, 255, 255, 1); }
+69:        }
+71:        .brand-marquee {
+77:        }
+79:        @keyframes marqueeScroll {
+80:            0% { transform: translateX(100%); }
+81:            100% { transform: translateX(-100%); }
+82:        }
+84:        #addModal, #sellModal, #buyModal, #editModal, #infoModal, #compoundModal, #confirmDeleteModal, #editCashConfirmModal {
+94:        }
+96:        th { white-space: nowrap; font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 800; }
+97:        td { white-space: nowrap; }
+99:        .badge-lvrg {
+110:        }
+112:        .chart-wrapper {
+116:        }
+118:        .switch {
+123:        }
+124:        .switch input { opacity: 0; width: 0; height: 0; }
+125:        .slider {
+132:        }
+133:        .slider:before {
+141:        }
+142:        input:checked + .slider { background-color: #f43f5e; }
+143:        input:checked + .slider:before { transform: translateX(20px); }
+145:        .switch-bond input:checked + .slider { background-color: #a855f7; }
+146:        .status-dot {
+152:        }
+153:        .status-success { background-color: #10b981; box-shadow: 0 0 6px #10b981; }
+154:        .status-error { background-color: #ef4444; box-shadow: 0 0 6px #ef4444; }
+155:        .last-update-time { font-size: 8px; color: #64748b; font-weight: bold; }
+621:        try {
+630:        } catch (e) {
+632:        }
+637:        function saveToStorage() {
+645:        }
+647:        function loadFromStorage() {
+651:            if (savedCashBalance !== null) {
+654:            }
+655:            if (savedExtraCash !== null) {
+658:            }
+660:        }
+662:        function updateCashBalanceValue(newValue) {
+668:        }
+670:        function updateCashBalance() {
+672:            if (cashBalanceEl) {
+675:            }
+676:        }
+679:        function animateNumber(element, targetValue, duration = 1500) {
+684:            function update(currentTime) {
+694:                if (progress < 1) {
+696:                }
+697:            }
+700:        }
+703:        function recordTrade(type, symbol, shares, price, amount, pnl = 0) {
+704:            const trade = {
+713:            };
+717:        }
+720:        function updateTradeStats() {
+731:        }
+734:        function showTradeHistory() {
+738:            if (tradeHistory.length === 0) {
+741:            } else {
+747:                            <td class="px-4 py-4 text-center text-[11px] text-slate-400">${new Date(trade.date).toLocaleDateString()}</td>
+749:                                <span class="px-2 py-1 rounded text-xs font-bold ${trade.type === 'BUY' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}">
+750:                                    ${trade.type === 'BUY' ? '買入' : '賣出'}
+753:                            <td class="px-4 py-4 text-[11px] font-bold text-white uppercase">${trade.symbol}</td>
+754:                            <td class="px-4 py-4 text-right text-[11px] font-mono text-slate-300">${formatVal(trade.shares, 0, true)}</td>
+755:                            <td class="px-4 py-4 text-right text-[11px] font-mono text-slate-400">${formatVal(trade.price, 2, false)}</td>
+756:                            <td class="px-4 py-4 text-right text-[11px] font-mono text-slate-300">${formatVal(Math.round(trade.amount), 0, true)}</td>
+757:                            <td class="px-4 py-4 text-right text-[11px] font-mono ${trade.pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}">
+758:                                ${trade.type === 'SELL' ? (trade.pnl >= 0 ? '+' : '') + formatVal(Math.round(trade.pnl), 0, true) : '-'}
+761:                                 <button data-trade-id="${trade.id}" class="edit-trade-btn text-amber-500/60 hover:text-amber-400 btn-action p-1 mr-2" type="button">
+766:                                 <button data-trade-id="${trade.id}" class="delete-trade-btn text-rose-500/60 hover:text-rose-500 btn-action p-1" type="button">
+777:        }
+779:        function closeTradeHistoryModal() {
+781:        }
+783:        function clearTradeHistory() {
+784:            if (confirm('⚠️ 重要確認：確定要清空所有交易記錄嗎？\n\n這將刪除所有的買入和賣出記錄，此操作無法復原！')) {
+785:                if (confirm('最後確認：您真的要永久刪除所有交易記錄嗎？')) {
+791:                }
+792:            }
+793:        }
+795:        function handleEditTrade(tradeId) {
+797:        }
+799:        function handleDeleteTrade(tradeId) {
+801:        }
+803:        function editTrade(tradeId) {
+807:            const confirmMessage = `確定要編輯這筆 ${trade.type === 'BUY' ? '買入' : '賣出'} ${trade.symbol} 的交易記錄嗎？\n\n目前資訊：\n金額: ${formatVal(Math.round(trade.amount), 0, false)} TWD\n股數: ${trade.shares}\n價格: ${formatVal(trade.price, 2, false)}`;
+809:            if (confirm(confirmMessage)) {
+816:            }
+817:        }
+819:        function closeEditTradeModal() {
+821:        }
+823:        function saveEditedTrade() {
+829:            if (!newShares || !newPrice || !newDate) {
+832:            }
+835:            if (tradeIndex !== -1) {
+842:                if (tradeHistory[tradeIndex].type === 'SELL') {
+848:                    for (const buyTrade of buyTrades) {
+853:                    }
+856:                }
+863:            }
+864:        }
+866:        function confirmDeleteTrade(tradeId) {
+870:            const confirmMessage = `確定要刪除這筆 ${trade.type === 'BUY' ? '買入' : '賣出'} ${trade.symbol} 的交易記錄嗎？\n\n金額: ${formatVal(Math.round(trade.amount), 0, false)} TWD\n股數: ${trade.shares}\n價格: ${formatVal(trade.price, 2, false)}\n\n此操作無法復原！`;
+872:            if (confirm(confirmMessage)) {
+873:                if (confirm('最後確認：您真的要永久刪除這筆交易記錄嗎？')) {
+875:                }
+876:            }
+877:        }
+879:        function deleteTrade(tradeId) {
+884:        }
+886:        function formatVal(val, decimals = 0, sensitive = false) {
+888:            return Number(val).toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+889:        }
+891:        function togglePrivacy() {
+897:        }
+899:        function updatePrivacyUI() {
+901:            if (isPrivacyOn) {
+903:            } else {
+905:            }
+906:        }
+908:        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+909:        function closeModal(id) {
+911:            if (id !== 'compoundModal' && id !== 'confirmDeleteModal' && id !== 'editCashConfirmModal' && id !== 'editTradeModal') {
+913:                inputs.forEach(i => { if(i.type === 'checkbox') i.checked = false; else i.value = ''; });
+914:            }
+915:        }
+917:        function calculateCompound() {
+933:            for (let m = 1; m <= months; m++) {
+934:                if (m > 1) { total += monthlyContribution; totalInvested += monthlyContribution; }
+936:            }
+940:        }
+942:        function openEditModal(id) {
+950:            document.getElementById('editModalTitle').innerText = `Edit ${item.symbol}`;
+952:        }
+956:        function processEditAsset() {
+963:            if (shares <= 0) {
+967:            }
+970:            if (!item) {
+973:            }
+979:            if (shareDiff !== 0) {
+985:                pendingEditData = { id, shares, cost, isLvrg, isBond, shareDiff, cashChange, isIncrease };
+987:                    `${isIncrease ? '買入' : '賣出'} ${Math.abs(shareDiff)} 股，${isIncrease ? '減少' : '增加'} 現金約 ${formatVal(Math.round(cashChange), 0, false)} TWD`;
+990:            } else {
+995:                if (isBond) {
+997:                } else if (item.category === 'BOND') {
+1000:                }
+1004:            }
+1005:        }
+1007:        function processEditAssetConfirm(updateCash) {
+1008:            if (!pendingEditData) {
+1011:            }
+1013:            const { id, shares, cost, isLvrg, isBond, shareDiff, cashChange, isIncrease } = pendingEditData;
+1016:            if (item) {
+1021:                if (isBond) {
+1023:                } else if (item.category === 'BOND') {
+1026:                }
+1029:                if (updateCash) {
+1032:                        if (isIncrease) {
+1034:                            if (currentCash >= cashChange) {
+1036:                            } else {
+1038:                            }
+1039:                        } else {
+1042:                        }
+1043:                }
+1047:            }
+1051:        }
+1053:        async function processAddAsset() {
+1067:            if (existingIndex !== -1) {
+1071:            } else {
+1074:                const newItem = { id: newId, symbol: sym, name: "載入中...", category: info.cat, isLeverage: info.isLeverage, currency: info.cur, shares, cost, target: 0, price: 0 };
+1076:                try {
+1078:                } catch (e) {
+1080:                }
+1081:            }
+1085:        }
+1087:        function processSellAsset() {
+1092:            if (!sym) {
+1095:            }
+1096:            if (isNaN(sharesToSell) || sharesToSell <= 0) {
+1099:            }
+1100:            if (isNaN(sellPrice) || sellPrice <= 0) {
+1103:            }
+1105:            if (existingIndex === -1) {
+1106:                alert(`❌ 錯誤：找不到 ${sym} 的持股記錄`);
+1108:            }
+1111:            if (sharesToSell > p.shares) {
+1112:                alert(`❌ 錯誤：賣出股數超過持有數量\n持有股數：${formatVal(p.shares, 0, false)}\n欲賣出股數：${formatVal(sharesToSell, 0, false)}`);
+1114:            }
+1123:                if (sharesToSell >= p.shares) {
+1133:                } else {
+1144:                }
+1146:            }
+1148:        async function processBuyAsset() {
+1159:            if (!sym) {
+1162:            }
+1163:            if (isNaN(sharesToBuy) || sharesToBuy <= 0) {
+1166:            }
+1167:            if (isNaN(buyPrice) || buyPrice <= 0) {
+1170:            }
+1174:            if (existingIndex !== -1) {
+1176:            } else {
+1180:                item = { id: newId, symbol: sym, name: "載入中...", category: info.cat, isLeverage: info.isLeverage, currency: info.cur, shares: 0, cost: buyPrice, target: 0, price: buyPrice };
+1182:                try {
+1184:                } catch (e) {
+1186:                }
+1187:            }
+1195:            if (currentCash < cashDecrease) {
+1196:                alert(`❌ 現金水位不足！\n\n當前現金：${formatVal(Math.round(currentCash), 0, false)} TWD\n所需金額：${formatVal(Math.round(cashDecrease), 0, false)} TWD`);
+1198:            }
+1201:            if (existingIndex !== -1) {
+1205:            } else {
+1208:            }
+1219:        }
+1221:        async function fetchWithRetry(url, retries = 2) {
+1224:                (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+1225:                (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+1226:                (u) => `https://thingproxy.freeboard.io/fetch/${u}`,
+1227:                (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
+1231:            const antiCacheUrl = url + (url.includes('?') ? '&' : '?') + `_=${Date.now()}`;
+1233:            for (let i = 0; i < retries; i++) {
+1234:                for (let proxyFn of proxies) {
+1235:                    try {
+1238:                        const res = await fetch(proxyFn(antiCacheUrl), { 
+1240:                            headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+1241:                        });
+1244:                    } catch (e) {
+1245:                        console.warn(`Proxy failed: ${e.message}`);
+1246:                    }
+1247:                }
+1248:            }
+1250:        }
+1252:        async function fetchPriceAndInfo(item) {
+1254:            let tickers = /^\d/.test(rawSymbol) ? [`${rawSymbol}.TW`, `${rawSymbol}.TWO`] : [rawSymbol];
+1257:            for (let t of tickers) {
+1258:                try {
+1259:                    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d`;
+1261:                    if (data.chart?.result?.[0]) {
+1271:                    }
+1272:                } catch (e) { 
+1273:                    console.warn(`Fetch error for ${t}:`, e); 
+1275:                }
+1276:            }
+1277:        }
+1279:        async function handleRefreshClick() {
+1285:            try {
+1288:                for (let item of portfolio) { 
+1292:                }
+1297:                if (successCount === portfolio.length) {
+1299:                } else {
+1300:                    btn.innerText = `完成 (${successCount}/${portfolio.length})`;
+1301:                }
+1302:                setTimeout(() => { btn.innerText = originalText; btn.disabled = false; }, 1500);
+1303:            } catch (e) {
+1306:                setTimeout(() => { btn.innerText = originalText; btn.disabled = false; }, 2000);
+1307:            }
+1308:        }
+1310:        async function fetchFX() {
+1311:            try {
+1315:            } catch (e) { 
+1318:            }
+1319:        }
+1321:        function getCategoryInfo(symbol, name = "") {
+1328:            if (isBond) return { cat: 'BOND', cur: (/^[A-Z]/.test(s) ? 'USD' : 'TWD'), isLeverage: isLvrg };
+1329:            if (/^\d/.test(s)) return { cat: 'TW', cur: 'TWD', isLeverage: isLvrg };
+1330:            return { cat: 'US', cur: 'USD', isLeverage: isLvrg };
+1331:        }
+1333:        function updateVal(id, field, val) {
+1335:            if (item) { item[field] = parseFloat(val) || 0; saveAndRefresh(); }
+1336:        }
+1338:        function triggerDeleteConfirm(id) {
+1341:            document.getElementById('deleteTargetName').innerText = `${item.symbol} (${item.name})`;
+1343:            btn.onclick = () => {
+1348:            };
+1350:        }
+1352:        function saveAndRefresh() { saveToStorage(); finalizeUpdate(); }
+1354:        function finalizeUpdate() {
+1360:            portfolio.forEach(item => {
+1366:                const cstEl = document.getElementById(`cst-${item.id}`);
+1367:                const priEl = document.getElementById(`pri-${item.id}`);
+1368:                const invEl = document.getElementById(`inv-${item.id}`);
+1369:                const mktEl = document.getElementById(`mkt-${item.id}`);
+1370:                const prfEl = document.getElementById(`prf-${item.id}`);
+1375:                if (prfEl) {
+1380:                    prfEl.innerHTML = `<div class="${colorClass} font-black text-xs">${isUp ? '+' : ''}${formatVal(Math.round(diff), 0, true)}</div><div class="${colorClass} font-bold text-[9px] opacity-80">${isUp ? '+' : ''}${pct}%</div>`;
+1381:                }
+1382:            });
+1401:            [totalCostEl, cashInCostEl, totalEl].forEach(el => {
+1402:                if (el) {
+1405:                }
+1406:            });
+1410:            if (pDisp) {
+1412:                pDisp.className = `text-sm font-mono font-bold leading-none number-animate ${totalProfit >= 0 ? 'text-rose-500' : 'text-emerald-500'}`;
+1413:            }
+1414:            if (pctDisp) {
+1416:                pctDisp.className = `text-sm font-black font-bold leading-none number-animate ${totalProfit >= 0 ? 'text-rose-500' : 'text-emerald-500'}`;
+1417:            }
+1419:            setTimeout(() => {
+1422:            }, 800);
+1425:        }
+1427:        function render() {
+1430:            if (portfolio.length === 0) { document.getElementById('emptyState').classList.remove('hidden'); finalizeUpdate(); return; }
+1432:            const cats = { TW: '台股 TAIPEI', US: '美股 US STOCK', BOND: '債券 BONDS' };
+1433:            for (let k in cats) {
+1437:                tbody.innerHTML += `<tr><td colspan="9" class="px-4 py-2 bg-slate-800/60 text-[9px] font-black text-cyan-400 uppercase tracking-[0.2em] border-y border-slate-700/50">${cats[k]}</td></tr>`;
+1438:                sortedItems.forEach(item => {
+1440:                    const updateTimeStr = item.lastUpdateTime ? `<div class="last-update-time">${item.lastUpdateTime}</div>` : '';
+1444:                            <td class="px-4 py-5 text-center"><input type="number" oninput="updateVal(${item.id}, 'target', this.value)" value="${item.target}" class="w-10 py-1 text-center text-[11px] text-cyan-400 font-black rounded-lg bg-slate-900 border border-slate-700"></td>
+1447:                                    ${statusClass ? `<span class="status-dot ${statusClass}"></span>` : ''}
+1448:                                    <div class="text-[11px] font-black uppercase text-white">${item.symbol}${item.isLeverage ? '<span class="badge-lvrg">L</span>' : ''}</div>
+1450:                                ${updateTimeStr}
+1452:                            <td class="px-3 py-5 text-[10px] font-mono text-slate-300 font-bold">${formatVal(item.shares, 0, true)}</td>
+1453:                            <td class="px-3 py-5 text-right text-[11px] font-mono text-slate-400" id="cst-${item.id}">--</td>
+1454:                            <td class="px-3 py-5 text-right text-[11px] font-mono text-cyan-400 font-black" id="pri-${item.id}">--</td>
+1455:                            <td class="px-3 py-5 text-right text-[11px] font-mono text-slate-500 font-bold" id="inv-${item.id}">0</td>
+1456:                            <td class="px-3 py-5 text-right text-[11px] font-mono text-slate-200 font-bold" id="mkt-${item.id}">0</td>
+1457:                            <td class="px-4 py-5 text-right" id="prf-${item.id}"></td>
+1459:                                <button onclick="openEditModal(${item.id})" class="text-amber-500/60 hover:text-amber-400 btn-action p-2">
+1462:                                <button onclick="triggerDeleteConfirm(${item.id})" class="text-rose-500/60 hover:text-rose-500 btn-action p-2">
+1470:                });
+1471:            }
+1473:        }
+1475:        function drawMainCharts(total, cashAmountForCharts) {
+1476:            if (total <= 0) { if (mainChart) mainChart.destroy(); if (strategyChart) strategyChart.destroy(); return; }
+1479:            if (hasLvrg) { sCont.classList.remove('hidden'); mCont.classList.replace('w-full', 'w-1/2'); }
+1480:            else { sCont.classList.add('hidden'); mCont.classList.replace('w-1/2', 'w-full'); }
+1481:            const catOrder = ['TW', 'US', 'BOND'], catLabels = { TW: '台股', US: '美股', BOND: '債券' }, catColors = { TW: 'rgba(6,182,212,0.5)', US: 'rgba(59,130,246,0.5)', BOND: 'rgba(168,85,247,0.5)', CASH: 'rgba(71,85,105,0.4)' };
+1483:            catOrder.forEach(cat => {
+1485:                if (items.length > 0) {
+1487:                    items.forEach((item, idx) => {
+1490:                        outBG.push(`hsla(${hue}, 60%, ${45 + (idx%4)*8}%, 0.8)`);
+1491:                    });
+1492:                }
+1493:            });
+1494:            if (cashAmountForCharts > 0) {
+1497:            }
+1499:            mainChart = new Chart(document.getElementById('mainChart').getContext('2d'), {
+1501:                data: { datasets: [{ data: outData, backgroundColor: outBG, borderWidth: 1, borderColor: '#0b0f1a', weight: 2, datalabels: { color: '#fff', font: { size: 7, weight: '800' }, formatter: (v, ctx) => (v/total*100) > 5 ? `${outLabels[ctx.dataIndex]}\n${(v/total*100).toFixed(0)}%` : '', textAlign: 'center' } }, { data: inData, backgroundColor: inBG, borderWidth: 1, borderColor: '#0b0f1a', weight: 1, datalabels: { color: '#fff', font: { size: 9, weight: '900' }, formatter: (v, ctx) => (v/total*100) > 10 ? `${inLabels[ctx.dataIndex]}` : '' } }] },
+1502:                options: { responsive: true, maintainAspectRatio: false, cutout: '35%', plugins: { legend: { display: false } } }
+1503:            });
+1504:            if (hasLvrg) {
+1511:                strategyChart = new Chart(document.getElementById('strategyChart').getContext('2d'), {
+1513:                    data: { labels: sL, datasets: [{ data: sD, backgroundColor: sC, borderWidth: 2, borderColor: '#0b0f1a' }] },
+1514:                    options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { display: false }, datalabels: { color: '#fff', font: { size: 10, weight: '900' }, formatter: (v, ctx) => (v/total*100) > 5 ? `${sL[ctx.dataIndex]}\n${(v/total*100).toFixed(0)}%` : '' } } }
+1515:                });
+1516:            }
+1517:        }
+1519:        function drawTargetChart() {
+1520:            if (portfolio.length === 0) { if (targetChart) targetChart.destroy(); return; }
+1526:            targetChart = new Chart(document.getElementById('targetChart').getContext('2d'), {
+1528:                data: { 
+1531:                        { label: '實際', data: activeAssets.map(i => currentSelectedMarketTotal > 0 ? (i.currentValTWD / currentSelectedMarketTotal * 100).toFixed(1) : 0), backgroundColor: 'rgba(0,242,255,0.6)', borderRadius: 6, datalabels: { color: '#00f2ff', anchor: 'end', align: 'top' } }, 
+1532:                        { label: '目標', data: activeAssets.map(i => sumTargetUnits > 0 ? (i.target / sumTargetUnits * 100).toFixed(1) : 0), backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 6, borderColor: 'rgba(255,255,255,0.15)', borderWidth: 1, datalabels: { color: '#64748b', anchor: 'end', align: 'top', offset: -15 } }
+1534:                },
+1535:                options: { 
+1536:                    responsive: true, maintainAspectRatio: false, layout: { padding: { top: 25 } },
+1537:                    scales: { x: { ticks: { color: '#64748b', font: { size: 9, weight: '900' } }, grid: { display: false } }, y: { display: false } }, 
+1538:                    plugins: { legend: { display: false }, datalabels: { font: { size: 9, weight: 'bold' }, formatter: (v) => v + '%' } } 
+1539:                }
+1540:            });
+1541:        }
+1543:        function triggerAdvice() {
+1548:            if (rebalance_assets.length === 0) {
+1551:            }
+1555:            let rebalance_result = rebalance_assets.map(asset => {
+1562:                return {
+1571:                };
+1572:            });
+1575:            if (filteredResults.length === 0) {
+1578:            }
+1579:            filteredResults.forEach(res => {
+1582:                div.className = `p-4 rounded-2xl border ${isBuy ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-rose-500/20 bg-rose-500/5'} flex justify-between items-center shadow-sm`;
+1585:                        <div class="w-8 h-8 rounded-full flex items-center justify-center font-black text-[10px] ${isBuy ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}\">${isBuy ? '買' : '賣'}</div>
+1587:                            <span class="text-[10px] font-black text-white uppercase tracking-wider">${res.asset_id}</span>
+1588:                            <div class="text-[9px] text-slate-500 font-bold mt-0.5 uppercase">預估金額 ${formatVal(Math.round(res.amountTWD), 0, true)} TWD</div>
+1592:                        <span class="font-black ${isBuy?'text-emerald-400':'text-rose-400'} text-xs uppercase italic tracking-tighter">${isBuy?'+':'-'} ${formatVal(res.shares, 0, true)} 股</span>
+1595:            });
+1596:        }
+1600:        function initTradeHistoryEvents() {
+1606:            tradeHistoryTableBody.addEventListener('click', function(event) {
+1609:                if (target.closest('.edit-trade-btn')) {
+1615:                }
+1617:                if (target.closest('.delete-trade-btn')) {
+1623:                }
+1624:            });
+1626:        }
+1628:        window.onload = async () => {
+1633:            if (portfolio.length > 0) { await handleRefreshClick(); }
+1634:        };

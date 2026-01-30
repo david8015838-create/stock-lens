@@ -1,7 +1,8 @@
-braces.txt
-braces_close.txt
-check_braces.py
 node_modules
+dist
 .vercel
 .DS_Store
 .env*.local
+Library/
+*.log
+
