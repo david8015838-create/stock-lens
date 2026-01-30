@@ -993,6 +993,7 @@
         Chart.register(ChartDataLabels);
         let portfolio = JSON.parse(localStorage.getItem('stocklens_portfolio')) || [];
         let isPrivacyOn = JSON.parse(localStorage.getItem('stocklens_privacy')) || false;
+        let isUpdatingGlobal = false; // 修正：宣告全域變數以避免 ReferenceError
         let cashPosition = parseFloat(localStorage.getItem('stocklens_cashPosition')) || 0;
         let tradeHistory = JSON.parse(localStorage.getItem('stocklens_tradeHistory')) || [];
         let accumulatedRealizedPnL = parseFloat(localStorage.getItem('stocklens_accumulatedPnL')) || 0;
@@ -1496,7 +1497,11 @@
         }
 
         async function handleRefreshClick() {
-            if (isUpdatingGlobal) return;
+            console.log('Sync clicked'); // 除錯用
+            if (isUpdatingGlobal) {
+                console.log('Sync already in progress');
+                return;
+            }
             isUpdatingGlobal = true;
             
             const btn = document.getElementById('refreshBtn');
@@ -1505,6 +1510,19 @@
 
             try {
                 const fxPromise = fetchFX();
+                
+                // 如果沒有資產，只更新匯率
+                if (portfolio.length === 0) {
+                    console.log('Portfolio is empty, only updating FX');
+                    await fxPromise;
+                    btn.textContent = 'SUCCESS ✓';
+                    setTimeout(() => {
+                        btn.textContent = 'Sync';
+                        btn.classList.remove('updating');
+                    }, 2000);
+                    return;
+                }
+
                 const symbols = portfolio.map(item => {
                     const sym = item.symbol.trim().toUpperCase();
                     if (sym.includes('.')) return sym;
@@ -2471,6 +2489,21 @@
             }, { passive: true });
         }
         window.addEventListener('load', initSwipeNavigation);
+        
+        // 修正：補上缺失的 forceHardReset 函數並清理快取
+        function forceHardReset() {
+            if (confirm('確定要強制清空緩存並重置嗎？這將會清除所有本地數據！')) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
+
+        // 修正：全域錯誤捕捉，幫助手機端診斷
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error('Global Error:', message, 'at', source, lineno, colno);
+            // alert('系統錯誤: ' + message + '\n行號: ' + lineno);
+            return false;
+        };
     </script>
     <nav class="bottom-nav">
         <div class="nav-item active" onclick="switchTab('tab-home', this)">
