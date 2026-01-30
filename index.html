@@ -1502,33 +1502,24 @@
                 if (proxyStatus[config.name] && now < proxyStatus[config.name]) {
                     throw new Error(`${config.name} cooling`);
                 }
-
                 if (delay > 0) await new Promise(r => setTimeout(r, delay));
-                
                 const controller = new AbortController();
-                // 縮短超時時間：Vercel API 2.5秒，其他 4秒
-                const timeoutMs = config.name === 'Vercel-API' ? 2500 : 4000;
+                // 極速超時：Vercel API 2.5秒，其他代理 3秒
+                const timeoutMs = config.name === 'Vercel-API' ? 2500 : 3000;
                 const timeoutId = setTimeout(() => controller.abort(), timeoutMs); 
-                
                 try {
                     const finalUrl = config.fn(targetUrl);
                     const response = await fetch(finalUrl, { 
                         signal: controller.signal,
                         cache: 'no-store'
                     });
-                    
                     if (response.status === 429 || response.status === 403) {
-                        // 429 縮短冷卻至 10 秒，403 保持 30 秒
-                        const cooldownMs = response.status === 429 ? 10000 : 30000;
-                        proxyStatus[config.name] = Date.now() + cooldownMs;
+                        proxyStatus[config.name] = Date.now() + 15000; // 稍微縮短冷卻
                         throw new Error(`Status ${response.status}`);
                     }
-
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    
                     let text = await response.text();
                     if (!text || text.length < 20) throw new Error('Empty');
-
                     let data;
                     try {
                         data = JSON.parse(text);
@@ -1540,47 +1531,46 @@
                         if (text.trim().startsWith('{')) data = JSON.parse(text);
                         else throw new Error('Not JSON');
                     }
-
                     if (data && (data.quoteResponse || data.chart)) {
                         console.log(`[Fetch] Winner: ${config.name}`);
                         return data;
                     }
                     throw new Error('Invalid Data');
                 } catch (err) {
+                    if (err.name === 'AbortError' || err.message.includes('HTTP')) {
+                        proxyStatus[config.name] = Date.now() + 3000; // 縮短失敗鎖定
+                    }
                     if (config.name === 'Direct') throw new Error('CORS/Blocked');
-                    if (err.name === 'AbortError') throw new Error('Timeout');
                     throw err;
                 } finally {
                     clearTimeout(timeoutId);
                 }
             };
 
-            // 競爭模式邏輯優化
             const getActiveProxies = () => {
                 const now = Date.now();
                 return proxyConfigs.filter(p => p.name !== 'Direct' && (!proxyStatus[p.name] || now > proxyStatus[p.name]));
             };
 
-            // 1. 優先嘗試 Vercel API (自定義後端)
-            try {
-                return await fetchFromProxy(proxyConfigs[0]);
-            } catch (e) {
-                // Vercel 失敗後繼續嘗試其他代理
-            }
-
             const active = getActiveProxies();
-            if (active.length === 0) active.push(proxyConfigs[1], proxyConfigs[2]);
-            // 將 Vercel 移出 active，因為剛才試過了
+            const vercel = active.find(p => p.name === 'Vercel-API');
             const others = active.filter(p => p.name !== 'Vercel-API');
             others.sort(() => Math.random() - 0.5);
 
             try {
-                // 第一輪：同時發送 3 個代理請求，間隔更短 (200ms)
-                return await Promise.any(others.slice(0, 3).map((p, i) => fetchFromProxy(p, i * 200)));
+                // 第一輪：Vercel API + 1 個隨機代理同時競爭
+                const firstRound = [];
+                if (vercel) firstRound.push(fetchFromProxy(vercel));
+                if (others.length > 0) firstRound.push(fetchFromProxy(others[0], 50));
+                
+                if (firstRound.length === 0) throw new Error('No proxies');
+                return await Promise.any(firstRound);
             } catch (e) {
                 try {
                     // 第二輪：剩下的所有代理
-                    return await Promise.any(others.slice(3).map((p, i) => fetchFromProxy(p, i * 200)));
+                    const remaining = others.slice(1);
+                    if (remaining.length === 0) throw new Error('No more proxies');
+                    return await Promise.any(remaining.map((p, i) => fetchFromProxy(p, i * 100)));
                 } catch (e2) {
                     throw new Error('All proxies failed');
                 }
@@ -1591,82 +1581,83 @@
             const rawSymbol = item.symbol.trim().toUpperCase();
             let tickers = [];
             
-            // 判斷是否為台股/台灣債券格式 (數字開頭，或 B 開頭加數字)
-            if (/^\d/.test(rawSymbol) || /^B\d/.test(rawSymbol)) {
+            // 預處理：精確識別各類資產 (台股、台債、槓桿型、美股、美債)
+            if (rawSymbol.includes('.')) {
+                tickers = [rawSymbol];
+            } else if (/^\d/.test(rawSymbol) || rawSymbol.startsWith('B')) {
+                // 台股 (2330), 台債 (B00001), 槓桿型/債券 ETF (00631L, 00772B)
                 if (rawSymbol.startsWith('B')) {
-                    // 台灣政府公債 (如 B20255) 大多在櫃買中心 (.TWO)
+                    // 台債 (櫃買中心為主)
+                    tickers = [`${rawSymbol}.TWO`, `${rawSymbol}.TW`, rawSymbol];
+                } else if (rawSymbol.endsWith('B')) {
+                    // 債券型 ETF (櫃買中心為主)
                     tickers = [`${rawSymbol}.TWO`, `${rawSymbol}.TW`];
-                } else if (rawSymbol.length === 4) {
-                    // 2330, 2317 等主要股票優先嘗試 .TW
-                    tickers = [`${rawSymbol}.TW`, `${rawSymbol}.TWO`];
-                } else if (rawSymbol.startsWith('00')) {
-                    if (rawSymbol.endsWith('B') || rawSymbol.length === 6) {
-                        // 債券 ETF (如 00679B) 大多在櫃買中心 (.TWO)
-                        tickers = [`${rawSymbol}.TWO`, `${rawSymbol}.TW`];
-                    } else if (rawSymbol.length >= 5) {
-                        // 0050, 00878 等主流 ETF 都在上市 (.TW)
-                        tickers = [`${rawSymbol}.TW`, `${rawSymbol}.TWO`];
-                    } else {
-                        tickers = [`${rawSymbol}.TW`, `${rawSymbol}.TWO`];
-                    }
                 } else {
+                    // 普通台股、槓桿型 ETF (證交所為主)
                     tickers = [`${rawSymbol}.TW`, `${rawSymbol}.TWO`];
                 }
             } else {
-                // 美股或已帶後綴的代碼
-                tickers = [rawSymbol.includes('.') ? rawSymbol : `${rawSymbol}`];
+                // 美股 (VOO, AAPL), 美債 ETF (TLT, BND)
+                tickers = [rawSymbol];
             }
             
             item.isUpdating = true;
             render(); 
             
             try {
-                for (let t of tickers) {
-                    try {
-                        console.log(`[Fetch] Trying Price for ${t}...`);
-                        const isTW = t.endsWith('.TW') || t.endsWith('.TWO') || t.startsWith('B');
-                        
-                        // 1. 優先嘗試 Chart API (最穩定)
-                        const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d&t=${Date.now()}`;
-                        const chartData = await fetchWithRetry(chartUrl);
-                        
-                        if (chartData?.chart?.result?.[0]?.meta?.regularMarketPrice > 0) {
-                            const price = chartData.chart.result[0].meta.regularMarketPrice;
-                            console.log(`[Fetch] Chart API Success! Price for ${t}: ${price}`);
-                            item.price = price;
-                            return;
-                        }
-                        
-                        // 2. 備援：Quote V7 API
-                        const params = isTW ? '&lang=zh-Hant-TW&region=TW' : '&lang=en-US&region=US';
-                        const quoteUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${t}${params}&t=${Date.now()}`;
-                        const data = await fetchWithRetry(quoteUrl);
-                        
-                        if (data?.quoteResponse?.result?.[0]?.regularMarketPrice > 0) {
-                            const price = data.quoteResponse.result[0].regularMarketPrice;
-                            console.log(`[Fetch] Quote V7 Success! Price for ${t}: ${price}`);
-                            item.price = price;
-                            return; 
-                        }
+                const ts = Date.now();
+                const allTasks = [];
 
-                        // 3. 針對債券的特殊備援：Quote V6 API (有時 V7 抓不到公債)
-                        if (isTW && (t.startsWith('B') || t.includes('B'))) {
-                            const v6Url = `https://query1.finance.yahoo.com/v6/finance/quote?symbols=${t}&t=${Date.now()}`;
-                            const v6Data = await fetchWithRetry(v6Url);
-                            if (v6Data?.quoteResponse?.result?.[0]?.regularMarketPrice > 0) {
-                                const price = v6Data.quoteResponse.result[0].regularMarketPrice;
-                                console.log(`[Fetch] Quote V6 Success! Price for ${t}: ${price}`);
-                                item.price = price;
-                                return;
-                            }
-                        }
-                    } catch (e) { 
-                        console.warn(`Price fetch failed for ${t}:`, e); 
-                    }
+                for (let t of tickers) {
+                    const isTW = t.endsWith('.TW') || t.endsWith('.TWO') || t.startsWith('B');
+                    console.log(`[Fetch] Queueing tasks for ${item.symbol} as Ticker: ${t}`);
+                    
+                    // Chart API 任務 (立即開始)
+                    allTasks.push(
+                        fetchWithRetry(`https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d&t=${ts}`).then(data => {
+                            const p = data.chart?.result?.[0]?.meta?.regularMarketPrice;
+                            if (p > 0) return { price: p, ticker: t, source: 'Chart' };
+                            throw new Error('No Chart Price');
+                        })
+                    );
+
+                    // Quote V7 API 任務 (延遲 100ms)
+                    const params = isTW ? '&lang=zh-Hant-TW&region=TW' : '&lang=en-US&region=US';
+                    allTasks.push(
+                        new Promise(r => setTimeout(r, 100)).then(() => 
+                            fetchWithRetry(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${t}${params}&t=${ts}`)
+                        ).then(data => {
+                            const p = data.quoteResponse?.result?.[0]?.regularMarketPrice;
+                            if (p > 0) return { price: p, ticker: t, source: 'QuoteV7' };
+                            throw new Error('No Quote V7 Price');
+                        })
+                    );
+
+                    // Quote V6 備援任務 (延遲 200ms)
+                    allTasks.push(
+                        new Promise(r => setTimeout(r, 200)).then(() => 
+                            fetchWithRetry(`https://query1.finance.yahoo.com/v6/finance/quote?symbols=${t}&t=${ts}`)
+                        ).then(data => {
+                            const p = data.quoteResponse?.result?.[0]?.regularMarketPrice;
+                            if (p > 0) return { price: p, ticker: t, source: 'QuoteV6' };
+                            throw new Error('No Quote V6 Price');
+                        })
+                    );
                 }
-                console.error(`[Fetch] All price strategies failed for ${item.symbol}`);
+
+                if (allTasks.length === 0) throw new Error('No fetch tasks created');
+                console.log(`[Fetch] Total parallel tasks for ${item.symbol}: ${allTasks.length}`);
+
+                // 全並行競爭：只要任一個組合成功就立刻返回
+                const winner = await Promise.any(allTasks);
+                if (winner && winner.price > 0) {
+                    console.log(`[Fetch] Winner Ticker: ${winner.ticker}, Price: ${winner.price}, Source: ${winner.source}`);
+                    item.price = winner.price;
+                } else {
+                    throw new Error('No valid price found');
+                }
             } catch (e) {
-                console.error(`[Fetch] Critical error for ${item.symbol}:`, e);
+                console.error(`[Fetch] All strategies failed for ${item.symbol}:`, e);
             } finally {
                 item.isUpdating = false;
                 render();
@@ -1741,12 +1732,13 @@
                     try {
                         const symbolsToFetch = portfolio.map(item => {
                             const s = item.symbol.trim().toUpperCase();
-                            if (/^\d/.test(s)) {
-                                if (s.startsWith('00') || s.length === 4) return `${s}.TW`;
+                            if (s.includes('.')) return s; 
+                            if (/^\d/.test(s) || s.startsWith('B')) {
                                 return `${s}.TW,${s}.TWO`;
                             }
                             return s;
                         }).join(',');
+                        console.log(`[Batch] Requesting symbols: ${symbolsToFetch}`);
 
                         console.log("[Batch] Attempting batch fetch via Vercel...");
                         const batchData = await fetchWithRetry(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbolsToFetch}`);
@@ -1796,8 +1788,8 @@
                                 }
                             }
                         };
-                        // 使用 4 個並行 Worker，且移除內部等待時間
-                        await Promise.all([worker(), worker(), worker(), worker()]);
+                        // 使用 6 個並行 Worker，且移除內部等待時間
+                        await Promise.all([worker(), worker(), worker(), worker(), worker(), worker()]);
                     }
                 };
 
@@ -1843,24 +1835,24 @@
 
         async function fetchFX() {
             try {
-                /* 暫停 RapidAPI 匯率抓取
-                if (rapidApiKey) {
-                    ...
-                }
-                */
-                
                 const url = `https://query1.finance.yahoo.com/v8/finance/chart/USDTWD=X?t=${Date.now()}`;
-                const data = await fetchWithRetry(url);
+                
+                // 增加 2.5s 強制超時，匯率抓不到就直接用舊的或預設值，不能卡住整個更新
+                const fetchPromise = fetchWithRetry(url);
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('FX Timeout')), 2500)
+                );
+
+                const data = await Promise.race([fetchPromise, timeoutPromise]);
                 const rate = data.chart?.result?.[0]?.meta?.regularMarketPrice;
                 if (rate && rate > 0) {
                     globalFxRate = rate;
-                    console.log(`FX Rate fetched via Proxy: ${globalFxRate}`);
+                    console.log(`FX Rate fetched: ${globalFxRate}`);
                 } else {
-                    throw new Error("Invalid FX rate from proxy");
+                    throw new Error("Invalid FX rate");
                 }
             } catch (e) { 
-                console.warn("FX fetch failed, using fallback:", e);
-                // 只有在 globalFxRate 尚未設定過（等於初始值或 0）時才使用硬編碼
+                console.warn("FX fetch failed or timeout, using fallback:", e);
                 if (!globalFxRate || globalFxRate <= 0) globalFxRate = 32.5; 
             }
         }
