@@ -993,7 +993,9 @@
         Chart.register(ChartDataLabels);
         let portfolio = JSON.parse(localStorage.getItem('stocklens_portfolio')) || [];
         let isPrivacyOn = JSON.parse(localStorage.getItem('stocklens_privacy')) || false;
-        let isUpdatingGlobal = false; // 修正：宣告全域變數以避免 ReferenceError
+        let isUpdatingGlobal = false;
+        let isCoolingDown = false; 
+        let coolingTimer = null;
         let cashPosition = parseFloat(localStorage.getItem('stocklens_cashPosition')) || 0;
         let tradeHistory = JSON.parse(localStorage.getItem('stocklens_tradeHistory')) || [];
         let accumulatedRealizedPnL = parseFloat(localStorage.getItem('stocklens_accumulatedPnL')) || 0;
@@ -1459,19 +1461,17 @@
          */
         async function fetchWithRetry(ticker) {
             const finalUrl = `/api/stock?ticker=${encodeURIComponent(ticker)}&t=${Date.now()}`;
+            console.log('正在單獨請求:', finalUrl);
             try {
-                const response = await fetch(finalUrl, { signal: AbortSignal.timeout(10000) });
+                const response = await fetch(finalUrl);
+                const data = await response.json();
+                console.log('收到單獨資料:', data);
+                
                 if (response.ok) {
-                    const data = await response.json();
-                    const price = data.price || 
-                                  data.results?.[0]?.price ||
-                                  data.quoteResponse?.result?.[0]?.regularMarketPrice;
+                    const price = data.results?.[0]?.price || 0;
                     if (price > 0) return { price, ticker };
                 } else {
-                    console.error(`API Error: ${response.status} for ${ticker}`);
-                    if (response.status === 404) {
-                        alert(`後端 API 找不到 (404)！請確認 /api/stock.js 是否部署成功。`);
-                    }
+                    console.error(`API Error: ${response.status} for ${ticker}`, data);
                 }
             } catch (e) {
                 console.error(`Fetch failed for ${ticker}:`, e);
@@ -1481,7 +1481,8 @@
 
         async function fetchPriceAndInfo(item) {
             const sym = item.symbol.trim().toUpperCase();
-            const tickers = sym.includes('.') ? [sym] : [`${sym}.TW`, `${sym}.TWO`, sym];
+            // 優先嘗試原始輸入，由後端處理 .TW
+            const tickers = [sym];
             for (let t of tickers) {
                 try {
                     const res = await fetchWithRetry(t);
@@ -1497,80 +1498,127 @@
         }
 
         async function handleRefreshClick() {
-            console.log('Sync clicked'); // 除錯用
-            if (isUpdatingGlobal) {
-                console.log('Sync already in progress');
+            console.log('Sync clicked');
+            if (isUpdatingGlobal) return;
+            if (isCoolingDown) {
+                alert('系統冷卻中，請稍候再試。');
                 return;
             }
-            isUpdatingGlobal = true;
             
+            isUpdatingGlobal = true;
             const btn = document.getElementById('refreshBtn');
+            const originalText = 'Sync';
             btn.textContent = 'SYNCING...';
             btn.classList.add('updating');
 
             try {
                 const fxPromise = fetchFX();
                 
-                // 如果沒有資產，只更新匯率
                 if (portfolio.length === 0) {
-                    console.log('Portfolio is empty, only updating FX');
                     await fxPromise;
                     btn.textContent = 'SUCCESS ✓';
                     setTimeout(() => {
-                        btn.textContent = 'Sync';
+                        btn.textContent = originalText;
                         btn.classList.remove('updating');
                     }, 2000);
-                    isUpdatingGlobal = false; // 修正：必須重置 flag 否則會鎖死
+                    isUpdatingGlobal = false;
                     return;
                 }
 
-                const symbols = portfolio.map(item => {
-                    const sym = item.symbol.trim().toUpperCase();
-                    if (sym.includes('.')) return sym;
-                    return (/^\d/.test(sym) || (sym.length >= 4 && /\d/.test(sym))) ? `${sym}.TW` : sym;
-                }).join(',');
-
-                const batchUrl = `/api/stock?symbols=${encodeURIComponent(symbols)}&t=${Date.now()}`;
-                const response = await fetch(batchUrl, { signal: AbortSignal.timeout(15000) });
+                // 準備標的字串 (自動補全 .TW)
+                const symbolsArr = portfolio.map(item => {
+                    let sym = item.symbol.trim().toUpperCase();
+                    if (!sym.includes('.')) {
+                        if (/^\d/.test(sym) || (sym.length >= 4 && /\d/.test(sym))) {
+                            return `${sym}.TW`;
+                        }
+                    }
+                    return sym;
+                });
+                const symbolsStr = symbolsArr.join(',');
                 
-                if (response.ok) {
-                    const data = await response.json();
-                    const results = data.results || [];
+                // --- 第一步：請求自己的 Vercel API ---
+                const apiUrl = `/api/stock?symbols=${encodeURIComponent(symbolsStr)}&t=${Date.now()}`;
+                console.log('正在請求 Vercel API:', apiUrl);
+                
+                let data = null;
+                try {
+                    const response = await fetch(apiUrl);
+                    data = await response.json();
+                    console.log('Vercel API 回應:', data);
+                } catch (e) {
+                    console.error("Vercel API 網路層錯誤:", e);
+                }
 
-                    portfolio.forEach(item => {
-                        const sym = item.symbol.trim().toUpperCase();
-                        const found = results.find(r => 
-                            r.symbol === sym || 
-                            r.symbol === `${sym}.TW` || 
-                            r.symbol === `${sym}.TWO`
+                // --- 第二步：判斷是否需要啟動 Fallback (備援) ---
+                // 如果 data 為空、有 error 標記、或是 results 長度為 0 (Vercel 被 429 封鎖)
+                if (!data || data.error || !data.results || data.results.length === 0) {
+                    console.warn("Vercel API 抓取失敗或被封鎖，啟動 100% 備援方案 (corsproxy.io)...");
+                    
+                    // UI 反饋：顯示正在備援，不跳 alert
+                    btn.textContent = 'RETRYING...';
+                    
+                    // 構造直接請求 Yahoo 的 URL
+                    const yahooUrl = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbolsStr)}&t=${Date.now()}`;
+                    const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(yahooUrl)}`;
+                    
+                    try {
+                        const proxyRes = await fetch(proxyUrl);
+                        const proxyData = await proxyRes.json();
+                        
+                        if (proxyData?.quoteResponse?.result) {
+                            // 將 Yahoo 原始格式對齊到我們的 data.results 格式
+                            data = {
+                                results: proxyData.quoteResponse.result.map(item => ({
+                                    symbol: item.symbol,
+                                    price: item.regularMarketPrice,
+                                    change: item.regularMarketChangePercent,
+                                    name: item.shortName || item.longName
+                                }))
+                            };
+                            console.log("備援方案成功抓取到資料！");
+                        } else {
+                            throw new Error("備援方案亦未能取得資料");
+                        }
+                    } catch (proxyError) {
+                        console.error("備援方案最終失敗:", proxyError);
+                        btn.textContent = 'FAILED';
+                    }
+                }
+
+                // --- 第三步：解析並更新資料 (核心修正：對齊 data.results) ---
+                if (data && data.results && data.results.length > 0) {
+                    data.results.forEach(stock => {
+                        // 智慧匹配代號 (模糊匹配)：處理 0050 vs 0050.TW
+                        const item = portfolio.find(p => 
+                            p.symbol.split('.')[0].toUpperCase() === stock.symbol.split('.')[0].toUpperCase()
                         );
-
-                        if (found && found.price > 0) {
-                            item.price = found.price;
+                        
+                        if (item) {
+                            // 對齊欄位：item.price
+                            item.price = stock.price || 0;
                             item.lastUpdate = new Date().toLocaleTimeString();
                             item.error = false;
-                        } else {
-                            fetchPriceAndInfo(item);
                         }
                     });
-                } else {
-                    const errorData = await response.json().catch(() => ({}));
-                    console.error('Batch API Error:', response.status, errorData);
-                    alert(`更新失敗 (HTTP ${response.status})\n錯誤原因: ${errorData.error || '未知'}\n詳情: ${errorData.details || '無'}\n\n這通常是 Yahoo 暫時阻擋了伺服器請求，請稍後再試。`);
+                    btn.textContent = 'SUCCESS ✓';
+                } else if (btn.textContent !== 'FAILED') {
+                    btn.textContent = 'NO DATA';
                 }
 
                 await fxPromise;
-                btn.textContent = 'SUCCESS ✓';
                 setTimeout(() => {
-                    btn.textContent = 'Sync';
-                    btn.classList.remove('updating');
+                    if (!isCoolingDown) {
+                        btn.textContent = originalText;
+                        btn.classList.remove('updating');
+                    }
                 }, 2000);
 
             } catch (error) {
-                console.error('Batch sync error:', error);
-                btn.textContent = 'FAILED';
+                console.error("Sync Error:", error);
+                btn.textContent = 'ERROR';
                 setTimeout(() => {
-                    btn.textContent = 'Sync';
+                    btn.textContent = originalText;
                     btn.classList.remove('updating');
                 }, 2000);
             } finally {
