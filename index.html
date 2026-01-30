@@ -51,7 +51,39 @@
         /* 圖片優化防止閃退 */
         img, video { max-width: 100%; height: auto; display: block; }
         
-        /* 統一輸入框樣式，修復禁用 preflight 後的白色外觀 */
+        /* 統一按鈕與輸入框樣式，修復禁用 preflight 後的白色外觀 */
+        button, input, select, textarea {
+            font-family: inherit;
+            font-size: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: transparent; /* 重置按鈕預設背景 */
+            border: none;
+        }
+
+        button {
+            cursor: pointer;
+            text-transform: none;
+            -webkit-appearance: button;
+            background-color: transparent;
+            background-image: none;
+        }
+
+        /* 強制修復按鈕背景，防止禁用 preflight 後出現白色預設 */
+        .bg-emerald-500 { background-color: #10b981 !important; }
+        .bg-rose-500 { background-color: #f43f5e !important; }
+        .bg-cyan-500 { background-color: #06b6d4 !important; }
+        .bg-slate-800 { background-color: #1e293b !important; }
+        .bg-amber-500 { background-color: #f59e0b !important; }
+        
+        /* 文字顏色補強 */
+        .text-black { color: #000000 !important; }
+        .text-white { color: #ffffff !important; }
+        .text-emerald-400 { color: #34d399 !important; }
+        .text-rose-400 { color: #fb7185 !important; }
+        .text-cyan-400 { color: #22d3ee !important; }
+        .text-slate-400 { color: #94a3b8 !important; }
+
         input, select, textarea {
             background-color: #0f172a !important; /* bg-slate-900 */
             color: #ffffff !important;
@@ -59,6 +91,7 @@
             outline: none !important;
             -webkit-appearance: none; /* 移除 iOS 默認外觀 */
             border-radius: 1rem; /* 預設圓角 */
+            padding: 1rem; /* 恢復基礎內邊距 */
         }
         
         input:focus, select:focus {
@@ -822,8 +855,8 @@
                 </div>
                 
                 <div class="flex items-center gap-1.5 bg-slate-950/40 p-1.5 rounded-2xl border border-white/5 w-full">
-                    <button onclick="openModal('sellModal')" class="flex-1 text-rose-400 text-[10px] py-2.5 rounded-xl font-black btn-action uppercase tracking-tight hover:bg-rose-500/10 transition-all border border-transparent hover:border-rose-500/20">Sell</button>
-                    <button onclick="openModal('buyModal')" class="flex-1 text-emerald-400 text-[10px] py-2.5 rounded-xl font-black btn-action uppercase tracking-tight hover:bg-emerald-500/10 transition-all border border-transparent hover:border-emerald-500/20">Buy</button>
+                    <button onclick="openModal('sellModal')" class="flex-1 bg-rose-500 text-white text-[10px] py-2.5 rounded-xl font-black btn-action uppercase tracking-tight shadow-lg shadow-rose-500/20 hover:scale-[1.02] active:scale-95 transition-all">Sell</button>
+                    <button onclick="openModal('buyModal')" class="flex-1 bg-emerald-500 text-black text-[10px] py-2.5 rounded-xl font-black btn-action uppercase tracking-tight shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95 transition-all">Buy</button>
                     <button onclick="openModal('addModal')" class="flex-[1.5] bg-cyan-500 text-black text-[10px] py-2.5 rounded-xl font-black btn-action uppercase tracking-tight shadow-lg shadow-cyan-500/30 hover:scale-[1.02] active:scale-95 transition-all">Add Position</button>
                 </div>
             </div>
@@ -1007,30 +1040,36 @@
         function exportData() {
             try {
                 console.log('Exporting data...');
+                // 確保匯出最完整的資料結構
                 const data = {
-                    portfolio,
-                    isPrivacyOn,
-                    cashPosition,
-                    tradeHistory,
-                    accumulatedRealizedPnL,
+                    portfolio: portfolio,           // 持有股票細項 (含 id, symbol, name, shares, cost, target, category 等)
+                    cashPosition: cashPosition,     // 現金水位
+                    tradeHistory: tradeHistory,     // 交易紀錄
+                    accumulatedRealizedPnL: accumulatedRealizedPnL, // 累計已實現損益
+                    isPrivacyOn: isPrivacyOn,       // 隱私設定
+                    globalFxRate: globalFxRate,     // 匯率參考
                     version: typeof CURRENT_VERSION !== 'undefined' ? CURRENT_VERSION : '3.0',
-                    exportDate: new Date().toISOString()
+                    exportDate: new Date().toLocaleString()
                 };
+
                 const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `stocklens_backup_${new Date().toISOString().split('T')[0]}.json`;
-                document.body.appendChild(a); // 確保在 DOM 中
+                a.download = `stocklens_full_backup_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
                 a.click();
+                
                 setTimeout(() => {
                     document.body.removeChild(a);
                     URL.revokeObjectURL(url);
-                }, 0);
-                console.log('Export successful');
+                }, 100);
+
+                alert('✅ 數據已完完整整地匯出！\n\n包含：\n- ' + portfolio.length + ' 筆持股明細\n- ' + tradeHistory.length + ' 筆交易紀錄\n- 現金水位與目標比例\n\n請妥善保存下載的 JSON 檔案。');
+                console.log('Export successful:', data);
             } catch (error) {
                 console.error('Export failed:', error);
-                alert('匯出失敗: ' + error.message);
+                alert('❌ 匯出失敗: ' + error.message);
             }
         }
 
@@ -1045,22 +1084,29 @@
                     console.log('Importing data...');
                     const data = JSON.parse(e.target.result);
                     
-                    if (confirm('匯入將會覆蓋目前的數據，確定要繼續嗎？')) {
+                    if (confirm('⚠️ 匯入將會完全覆蓋目前的數據，確定要繼續嗎？')) {
+                        // 恢復所有欄位
                         portfolio = data.portfolio || [];
-                        isPrivacyOn = data.isPrivacyOn || false;
                         cashPosition = data.cashPosition || 0;
                         tradeHistory = data.tradeHistory || [];
                         accumulatedRealizedPnL = data.accumulatedRealizedPnL || 0;
+                        isPrivacyOn = data.isPrivacyOn || false;
+                        if (data.globalFxRate) globalFxRate = data.globalFxRate;
 
                         saveToStorage();
                         updatePrivacyUI();
+                        
+                        // 更新 UI 上的現金水位輸入框
+                        const cashInput = document.getElementById('cashPosition');
+                        if (cashInput) cashInput.value = Math.round(cashPosition);
+                        
                         finalizeUpdate();
                         render();
-                        alert('數據匯入成功！');
+                        alert('🎉 數據已成功恢復！');
                     }
                 } catch (err) {
-                    alert('匯入失敗：格式不正確');
-                    console.error(err);
+                    alert('❌ 匯入失敗：檔案格式不正確或已損壞');
+                    console.error('Import error:', err);
                 }
             };
             reader.readAsText(file);
@@ -2198,9 +2244,9 @@
         }
 
         function manageTradeHistoryLimit() {
-            const MAX_RECORDS = 10;
+            const MAX_RECORDS = 100;
             if (tradeHistory.length > MAX_RECORDS) {
-                // 删除最旧的记录（保留最新的10条）
+                // 刪除最舊的記錄（保留最新的 100 條）
                 const removedRecords = tradeHistory.splice(0, tradeHistory.length - MAX_RECORDS);
                 
                 // 将被删除记录的已实现损益累加到总累计值
