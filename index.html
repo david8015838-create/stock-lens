@@ -51,6 +51,33 @@
         /* 圖片優化防止閃退 */
         img, video { max-width: 100%; height: auto; display: block; }
         
+        /* 統一輸入框樣式，修復禁用 preflight 後的白色外觀 */
+        input, select, textarea {
+            background-color: #0f172a; /* bg-slate-900 */
+            color: #ffffff;
+            border: 1px solid rgba(148, 163, 184, 0.2); /* border-slate-700/20 */
+            outline: none;
+        }
+        
+        input:focus, select:focus {
+            border-color: rgba(34, 211, 238, 0.4); /* focus:border-cyan-500/40 */
+        }
+
+        /* 佔位符樣式 */
+        ::placeholder {
+            color: rgba(148, 163, 184, 0.5); /* text-slate-400/50 */
+            opacity: 1;
+        }
+
+        /* 移除 Chrome/Safari 的自動填充背景 */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover, 
+        input:-webkit-autofill:focus {
+            -webkit-text-fill-color: white;
+            -webkit-box-shadow: 0 0 0px 1000px #0f172a inset;
+            transition: background-color 5000s ease-in-out 0s;
+        }
+        
         :root { --neon: #22d3ee; --bg: #0b111f; --card: #0f172a; --surface: rgba(15, 23, 42, 0.7); --nav-height: 84px; }
         
         html, body {
