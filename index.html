@@ -1393,9 +1393,16 @@
                 if (rawSymbol.length === 4) {
                     // 2330, 2317 等主要股票優先嘗試 .TW
                     tickers = [`${rawSymbol}.TW`, `${rawSymbol}.TWO`];
-                } else if (rawSymbol.startsWith('00') && rawSymbol.length >= 5) {
-                    // 0050, 00878 等 ETF 都在上市 (.TW)
-                    tickers = [`${rawSymbol}.TW`];
+                } else if (rawSymbol.startsWith('00')) {
+                    if (rawSymbol.endsWith('B') || rawSymbol.length === 6) {
+                        // 債券 ETF (如 00679B) 大多在櫃買中心 (.TWO)
+                        tickers = [`${rawSymbol}.TWO`, `${rawSymbol}.TW`];
+                    } else if (rawSymbol.length >= 5) {
+                        // 0050, 00878 等主流 ETF 都在上市 (.TW)
+                        tickers = [`${rawSymbol}.TW`, `${rawSymbol}.TWO`];
+                    } else {
+                        tickers = [`${rawSymbol}.TW`, `${rawSymbol}.TWO`];
+                    }
                 } else {
                     tickers = [`${rawSymbol}.TW`, `${rawSymbol}.TWO`];
                 }
