@@ -850,7 +850,7 @@
                     </div>
                     <div class="flex items-center gap-2">
                     <button id="refreshBtn" onclick="handleRefreshClick()" class="bg-slate-800/80 text-cyan-400 text-[10px] px-4 py-2 rounded-xl font-black border border-white/5 btn-action uppercase tracking-tight hover:bg-cyan-500 hover:text-black transition-all duration-300">Sync</button>
-                    <button onclick="forceHardReset()" class="bg-slate-800/50 text-slate-500 text-[8px] font-black px-2 py-2 rounded-lg border border-slate-700 uppercase tracking-tighter hover:text-rose-400 transition-all">清快取</button>
+                    <button onclick="forceHardReset()" class="bg-slate-800/50 text-slate-500 text-[8px] font-black px-2 py-2 rounded-lg border border-slate-700 uppercase tracking-tighter hover:text-rose-400 transition-all">V3.2.4 清快取</button>
                 </div>
                 </div>
                 
@@ -1466,7 +1466,7 @@
                 ticker = parts[parts.indexOf('chart') + 1].split('?')[0];
             } else {
                 const urlParams = new URLSearchParams(url.split('?')[1]);
-                ticker = urlParams.get('symbols');
+                ticker = urlParams.get('symbol') || urlParams.get('symbols');
                 type = urlParams.get('type') || 'quote';
             }
 
@@ -1475,7 +1475,7 @@
 
             const attempt = async (retryCount = 0) => {
                 const controller = new AbortController();
-                const timeoutMs = 6000; // Vercel API 統一給予 6 秒超時
+                const timeoutMs = 12000; // 增加到 12 秒，給予 Vercel 與 Yahoo 足夠的響應時間
                 const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
                 try {
@@ -1543,7 +1543,7 @@
                     const isTW = t.endsWith('.TW') || t.endsWith('.TWO') || t.startsWith('B');
                     console.log(`[Fetch] Queueing task for ${item.symbol} as Ticker: ${t}`);
                     
-                    // 只保留一個最穩定的 API 任務 (Chart API 通常最準且最快)
+                    // 策略 1: Chart API (通常有即時價格)
                     allTasks.push(
                         fetchWithRetry(`https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d&t=${ts}`).then(data => {
                             const p = data.chart?.result?.[0]?.meta?.regularMarketPrice;
@@ -1552,7 +1552,15 @@
                         })
                     );
 
-                    // 只有在 Vercel API 失敗後，Quote API 才作為備援 (由 fetchWithRetry 內部邏輯控制)
+                    // 策略 2: Quote API (對美股更穩定，且包含更多欄位)
+                    allTasks.push(
+                        fetchWithRetry(`/api/stock?symbol=${t}&type=quote`).then(data => {
+                            const result = data.quoteResponse?.result?.[0];
+                            const p = result?.regularMarketPrice;
+                            if (p > 0) return { price: p, ticker: t, source: 'Quote' };
+                            throw new Error('No Quote Price');
+                        })
+                    );
                 }
 
                 if (allTasks.length === 0) throw new Error('No fetch tasks created');
@@ -1595,7 +1603,7 @@
                 
                 // 3. 加上時間戳與版本號強制重新整理
                 const url = new URL(window.location.href);
-                const CURRENT_VERSION = '3.2.3';
+                const CURRENT_VERSION = '3.2.4';
                 url.searchParams.set('v', CURRENT_VERSION);
                 url.searchParams.set('t', Date.now());
                 window.location.replace(url.href);
@@ -1604,7 +1612,7 @@
 
         // 自動檢測版本並清除舊快取
         (function() {
-            const CURRENT_VERSION = '3.2.3';
+            const CURRENT_VERSION = '3.2.4';
             const lastVersion = localStorage.getItem('stocklens_version');
             if (lastVersion !== CURRENT_VERSION) {
                 console.log(`Version update: ${lastVersion} -> ${CURRENT_VERSION}`);

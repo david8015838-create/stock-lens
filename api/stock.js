@@ -18,9 +18,11 @@ export default async function handler(req, res) {
     ];
   } else {
     // 批次請求或明確指定為 quote 類型，使用 Quote API
+    // 增加更多備用節點，並確保 symbols 參數正確
     urls = [
       `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbol}`,
-      `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${symbol}`
+      `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${symbol}`,
+      `https://query1.finance.yahoo.com/v6/finance/quote?symbols=${symbol}`
     ];
   }
 
@@ -35,7 +37,7 @@ export default async function handler(req, res) {
 
   // 設置超時，避免 Vercel Function 整個超時
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 4500); // 稍微增加到 4.5 秒
+  const timeoutId = setTimeout(() => controller.abort(), 8000); // 增加到 8 秒，因為 Yahoo 有時響應較慢
 
   try {
     // 使用 Promise.any 同時請求 query1 和 query2，誰快就用誰
