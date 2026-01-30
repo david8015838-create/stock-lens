@@ -1554,8 +1554,9 @@
                         }
                     });
                 } else {
-                    console.error(`Batch API Error: ${response.status}`);
-                    alert(`批次更新失敗 (HTTP ${response.status})。可能是 Vercel API 資料夾結構不正確。`);
+                    const errorData = await response.json().catch(() => ({}));
+                    console.error('Batch API Error:', response.status, errorData);
+                    alert(`更新失敗 (HTTP ${response.status})\n錯誤原因: ${errorData.error || '未知'}\n詳情: ${errorData.details || '無'}\n\n這通常是 Yahoo 暫時阻擋了伺服器請求，請稍後再試。`);
                 }
 
                 await fxPromise;
