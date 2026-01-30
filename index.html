@@ -850,7 +850,7 @@
                     </div>
                     <div class="flex items-center gap-2">
                     <button id="refreshBtn" onclick="handleRefreshClick()" class="bg-slate-800/80 text-cyan-400 text-[10px] px-4 py-2 rounded-xl font-black border border-white/5 btn-action uppercase tracking-tight hover:bg-cyan-500 hover:text-black transition-all duration-300">Sync</button>
-                    <button onclick="forceHardReset()" class="bg-slate-800/50 text-slate-500 text-[8px] font-black px-2 py-2 rounded-lg border border-slate-700 uppercase tracking-tighter hover:text-rose-400 transition-all">V3.1.3</button>
+                    <button onclick="forceHardReset()" class="bg-slate-800/50 text-slate-500 text-[8px] font-black px-2 py-2 rounded-lg border border-slate-700 uppercase tracking-tighter hover:text-rose-400 transition-all">清快取</button>
                 </div>
                 </div>
                 
@@ -1578,17 +1578,26 @@
 
         // 強制重置快取功能
         function forceHardReset() {
-            if (confirm("確定要強制清除快取並重啟嗎？這將會清除瀏覽器快取並重新載入網頁，但不會刪除您的股票資產資料。")) {
+            if (confirm("確定要強制清除快取並重啟嗎？這將會清除瀏覽器快取、代理狀態並重新載入網頁，但不會刪除您的股票資產資料。")) {
                 // 1. 清除 Cache Storage (如果有 PWA 緩存)
                 if ('caches' in window) {
                     caches.keys().then(names => {
                         for (let name of names) caches.delete(name);
                     });
                 }
+
+                // 2. 清除 localStorage 中的代理與快取狀態
+                for (let key in localStorage) {
+                    if (key.startsWith('proxy_') || key.startsWith('stock_cache_')) {
+                        localStorage.removeItem(key);
+                    }
+                }
                 
-                // 2. 加上時間戳強制重新整理
+                // 3. 加上時間戳與版本號強制重新整理
                 const url = new URL(window.location.href);
-                url.searchParams.set('v', Date.now());
+                const CURRENT_VERSION = '3.2.3';
+                url.searchParams.set('v', CURRENT_VERSION);
+                url.searchParams.set('t', Date.now());
                 window.location.replace(url.href);
             }
         }
