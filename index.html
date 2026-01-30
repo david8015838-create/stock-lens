@@ -1462,9 +1462,19 @@
         const proxyStatus = {}; 
 
         async function fetchWithRetry(url) {
-            // 從 URL 中提取代號
-            const urlParams = new URLSearchParams(url.split('?')[1]);
-            const ticker = urlParams.get('symbols');
+            // 從 URL 中判斷是 quote 還是 chart API
+            const isChart = url.includes('/v8/finance/chart/');
+            let ticker = '';
+            
+            if (isChart) {
+                // 從 /chart/SYMBOL 中提取 SYMBOL
+                const parts = url.split('/');
+                ticker = parts[parts.indexOf('chart') + 1].split('?')[0];
+            } else {
+                // 從 symbols=SYMBOL 中提取 SYMBOL
+                const urlParams = new URLSearchParams(url.split('?')[1]);
+                ticker = urlParams.get('symbols');
+            }
 
             // 自動在 query1 和 query2 之間切換以分散壓力
             const urls = [
@@ -1474,7 +1484,10 @@
             const targetUrl = urls[Math.floor(Math.random() * urls.length)];
 
             const proxyConfigs = [
-                { name: 'Vercel-API', fn: (u) => `/api/stock?symbol=${ticker}` }, // 優先嘗試自己的後端
+                { 
+                    name: 'Vercel-API', 
+                    fn: (u) => `/api/stock?symbol=${ticker}${isChart ? '&type=chart' : ''}` 
+                }, // 優先嘗試自己的後端
                 { name: 'Direct', fn: (u) => u },
                 { name: 'AllOrigins-Raw', fn: (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
                 { name: 'CodeTabs', fn: (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
@@ -1715,32 +1728,76 @@
                 // 1. 先更新匯率
                 await fetchFX();
                 
-                // 2. 準備更新佇列
-                const queue = [...portfolio];
-                const total = queue.length;
-                let finished = 0;
-                
-                // 3. 定義 Worker (降低並行量以避開限流)
-                const worker = async () => {
-                    while (queue.length > 0) {
-                        const item = queue.shift();
-                        if (!item) continue;
-                        try {
-                            btn.innerText = `SYNC (${finished}/${total})`;
-                            await fetchPriceAndInfo(item);
-                            // 增加隨機間隔 (Jitter)，讓行為更像真人
-                            await new Promise(r => setTimeout(r, 800 + Math.random() * 700));
-                        } catch (e) {
-                            console.warn(`Failed to update ${item.symbol}:`, e);
-                        } finally {
-                            finished++;
-                            render();
+                // 2. 嘗試批次更新 (Vercel API 優化)
+                btn.innerText = "SYNCING...";
+                let batchSuccessCount = 0;
+                try {
+                    // 將所有股票代號轉換為 Yahoo 格式
+                    const symbolsToFetch = portfolio.map(item => {
+                        const s = item.symbol.trim().toUpperCase();
+                        if (/^\d/.test(s)) {
+                            // 台股優先嘗試 .TW
+                            return `${s}.TW,${s}.TWO`;
                         }
+                        return s;
+                    }).join(',');
+
+                    console.log("[Batch] Attempting batch fetch via Vercel...");
+                    const batchData = await fetchWithRetry(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbolsToFetch}`);
+                    
+                    if (batchData?.quoteResponse?.result) {
+                        const results = batchData.quoteResponse.result;
+                        results.forEach(res => {
+                            const symbol = res.symbol;
+                            const price = res.regularMarketPrice;
+                            if (price > 0) {
+                                // 找尋對應的資產 (考慮台股可能有多個後綴)
+                                const baseSymbol = symbol.split('.')[0];
+                                const items = portfolio.filter(p => p.symbol.toUpperCase() === baseSymbol || p.symbol.toUpperCase() === symbol);
+                                items.forEach(item => {
+                                    if (!item.price || item.price === 0 || item.symbol.toUpperCase() === symbol || !item.priceUpdated) {
+                                        item.price = price;
+                                        item.priceUpdated = true; // 標記已更新
+                                        batchSuccessCount++;
+                                    }
+                                });
+                            }
+                        });
+                        console.log(`[Batch] Success! Updated ${batchSuccessCount} items.`);
                     }
-                };
+                } catch (e) {
+                    console.warn("[Batch] Batch fetch failed, falling back to individual updates:", e);
+                }
+
+                // 3. 準備剩餘的更新佇列 (處理批次沒抓到的，或需要 Chart API 備援的)
+                const queue = portfolio.filter(item => !item.priceUpdated);
+                // 重置標記供下次使用
+                portfolio.forEach(p => delete p.priceUpdated);
                 
-                // 限制為 2 個並行 Worker，避免觸發 429 限流
-                await Promise.all([worker(), worker()]);
+                if (queue.length > 0) {
+                    const total = queue.length;
+                    let finished = 0;
+                    
+                    const worker = async () => {
+                        while (queue.length > 0) {
+                            const item = queue.shift();
+                            if (!item) continue;
+                            try {
+                                btn.innerText = `SYNC (${finished}/${total})`;
+                                await fetchPriceAndInfo(item);
+                                // 如果是走個別更新，仍保持間隔以避開限流
+                                await new Promise(r => setTimeout(r, 800 + Math.random() * 700));
+                            } catch (e) {
+                                console.warn(`Failed to update ${item.symbol}:`, e);
+                            } finally {
+                                finished++;
+                                render();
+                            }
+                        }
+                    };
+                    
+                    await Promise.all([worker(), worker()]);
+                }
                 
                 saveToStorage();
                 render();
