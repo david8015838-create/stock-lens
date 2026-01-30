@@ -11,14 +11,19 @@ export default async function handler(req, res) {
   const isBatch = symbol.includes(',');
   
   if (type === 'chart' && !isBatch) {
-    // Chart API 不支援批次 (逗號隔開)，僅單一代號使用
+    // Chart API
     urls = [
       `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1m&range=1d`,
       `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1m&range=1d`
     ];
+  } else if (type === 'quoteSummary') {
+    // V10 QuoteSummary API (美股備援極佳)
+    urls = [
+      `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${symbol}?modules=price`,
+      `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${symbol}?modules=price`
+    ];
   } else {
-    // 批次請求或明確指定為 quote 類型，使用 Quote API
-    // 增加更多備用節點，並確保 symbols 參數正確
+    // Quote API
     urls = [
       `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbol}`,
       `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${symbol}`,
@@ -52,6 +57,8 @@ export default async function handler(req, res) {
         // 驗證資料有效性
         if (type === 'chart' && !isBatch) {
           if (json?.chart?.result?.[0]) return json;
+        } else if (type === 'quoteSummary') {
+          if (json?.quoteSummary?.result?.[0]?.price) return json;
         } else {
           // Quote API 即使代號錯誤也會回傳 200，但 result 會是空的
           if (json?.quoteResponse?.result && json.quoteResponse.result.length > 0) return json;
