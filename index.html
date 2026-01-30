@@ -850,6 +850,7 @@
                     </div>
                     <div class="flex items-center gap-2">
                     <button id="refreshBtn" onclick="handleRefreshClick()" class="bg-slate-800/80 text-cyan-400 text-[10px] px-4 py-2 rounded-xl font-black border border-white/5 btn-action uppercase tracking-tight hover:bg-cyan-500 hover:text-black transition-all duration-300">Sync</button>
+                    <span id="update-status" class="text-[8px] text-slate-500 font-bold uppercase tracking-widest ml-2"></span>
                     <button onclick="forceHardReset()" class="bg-slate-800/50 text-slate-500 text-[8px] font-black px-2 py-2 rounded-lg border border-slate-700 uppercase tracking-tighter hover:text-rose-400 transition-all">V3.2.8 清快取</button>
                 </div>
                 </div>
@@ -1497,6 +1498,73 @@
             item.error = true;
         }
 
+        function applyData(results) {
+            if (!results || results.length === 0) return;
+            results.forEach(stock => {
+                // 智慧匹配代號 (模糊匹配)：處理 0050 vs 0050.TW
+                const item = portfolio.find(p => 
+                    p.symbol.split('.')[0].toUpperCase() === stock.symbol.split('.')[0].toUpperCase()
+                );
+                
+                if (item) {
+                    item.price = stock.price || 0;
+                    item.lastUpdate = new Date().toLocaleTimeString();
+                    item.error = false;
+                }
+            });
+            render();
+        }
+
+        async function updateAllPrices() {
+            console.log("開始更新價格...");
+            const symbols = portfolio.map(a => {
+                let s = a.symbol.trim().toUpperCase();
+                return (/^\d/.test(s) && !s.includes('.')) ? `${s}.TW` : s;
+            }).join(',');
+
+            if (!symbols) return;
+
+            try {
+                // 1. 先試 Vercel API
+                const response = await fetch(`/api/stock?symbols=${encodeURIComponent(symbols)}&t=${Date.now()}`);
+                const data = await response.json();
+                if (data && data.results && data.results.length > 0) {
+                    applyData(data.results);
+                    return;
+                }
+                throw new Error("Vercel API 無有效資料");
+            } catch (e) {
+                console.warn("Vercel API 失敗，切換至強效備援 (AllOrigins)...");
+                try {
+                    // 2. 換用 allorigins.win，這比 corsproxy 更穩定
+                    const targetUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&ts=${Date.now()}`;
+                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+                    
+                    const res = await fetch(proxyUrl);
+                    const json = await res.json();
+                    // allorigins 會把結果包在 contents 裡面，需要再 parse 一次 
+                    const fbData = JSON.parse(json.contents);
+                    
+                    if (fbData && fbData.quoteResponse && fbData.quoteResponse.result) {
+                        const results = fbData.quoteResponse.result.map(item => ({
+                            symbol: item.symbol,
+                            price: item.regularMarketPrice,
+                            change: item.regularMarketChangePercent
+                        }));
+                        applyData(results);
+                        console.log("備援抓取成功！");
+                    } else {
+                        throw new Error("備援格式錯誤");
+                    }
+                } catch (err) {
+                    console.error("最終備援也失敗:", err);
+                    // 顯示在畫面上而非 Alert
+                    const statusElem = document.getElementById('update-status');
+                    if(statusElem) statusElem.innerText = "所有線路忙碌中，請稍後再試";
+                }
+            }
+        }
+
         async function handleRefreshClick() {
             console.log('Sync clicked');
             if (isUpdatingGlobal) return;
@@ -1507,122 +1575,32 @@
             
             isUpdatingGlobal = true;
             const btn = document.getElementById('refreshBtn');
+            const statusElem = document.getElementById('update-status');
             const originalText = 'Sync';
-            btn.textContent = 'SYNCING...';
-            btn.classList.add('updating');
+            
+            if (btn) {
+                btn.textContent = 'SYNCING...';
+                btn.classList.add('updating');
+            }
+            if (statusElem) statusElem.innerText = "";
 
             try {
                 const fxPromise = fetchFX();
-                
-                if (portfolio.length === 0) {
-                    await fxPromise;
-                    btn.textContent = 'SUCCESS ✓';
-                    setTimeout(() => {
-                        btn.textContent = originalText;
-                        btn.classList.remove('updating');
-                    }, 2000);
-                    isUpdatingGlobal = false;
-                    return;
-                }
-
-                // 準備標的字串 (自動補全 .TW)
-                const symbolsArr = portfolio.map(item => {
-                    let sym = item.symbol.trim().toUpperCase();
-                    if (!sym.includes('.')) {
-                        if (/^\d/.test(sym) || (sym.length >= 4 && /\d/.test(sym))) {
-                            return `${sym}.TW`;
-                        }
-                    }
-                    return sym;
-                });
-                const symbolsStr = symbolsArr.join(',');
-                
-                // --- 第一步：請求自己的 Vercel API ---
-                const apiUrl = `/api/stock?symbols=${encodeURIComponent(symbolsStr)}&t=${Date.now()}`;
-                console.log('正在請求 Vercel API:', apiUrl);
-                
-                let data = null;
-                try {
-                    const response = await fetch(apiUrl);
-                    data = await response.json();
-                    console.log('Vercel API 回應:', data);
-                } catch (e) {
-                    console.error("Vercel API 網路層錯誤:", e);
-                }
-
-                // --- 第二步：判斷是否需要啟動 Fallback (備援) ---
-                // 如果 data 為空、有 error 標記、或是 results 長度為 0 (Vercel 被 429 封鎖)
-                if (!data || data.error || !data.results || data.results.length === 0) {
-                    console.warn("Vercel API 抓取失敗或被封鎖，啟動 100% 備援方案 (corsproxy.io)...");
-                    
-                    // UI 反饋：顯示正在備援，不跳 alert
-                    btn.textContent = 'RETRYING...';
-                    
-                    // 構造直接請求 Yahoo 的 URL
-                    const yahooUrl = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbolsStr)}&t=${Date.now()}`;
-                    const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(yahooUrl)}`;
-                    
-                    try {
-                        const proxyRes = await fetch(proxyUrl);
-                        const proxyData = await proxyRes.json();
-                        
-                        if (proxyData?.quoteResponse?.result) {
-                            // 將 Yahoo 原始格式對齊到我們的 data.results 格式
-                            data = {
-                                results: proxyData.quoteResponse.result.map(item => ({
-                                    symbol: item.symbol,
-                                    price: item.regularMarketPrice,
-                                    change: item.regularMarketChangePercent,
-                                    name: item.shortName || item.longName
-                                }))
-                            };
-                            console.log("備援方案成功抓取到資料！");
-                        } else {
-                            throw new Error("備援方案亦未能取得資料");
-                        }
-                    } catch (proxyError) {
-                        console.error("備援方案最終失敗:", proxyError);
-                        btn.textContent = 'FAILED';
-                    }
-                }
-
-                // --- 第三步：解析並更新資料 (核心修正：對齊 data.results) ---
-                if (data && data.results && data.results.length > 0) {
-                    data.results.forEach(stock => {
-                        // 智慧匹配代號 (模糊匹配)：處理 0050 vs 0050.TW
-                        const item = portfolio.find(p => 
-                            p.symbol.split('.')[0].toUpperCase() === stock.symbol.split('.')[0].toUpperCase()
-                        );
-                        
-                        if (item) {
-                            // 對齊欄位：item.price
-                            item.price = stock.price || 0;
-                            item.lastUpdate = new Date().toLocaleTimeString();
-                            item.error = false;
-                        }
-                    });
-                    btn.textContent = 'SUCCESS ✓';
-                } else if (btn.textContent !== 'FAILED') {
-                    btn.textContent = 'NO DATA';
-                }
-
+                await updateAllPrices();
                 await fxPromise;
-                setTimeout(() => {
-                    if (!isCoolingDown) {
-                        btn.textContent = originalText;
-                        btn.classList.remove('updating');
-                    }
-                }, 2000);
-
+                
+                if (btn) btn.textContent = 'SUCCESS ✓';
             } catch (error) {
                 console.error("Sync Error:", error);
-                btn.textContent = 'ERROR';
-                setTimeout(() => {
-                    btn.textContent = originalText;
-                    btn.classList.remove('updating');
-                }, 2000);
+                if (btn) btn.textContent = 'ERROR';
             } finally {
                 isUpdatingGlobal = false;
+                setTimeout(() => {
+                    if (btn) {
+                        btn.textContent = originalText;
+                        btn.classList.remove('updating');
+                    }
+                }, 2000);
                 render();
             }
         }
