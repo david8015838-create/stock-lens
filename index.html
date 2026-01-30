@@ -1460,7 +1460,7 @@
          * V4.0.0 GAS 核心抓取方案
          * 利用 Google Apps Script 作為中間層，解決 Yahoo Finance 連線驗證問題
          */
-        async function fetchFromGAS(symbols, retryCount = 1) {
+        async function fetchFromGAS(symbols) {
             if (!GAS_API_URL) {
                 console.error("GAS_API_URL 未設定");
                 throw new Error("GAS_API_URL_MISSING");
@@ -1468,7 +1468,8 @@
             if (!symbols) return [];
 
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒超時
+            // 將超時限制延長至 30 秒，給予 Google Script 足夠的啟動時間
+            const timeoutId = setTimeout(() => controller.abort(), 30000); 
 
             try {
                 const url = GAS_API_URL + "?symbols=" + encodeURIComponent(symbols) + "&t=" + Date.now();
@@ -1495,12 +1496,10 @@
                 }
             } catch (error) {
                 clearTimeout(timeoutId);
-                if (error.name === 'AbortError' || error.message.includes('timeout')) {
-                    console.error(`GAS 請求超時 (retry: ${retryCount})`);
-                    if (retryCount > 0) {
-                        console.log('正在嘗試重發請求...');
-                        return fetchFromGAS(symbols, retryCount - 1);
-                    }
+                if (error.name === 'AbortError') {
+                    console.error('GAS 請求超時 (30秒限制)。Google 腳本反應過慢。');
+                } else {
+                    console.error('GAS 請求出錯:', error);
                 }
                 throw error;
             }
