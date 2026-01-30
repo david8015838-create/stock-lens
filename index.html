@@ -850,7 +850,7 @@
                     </div>
                     <div class="flex items-center gap-2">
                     <button id="refreshBtn" onclick="handleRefreshClick()" class="bg-slate-800/80 text-cyan-400 text-[10px] px-4 py-2 rounded-xl font-black border border-white/5 btn-action uppercase tracking-tight hover:bg-cyan-500 hover:text-black transition-all duration-300">Sync</button>
-                    <button onclick="forceHardReset()" class="bg-slate-800/50 text-slate-500 text-[8px] font-black px-2 py-2 rounded-lg border border-slate-700 uppercase tracking-tighter hover:text-rose-400 transition-all">V3.2.6 清快取</button>
+                    <button onclick="forceHardReset()" class="bg-slate-800/50 text-slate-500 text-[8px] font-black px-2 py-2 rounded-lg border border-slate-700 uppercase tracking-tighter hover:text-rose-400 transition-all">V3.2.7 清快取</button>
                 </div>
                 </div>
                 
@@ -1456,7 +1456,6 @@
          * 移除所有不穩定的第三方代理，確保連線品質與速度
          */
         async function fetchWithRetry(url) {
-            // 從 URL 中判斷參數
             const isChart = url.includes('/v8/finance/chart/');
             let ticker = '';
             let type = isChart ? 'chart' : 'quote';
@@ -1470,39 +1469,31 @@
                 type = urlParams.get('type') || 'quote';
             }
 
-            // 如果是直接呼叫 /api/stock，則不重複封裝
             const finalUrl = url.startsWith('/api/') ? url : `/api/stock?symbol=${encodeURIComponent(ticker)}&type=${type}`;
 
             const attempt = async (retryCount = 0) => {
-                const controller = new AbortController();
-                const timeoutMs = 12000; // 增加到 12 秒，給予 Vercel 與 Yahoo 足夠的響應時間
-                const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
                 try {
-                    const response = await fetch(finalUrl, { 
-                        signal: controller.signal,
-                        cache: 'no-store'
-                    });
-
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    
-                    const data = await response.json();
-                    if (data && (data.quoteResponse || data.chart || data.quoteSummary)) {
-                        return data;
+                    const response = await fetch(finalUrl, { signal: AbortSignal.timeout(10000) });
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data && (data.quoteResponse || data.chart || data.quoteSummary)) return data;
                     }
-                    throw new Error('Invalid Data from Vercel');
+                    throw new Error(`Vercel Fail ${response.status}`);
                 } catch (err) {
-                    if (retryCount < 1 && err.name !== 'AbortError') {
-                        console.warn(`[Vercel] Attempt failed, retrying... (${err.message})`);
-                        await new Promise(r => setTimeout(r, 500));
-                        return attempt(retryCount + 1);
+                    if (ticker && !ticker.includes(',')) {
+                        try {
+                            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(`https://query2.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1m&range=1d`)}`;
+                            const resp = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
+                            if (resp.ok) {
+                                const data = await resp.json();
+                                if (data?.chart?.result?.[0]) return data;
+                            }
+                        } catch (proxyErr) {}
                     }
+                    if (retryCount < 1) return attempt(retryCount + 1);
                     throw err;
-                } finally {
-                    clearTimeout(timeoutId);
                 }
             };
-
             return await attempt();
         }
 
@@ -1612,7 +1603,7 @@
                 
                 // 3. 加上時間戳與版本號強制重新整理
                 const url = new URL(window.location.href);
-                const CURRENT_VERSION = '3.2.6';
+                const CURRENT_VERSION = '3.2.7';
                 url.searchParams.set('v', CURRENT_VERSION);
                 url.searchParams.set('t', Date.now());
                 window.location.replace(url.href);
@@ -1621,7 +1612,7 @@
 
         // 自動檢測版本並清除舊快取
         (function() {
-            const CURRENT_VERSION = '3.2.6';
+            const CURRENT_VERSION = '3.2.7';
             const lastVersion = localStorage.getItem('stocklens_version');
             if (lastVersion !== CURRENT_VERSION) {
                 console.log(`Version update: ${lastVersion} -> ${CURRENT_VERSION}`);
