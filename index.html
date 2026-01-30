@@ -1595,7 +1595,7 @@
 
         // 自動檢測版本並清除舊快取
         (function() {
-            const CURRENT_VERSION = '3.2.2';
+            const CURRENT_VERSION = '3.2.3';
             const lastVersion = localStorage.getItem('stocklens_version');
             if (lastVersion !== CURRENT_VERSION) {
                 console.log(`Version update: ${lastVersion} -> ${CURRENT_VERSION}`);
@@ -1612,7 +1612,7 @@
                         localStorage.removeItem(key);
                     }
                 }
-                // 3. 強制刷新以應用最新的 UI 邏輯
+                // 3. 強制刷新以應用最新的 UI 邏輯與並行架構
                 setTimeout(() => {
                     const url = new URL(window.location.href);
                     url.searchParams.set('v', CURRENT_VERSION);
@@ -2502,12 +2502,11 @@
         }
 
         window.onload = async () => {
-            // 1. 強制註銷所有 Service Worker (解決舊資料持久化問題)
+            // 1. 強制註銷所有 Service Worker
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.getRegistrations().then(registrations => {
                     for (let registration of registrations) {
                         registration.unregister();
-                        console.log('ServiceWorker unregistered');
                     }
                 });
             }
@@ -2519,37 +2518,15 @@
             if (portfolio.length > 0) {
                 const btn = document.getElementById('refreshBtn');
                 const originalText = btn.innerText;
-                btn.innerText = "WAIT..."; 
+                btn.innerText = "SYNCING..."; 
                 btn.disabled = true;
                 
                 try {
-                    // 2. 序列化更新匯率與價格，避免 429 錯誤
-                    await fetchFX();
+                    // 2. 並行更新匯率與所有價格 (全量並行)
+                    const fxPromise = fetchFX();
+                    const stockPromises = portfolio.map(item => fetchPriceAndInfo(item));
                     
-                    const queue = [...portfolio];
-                    const total = queue.length;
-                    let finished = 0;
-                    
-                    const worker = async () => {
-                        while (queue.length > 0) {
-                            const item = queue.shift();
-                            if (!item) continue;
-                            try {
-                                btn.innerText = `SYNC (${finished}/${total})`;
-                                await fetchPriceAndInfo(item);
-                                // 增加隨機間隔
-                                await new Promise(r => setTimeout(r, 800 + Math.random() * 400));
-                            } catch (e) {
-                                console.warn(`Initial update failed for ${item.symbol}:`, e);
-                            } finally {
-                                finished++;
-                                render();
-                            }
-                        }
-                    };
-                    
-                    // 降低啟動時的並行量
-                    await Promise.all([worker(), worker()]);
+                    await Promise.all([fxPromise, ...stockPromises]);
                     
                     saveToStorage();
                     render();
