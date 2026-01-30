@@ -1003,7 +1003,7 @@
         let rapidApiKey = 'c28a529e37mshd701a238b609e33p101918jsn640a3594892c'; 
         let globalFxRate = 32.5;
         let mainChart = null, strategyChart = null, targetChart = null;
-        let GAS_API_URL = ''; // 請在此填入您的 GAS 部署網址
+        let GAS_API_URL = 'https://script.google.com/macros/s/AKfycby5cf51oi8-sEmzAPO7KjHv3eUERqJ2ne-3FMg8qzkZ3TX3wnHY7UuvXyG_0qQZV08i/exec'; // 已填入 GAS 部署網址
 
         function saveToStorage() {
             localStorage.setItem('stocklens_portfolio', JSON.stringify(portfolio));
@@ -1465,18 +1465,32 @@
                 console.error("GAS_API_URL 未設定");
                 throw new Error("GAS_API_URL_MISSING");
             }
-            const url = `${GAS_API_URL}?symbols=${encodeURIComponent(symbols)}&t=${Date.now()}`;
+            // 修正 URL 拼接方式，確保與使用者指令一致
+            const url = GAS_API_URL + "?symbols=" + encodeURIComponent(symbols) + "&t=" + Date.now();
             const response = await fetch(url);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            return await response.json();
+            const data = await response.json();
+            
+            // 根據使用者要求，直接讀取 data.quoteResponse.result
+            if (data && data.quoteResponse && data.quoteResponse.result) {
+                return data.quoteResponse.result.map(item => ({
+                    symbol: item.symbol,
+                    price: item.regularMarketPrice,
+                    change: item.regularMarketChangePercent,
+                    name: item.shortName || item.longName
+                }));
+            }
+            return [];
         }
 
         function applyData(results) {
             if (!results || results.length === 0) return;
             results.forEach(stock => {
                 // 智慧匹配代號 (模糊匹配)：處理 0050 vs 0050.TW
+                // 優先使用 split('.')[0] 進行匹配，確保 Yahoo 的 .TW 尾綴不會干擾
+                const stockBase = stock.symbol.split('.')[0].toUpperCase();
                 const item = portfolio.find(p => 
-                    p.symbol.split('.')[0].toUpperCase() === stock.symbol.split('.')[0].toUpperCase()
+                    p.symbol.split('.')[0].toUpperCase() === stockBase
                 );
                 
                 if (item) {
@@ -1498,9 +1512,9 @@
             if (!symbols) return;
 
             try {
-                const data = await fetchFromGAS(symbols);
-                if (data && data.results && data.results.length > 0) {
-                    applyData(data.results);
+                const results = await fetchFromGAS(symbols);
+                if (results && results.length > 0) {
+                    applyData(results);
                     console.log("GAS 價格更新成功！");
                 } else {
                     throw new Error("GAS 回傳資料格式錯誤或為空");
@@ -1509,16 +1523,16 @@
                 console.error("GAS 價格更新失敗:", e);
                 const statusElem = document.getElementById('update-status');
                 if(statusElem) statusElem.innerText = "GAS 線路異常，請檢查部署網址";
-                throw e; // 拋出錯誤讓 handleRefreshClick 處理
+                throw e;
             }
         }
 
         async function fetchFX() {
             try {
                 console.log("GAS 方案：開始更新匯率...");
-                const data = await fetchFromGAS("USDTWD=X");
-                if (data && data.results && data.results.length > 0) {
-                    const price = data.results[0].price;
+                const results = await fetchFromGAS("USDTWD=X");
+                if (results && results.length > 0) {
+                    const price = results[0].price;
                     if (price > 0) {
                         globalFxRate = price;
                         console.log(`GAS 匯率更新成功: ${globalFxRate}`);
