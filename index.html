@@ -1557,10 +1557,19 @@
             const others = active.filter(p => p.name !== 'Vercel-API');
             others.sort(() => Math.random() - 0.5);
 
-            // 採用「單一請求，失敗才切換」策略，避免並行請求過多導致被 Yahoo 封鎖
+            // 採用「單一請求，失敗才切換」策略，並針對 Vercel 增加冷啟動重試
             try {
                 if (vercel) {
-                    return await fetchFromProxy(vercel);
+                    try {
+                        return await fetchFromProxy(vercel);
+                    } catch (err) {
+                        // 如果 Vercel 失敗且不是被主動 abort，嘗試一次冷啟動重試
+                        if (err.name !== 'AbortError') {
+                            console.warn("[Fetch] Vercel failed, retrying once for cold start...");
+                            return await fetchFromProxy(vercel, 500); // 延遲 500ms 重試
+                        }
+                        throw err;
+                    }
                 }
                 throw new Error('Vercel skipped');
             } catch (e) {
@@ -1636,6 +1645,8 @@
                 if (winner && winner.price > 0) {
                     console.log(`[Fetch] Winner Ticker: ${winner.ticker}, Price: ${winner.price}, Source: ${winner.source}`);
                     item.price = winner.price;
+                    // 在 UI 上暫時標註來源，方便診斷 (可選)
+                    // item.lastSource = winner.source; 
                 } else {
                     throw new Error('No valid price found');
                 }
@@ -1666,27 +1677,28 @@
 
         // 自動檢測版本並清除舊快取
         (function() {
-            const CURRENT_VERSION = '3.1.5';
+            const CURRENT_VERSION = '3.1.6';
             const lastVersion = localStorage.getItem('stocklens_version');
             if (lastVersion !== CURRENT_VERSION) {
                 console.log(`Version update: ${lastVersion} -> ${CURRENT_VERSION}`);
                 localStorage.setItem('stocklens_version', CURRENT_VERSION);
-                // 清除 Cache Storage
+                // 1. 清除 Cache Storage (最徹底的清除方式)
                 if ('caches' in window) {
                     caches.keys().then(names => {
-                        for (let name of names) caches.delete(name);
+                        return Promise.all(names.map(name => caches.delete(name)));
                     });
                 }
-                // 清除所有代理狀態與快取，確保重新檢測
+                // 2. 清除所有代理狀態與舊快取
                 for (let key in localStorage) {
                     if (key.startsWith('proxy_') || key.startsWith('stock_cache_')) {
                         localStorage.removeItem(key);
                     }
                 }
-                // 強制刷新以應用新版本，解決手機端快取問題
+                // 3. 強制刷新以應用新版本
                 setTimeout(() => {
                     const url = new URL(window.location.href);
-                    url.searchParams.set('reload', Date.now());
+                    url.searchParams.set('v', CURRENT_VERSION); // 加上版本號避免 CDN 快取
+                    url.searchParams.set('t', Date.now());
                     window.location.replace(url.href);
                 }, 500);
             }
@@ -1698,6 +1710,9 @@
 
         async function handleRefreshClick() {
             if (portfolio.length === 0 || isSyncing) return;
+            
+            // 每次更新開始前，清除所有代理的錯誤鎖定狀態，給 Vercel 一個全新的機會
+            for (let key in proxyStatus) delete proxyStatus[key];
             
             const now = Date.now();
             if (now - lastSyncTime < SYNC_COOLDOWN) {
