@@ -1482,19 +1482,20 @@
                 // 日誌追蹤：GAS Success
                 console.log('GAS Success:', data);
                 
-                // 精準拆包：根據 Log 修正路徑為 data.finance.result
-                const resultsArray = (data && data.finance && data.finance.result) ? data.finance.result : 
-                                   (data && data.quoteResponse && data.quoteResponse.result) ? data.quoteResponse.result : null;
+                // 萬能解包法：深度解析多種可能的路徑 (finance.result, finance.results, quoteResponse.result)
+                const resultData = (data.finance && data.finance.result) ? data.finance.result : 
+                                 (data.finance && data.finance.results) ? data.finance.results :
+                                 (data.quoteResponse && data.quoteResponse.result) ? data.quoteResponse.result : null;
 
-                if (resultsArray && Array.isArray(resultsArray)) {
-                    return resultsArray.map(item => ({
+                if (resultData && Array.isArray(resultData)) {
+                    return resultData.map(item => ({
                         symbol: item.symbol,
                         price: item.regularMarketPrice || item.price || 0,
                         change: item.regularMarketChangePercent || 0,
                         name: item.shortName || item.longName || item.symbol
                     }));
                 } else {
-                    console.warn('【格式警告】原始資料路徑不匹配：', data);
+                    console.warn('【格式警告】萬能解包失敗，請檢查原始資料：', data);
                     return [];
                 }
             } catch (error) {
