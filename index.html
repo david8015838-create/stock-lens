@@ -1003,7 +1003,7 @@
         let rapidApiKey = 'c28a529e37mshd701a238b609e33p101918jsn640a3594892c'; 
         let globalFxRate = 32.5;
         let mainChart = null, strategyChart = null, targetChart = null;
-        let GAS_API_URL = 'https://script.google.com/macros/s/AKfycby5cf51oi8-sEmzAPO7KjHv3eUERqJ2ne-3FMg8qzkZ3TX3wnHY7UuvXyG_0qQZV08i/exec'; // 已填入 GAS 部署網址
+        let GAS_API_URL = 'https://script.google.com/macros/s/AKfycbwVMx7JahVp8j3rVQQnabEhBObjD-XSI0M65srY6qoigOsJbhDlcSDdgzo2aHOxHqpD/exec'; // 已更換為帶有 Header 偽裝的新 GAS 網址
 
         function saveToStorage() {
             localStorage.setItem('stocklens_portfolio', JSON.stringify(portfolio));
@@ -1465,15 +1465,16 @@
                 console.error("GAS_API_URL 未設定");
                 throw new Error("GAS_API_URL_MISSING");
             }
+            // 根據用戶要求，確保 URL 結構正確
             const url = GAS_API_URL + "?symbols=" + encodeURIComponent(symbols) + "&t=" + Date.now();
             const response = await fetch(url);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
             
-            // 強制 Debug 輸出
-            console.log('【大神調試】GAS 原始回傳:', JSON.stringify(data, null, 2));
+            // 日誌追蹤：GAS Success
+            console.log('GAS Success:', data);
             
-            // 確保讀取 data.quoteResponse.result
+            // 精準拆包：確保使用 data.quoteResponse.result
             if (data && data.quoteResponse && data.quoteResponse.result) {
                 return data.quoteResponse.result.map(item => ({
                     symbol: item.symbol,
@@ -1488,12 +1489,11 @@
         function applyData(results) {
             if (!results || results.length === 0) return;
             results.forEach(asset => {
-                // 優化資產匹配邏輯
-                const assetSym = asset.symbol.split('.')[0].toUpperCase();
-                
+                // 資產匹配校準：確保 0050.TW 能對應到 0050
                 const item = portfolio.find(p => {
-                    const cleanSymbol = p.symbol.split('.')[0].toUpperCase();
-                    return assetSym === cleanSymbol;
+                    const localSymbol = p.symbol.split('.')[0].toUpperCase();
+                    const yahooSymbol = asset.symbol.split('.')[0].toUpperCase();
+                    return localSymbol === yahooSymbol;
                 });
                 
                 if (item) {
