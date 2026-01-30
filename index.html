@@ -20,7 +20,37 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // 修正 iOS Safari 上 Tailwind CDN 導致的 "a problem repeatedly occurred" 錯誤
+        // 強制禁用 Tailwind 的自動 Preflight 注入，改為手動重置樣式
+        tailwind.config = {
+            corePlugins: {
+                preflight: false,
+            }
+        }
+    </script>
     <style>
+        /* 手動 Preflight 樣式，避免 iOS 記憶體崩潰 */
+        *, ::before, ::after {
+            box-sizing: border-box;
+            border-width: 0;
+            border-style: solid;
+            border-color: #e5e7eb;
+        }
+        
+        /* 基礎重置 */
+        html {
+            line-height: 1.5;
+            -webkit-text-size-adjust: 100%;
+            -moz-tab-size: 4;
+            tab-size: 4;
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+        }
+        body { margin: 0; line-height: inherit; }
+        
+        /* 圖片優化防止閃退 */
+        img, video { max-width: 100%; height: auto; display: block; }
+        
         :root { --neon: #22d3ee; --bg: #0b111f; --card: #0f172a; --surface: rgba(15, 23, 42, 0.7); --nav-height: 84px; }
         
         html, body {
