@@ -4,10 +4,14 @@
   "description": "Stock Lens - Yahoo Finance Portfolio Tracker",
   "main": "index.html",
   "scripts": {
-    "start": "python3 -m http.server 8000"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {}
+  "devDependencies": {
+    "autoprefixer": "^10.4.17",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "vite": "^5.1.4"
+  }
 }

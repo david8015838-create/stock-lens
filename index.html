@@ -19,16 +19,7 @@
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        // 修正 iOS Safari 上 Tailwind CDN 導致的 "a problem repeatedly occurred" 錯誤
-        // 強制禁用 Tailwind 的自動 Preflight 注入，改為手動重置樣式
-        tailwind.config = {
-            corePlugins: {
-                preflight: false,
-            }
-        }
-    </script>
+    <link rel="stylesheet" href="./style.css">
     <style>
         /* 手動 Preflight 樣式，避免 iOS 記憶體崩潰 */
         *, ::before, ::after {
@@ -1003,7 +994,7 @@
         let rapidApiKey = 'c28a529e37mshd701a238b609e33p101918jsn640a3594892c'; 
         let globalFxRate = 32.5;
         let mainChart = null, strategyChart = null, targetChart = null;
-        let GAS_API_URL = 'https://script.google.com/macros/s/AKfycby8RCR-IF8rjbKVt2vaV6d2KtZC2dGqQh9tLhfXu1ngZPfnNuiSvF_9T6a-AHnc_sPO/exec'; // 已更換為針對 chart 接口優化的新網址 GAS
+        let GAS_API_URL = import.meta.env.VITE_GAS_URL || ''; // 使用環境變數隔離 GAS 網址
 
         function saveToStorage() {
             localStorage.setItem('stocklens_portfolio', JSON.stringify(portfolio));
@@ -1660,22 +1651,21 @@
 
         async function handleRefreshClick() {
             console.log('Sync clicked');
-            if (isUpdatingGlobal) return;
-            if (isCoolingDown) {
-                alert('系統冷卻中，請稍候再試。');
-                return;
-            }
+            if (isUpdatingGlobal || isCoolingDown) return;
+            
             if (!portfolio || portfolio.length === 0) {
                 alert('目前沒有任何資產可以更新。');
                 return;
             }
             
             isUpdatingGlobal = true;
+            isCoolingDown = true; // 啟動冷卻
             const btn = document.getElementById('refreshBtn');
             const statusElem = document.getElementById('update-status');
             const originalText = 'Sync';
             
             if (btn) {
+                btn.disabled = true;
                 btn.textContent = 'SYNCING...';
                 btn.classList.add('updating');
             }
@@ -1692,12 +1682,24 @@
                 if (btn) btn.textContent = 'ERROR';
             } finally {
                 isUpdatingGlobal = false;
-                setTimeout(() => {
-                    if (btn) {
-                        btn.textContent = originalText;
-                        btn.classList.remove('updating');
+                
+                // 倒數計時冷卻
+                let countdown = 10;
+                const timer = setInterval(() => {
+                    countdown--;
+                    if (btn) btn.textContent = `WAIT (${countdown}s)`;
+                    
+                    if (countdown <= 0) {
+                        clearInterval(timer);
+                        isCoolingDown = false;
+                        if (btn) {
+                            btn.disabled = false;
+                            btn.textContent = originalText;
+                            btn.classList.remove('updating');
+                        }
                     }
-                }, 2000);
+                }, 1000);
+                
                 render();
             }
         }
@@ -2504,16 +2506,11 @@
             render();
             renderTradeHistory();
 
+            // 2. 僅在啟動時自動執行一次更新
             if (portfolio.length > 0) {
-                const btn = document.getElementById('refreshBtn');
-                const originalText = btn ? btn.innerText : "Sync";
-                if (btn) {
-                    btn.innerText = "SYNCING..."; 
-                    btn.disabled = true;
-                }
-                
+                console.log("🚀 Startup auto-update initiated...");
                 try {
-                    // 2. 並行更新匯率與所有價格
+                    // 並行更新匯率與所有價格
                     const fxPromise = fetchFX();
                     const pricePromise = updateAllPrices();
                     
@@ -2525,10 +2522,6 @@
                     console.error("Startup update failed:", error);
                 } finally {
                     finalizeUpdate(false);
-                    if (btn) {
-                        btn.innerText = originalText; 
-                        btn.disabled = false;
-                    }
                 }
             }
         };
