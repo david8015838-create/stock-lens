@@ -1520,6 +1520,7 @@
                         btn.textContent = 'Sync';
                         btn.classList.remove('updating');
                     }, 2000);
+                    isUpdatingGlobal = false; // 修正：必須重置 flag 否則會鎖死
                     return;
                 }
 
