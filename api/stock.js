@@ -29,9 +29,9 @@ export default async function handler(req, res) {
     'Origin': 'https://finance.yahoo.com'
   };
 
-  // 設置較短的超時，避免 Vercel Function 整個超時
+  // 設置超時，避免 Vercel Function 整個超時
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 4000); // 縮短至 4 秒
+  const timeoutId = setTimeout(() => controller.abort(), 4500); // 稍微增加到 4.5 秒
 
   try {
     // 使用 Promise.any 同時請求 query1 和 query2，誰快就用誰

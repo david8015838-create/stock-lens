@@ -1504,8 +1504,8 @@
                 }
                 if (delay > 0) await new Promise(r => setTimeout(r, delay));
                 const controller = new AbortController();
-                // 極速超時：Vercel API 2.5秒，其他代理 3秒
-                const timeoutMs = config.name === 'Vercel-API' ? 2500 : 3000;
+                // 極速超時：Vercel API 5秒 (包含冷啟動)，其他代理 4秒
+                const timeoutMs = config.name === 'Vercel-API' ? 5000 : 4000;
                 const timeoutId = setTimeout(() => controller.abort(), timeoutMs); 
                 try {
                     const finalUrl = config.fn(targetUrl);
@@ -1585,15 +1585,17 @@
             if (rawSymbol.includes('.')) {
                 tickers = [rawSymbol];
             } else if (/^\d/.test(rawSymbol) || rawSymbol.startsWith('B')) {
-                // 台股 (2330), 台債 (B00001), 槓桿型/債券 ETF (00631L, 00772B)
+                // 台股 (2330), 台債 (B00001), 槓桿型 (00631L), 債券 ETF (00772B)
                 if (rawSymbol.startsWith('B')) {
                     // 台債 (櫃買中心為主)
                     tickers = [`${rawSymbol}.TWO`, `${rawSymbol}.TW`, rawSymbol];
-                } else if (rawSymbol.endsWith('B')) {
-                    // 債券型 ETF (櫃買中心為主)
-                    tickers = [`${rawSymbol}.TWO`, `${rawSymbol}.TW`];
+                } else if (rawSymbol.endsWith('B') || rawSymbol.length >= 6) {
+                    // 債券型 ETF (如 00772B) 或 槓桿/反向 ETF (如 00631L, 00632R)
+                    // 這些通常在 .TW 或 .TWO 都有可能，且 Yahoo 有時對 6 碼代號較嚴格
+                    tickers = [`${rawSymbol}.TW`, `${rawSymbol}.TWO`];
+                    // 如果是 00830 這種 5 碼但以 00 開頭的 ETF，也適用此邏輯
                 } else {
-                    // 普通台股、槓桿型 ETF (證交所為主)
+                    // 普通台股 (2330)
                     tickers = [`${rawSymbol}.TW`, `${rawSymbol}.TWO`];
                 }
             } else {
@@ -1621,10 +1623,10 @@
                         })
                     );
 
-                    // Quote V7 API 任務 (延遲 100ms)
+                    // Quote V7 API 任務 (延遲 50ms)
                     const params = isTW ? '&lang=zh-Hant-TW&region=TW' : '&lang=en-US&region=US';
                     allTasks.push(
-                        new Promise(r => setTimeout(r, 100)).then(() => 
+                        new Promise(r => setTimeout(r, 50)).then(() => 
                             fetchWithRetry(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${t}${params}&t=${ts}`)
                         ).then(data => {
                             const p = data.quoteResponse?.result?.[0]?.regularMarketPrice;
@@ -1633,9 +1635,9 @@
                         })
                     );
 
-                    // Quote V6 備援任務 (延遲 200ms)
+                    // Quote V6 備援任務 (延遲 100ms)
                     allTasks.push(
-                        new Promise(r => setTimeout(r, 200)).then(() => 
+                        new Promise(r => setTimeout(r, 100)).then(() => 
                             fetchWithRetry(`https://query1.finance.yahoo.com/v6/finance/quote?symbols=${t}&t=${ts}`)
                         ).then(data => {
                             const p = data.quoteResponse?.result?.[0]?.regularMarketPrice;
@@ -1733,7 +1735,10 @@
                         const symbolsToFetch = portfolio.map(item => {
                             const s = item.symbol.trim().toUpperCase();
                             if (s.includes('.')) return s; 
-                            if (/^\d/.test(s) || s.startsWith('B')) {
+                            if (s.startsWith('B')) {
+                                return `${s}.TWO,${s}.TW,${s}`;
+                            }
+                            if (/^\d/.test(s)) {
                                 return `${s}.TW,${s}.TWO`;
                             }
                             return s;
