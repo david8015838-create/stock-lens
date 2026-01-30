@@ -850,7 +850,7 @@
                     </div>
                     <div class="flex items-center gap-2">
                     <button id="refreshBtn" onclick="handleRefreshClick()" class="bg-slate-800/80 text-cyan-400 text-[10px] px-4 py-2 rounded-xl font-black border border-white/5 btn-action uppercase tracking-tight hover:bg-cyan-500 hover:text-black transition-all duration-300">Sync</button>
-                    <button onclick="forceHardReset()" class="bg-slate-800/50 text-slate-500 text-[8px] font-black px-2 py-2 rounded-lg border border-slate-700 uppercase tracking-tighter hover:text-rose-400 transition-all">V3.2.5 清快取</button>
+                    <button onclick="forceHardReset()" class="bg-slate-800/50 text-slate-500 text-[8px] font-black px-2 py-2 rounded-lg border border-slate-700 uppercase tracking-tighter hover:text-rose-400 transition-all">V3.2.6 清快取</button>
                 </div>
                 </div>
                 
@@ -1487,7 +1487,7 @@
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     
                     const data = await response.json();
-                    if (data && (data.quoteResponse || data.chart)) {
+                    if (data && (data.quoteResponse || data.chart || data.quoteSummary)) {
                         return data;
                     }
                     throw new Error('Invalid Data from Vercel');
@@ -1612,7 +1612,7 @@
                 
                 // 3. 加上時間戳與版本號強制重新整理
                 const url = new URL(window.location.href);
-                const CURRENT_VERSION = '3.2.5';
+                const CURRENT_VERSION = '3.2.6';
                 url.searchParams.set('v', CURRENT_VERSION);
                 url.searchParams.set('t', Date.now());
                 window.location.replace(url.href);
@@ -1621,7 +1621,7 @@
 
         // 自動檢測版本並清除舊快取
         (function() {
-            const CURRENT_VERSION = '3.2.5';
+            const CURRENT_VERSION = '3.2.6';
             const lastVersion = localStorage.getItem('stocklens_version');
             if (lastVersion !== CURRENT_VERSION) {
                 console.log(`Version update: ${lastVersion} -> ${CURRENT_VERSION}`);
