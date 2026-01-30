@@ -1302,7 +1302,7 @@
                 
                 // 2. 在後台更新價格，不阻塞 UI
                 try {
-                    await fetchPriceAndInfo(newItem);
+                    await updateSinglePrice(newItem);
                     saveToStorage(); 
                     render();
                 } catch (e) {
@@ -1354,7 +1354,7 @@
                 render();
                 
                 // 在後台更新價格
-                fetchPriceAndInfo(newItem).then(() => {
+                updateSinglePrice(newItem).then(() => {
                     saveToStorage(); 
                     render();
                 }).catch(e => console.error("Initial buy fetch failed:", e));
@@ -1471,6 +1471,9 @@
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
             
+            // 加入 Debug 紀錄
+            console.log('GAS Data:', data);
+            
             // 根據使用者要求，直接讀取 data.quoteResponse.result
             if (data && data.quoteResponse && data.quoteResponse.result) {
                 return data.quoteResponse.result.map(item => ({
@@ -1541,6 +1544,19 @@
             } catch (e) { 
                 console.warn("GAS 匯率更新失敗，使用預設值:", e);
                 if (!globalFxRate || globalFxRate <= 0) globalFxRate = 32.5; 
+            }
+        }
+
+        async function updateSinglePrice(item) {
+            const sym = item.symbol.trim().toUpperCase();
+            const symbolToFetch = (/^\d/.test(sym) && !sym.includes('.')) ? `${sym}.TW` : sym;
+            try {
+                const results = await fetchFromGAS(symbolToFetch);
+                if (results && results.length > 0) {
+                    applyData(results);
+                }
+            } catch (e) {
+                console.error(`Update single price failed for ${sym}:`, e);
             }
         }
 
@@ -2388,16 +2404,18 @@
 
             if (portfolio.length > 0) {
                 const btn = document.getElementById('refreshBtn');
-                const originalText = btn.innerText;
-                btn.innerText = "SYNCING..."; 
-                btn.disabled = true;
+                const originalText = btn ? btn.innerText : "Sync";
+                if (btn) {
+                    btn.innerText = "SYNCING..."; 
+                    btn.disabled = true;
+                }
                 
                 try {
-                    // 2. 並行更新匯率與所有價格 (全量並行)
+                    // 2. 並行更新匯率與所有價格
                     const fxPromise = fetchFX();
-                    const stockPromises = portfolio.map(item => fetchPriceAndInfo(item));
+                    const pricePromise = updateAllPrices();
                     
-                    await Promise.all([fxPromise, ...stockPromises]);
+                    await Promise.all([fxPromise, pricePromise]);
                     
                     saveToStorage();
                     render();
@@ -2405,8 +2423,10 @@
                     console.error("Startup update failed:", error);
                 } finally {
                     finalizeUpdate(false);
-                    btn.innerText = originalText; 
-                    btn.disabled = false;
+                    if (btn) {
+                        btn.innerText = originalText; 
+                        btn.disabled = false;
+                    }
                 }
             }
         };
