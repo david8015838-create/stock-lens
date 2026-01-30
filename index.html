@@ -1465,16 +1465,15 @@
                 console.error("GAS_API_URL 未設定");
                 throw new Error("GAS_API_URL_MISSING");
             }
-            // 修正 URL 拼接方式，確保與使用者指令一致
             const url = GAS_API_URL + "?symbols=" + encodeURIComponent(symbols) + "&t=" + Date.now();
             const response = await fetch(url);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
             
-            // 加入 Debug 紀錄
-            console.log('GAS Data:', data);
+            // 強制 Debug 輸出
+            console.log('【大神調試】GAS 原始回傳:', JSON.stringify(data, null, 2));
             
-            // 根據使用者要求，直接讀取 data.quoteResponse.result
+            // 確保讀取 data.quoteResponse.result
             if (data && data.quoteResponse && data.quoteResponse.result) {
                 return data.quoteResponse.result.map(item => ({
                     symbol: item.symbol,
@@ -1488,16 +1487,17 @@
 
         function applyData(results) {
             if (!results || results.length === 0) return;
-            results.forEach(stock => {
-                // 智慧匹配代號 (模糊匹配)：處理 0050 vs 0050.TW
-                // 優先使用 split('.')[0] 進行匹配，確保 Yahoo 的 .TW 尾綴不會干擾
-                const stockBase = stock.symbol.split('.')[0].toUpperCase();
-                const item = portfolio.find(p => 
-                    p.symbol.split('.')[0].toUpperCase() === stockBase
-                );
+            results.forEach(asset => {
+                // 優化資產匹配邏輯
+                const assetSym = asset.symbol.split('.')[0].toUpperCase();
+                
+                const item = portfolio.find(p => {
+                    const cleanSymbol = p.symbol.split('.')[0].toUpperCase();
+                    return assetSym === cleanSymbol;
+                });
                 
                 if (item) {
-                    item.price = stock.price || 0;
+                    item.price = asset.price || 0;
                     item.lastUpdate = new Date().toLocaleTimeString();
                     item.error = false;
                 }
@@ -1520,7 +1520,7 @@
                     applyData(results);
                     console.log("GAS 價格更新成功！");
                 } else {
-                    throw new Error("GAS 回傳資料格式錯誤或為空");
+                    throw new Error("GAS 回傳資料為空，請檢查 Console 的【大神調試】日誌");
                 }
             } catch (e) {
                 console.error("GAS 價格更新失敗:", e);
