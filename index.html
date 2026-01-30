@@ -1557,22 +1557,24 @@
             const others = active.filter(p => p.name !== 'Vercel-API');
             others.sort(() => Math.random() - 0.5);
 
+            // 採用「單一請求，失敗才切換」策略，避免並行請求過多導致被 Yahoo 封鎖
             try {
-                // 第一輪：Vercel API + 1 個隨機代理同時競爭
-                const firstRound = [];
-                if (vercel) firstRound.push(fetchFromProxy(vercel));
-                if (others.length > 0) firstRound.push(fetchFromProxy(others[0], 50));
-                
-                if (firstRound.length === 0) throw new Error('No proxies');
-                return await Promise.any(firstRound);
+                if (vercel) {
+                    return await fetchFromProxy(vercel);
+                }
+                throw new Error('Vercel skipped');
             } catch (e) {
+                // Vercel 失敗或被跳過，嘗試第一個代理
                 try {
-                    // 第二輪：剩下的所有代理
-                    const remaining = others.slice(1);
-                    if (remaining.length === 0) throw new Error('No more proxies');
-                    return await Promise.any(remaining.map((p, i) => fetchFromProxy(p, i * 100)));
+                    if (others.length > 0) {
+                        return await fetchFromProxy(others[0]);
+                    }
+                    throw new Error('No proxies');
                 } catch (e2) {
-                    throw new Error('All proxies failed');
+                    // 第一個代理也失敗，最後才啟動剩餘代理的並行競爭 (極限備援)
+                    const remaining = others.slice(1, 3); // 限制只嘗試 2 個備援
+                    if (remaining.length === 0) throw new Error('All proxies failed');
+                    return await Promise.any(remaining.map((p, i) => fetchFromProxy(p, i * 200)));
                 }
             }
         }
@@ -1612,9 +1614,9 @@
 
                 for (let t of tickers) {
                     const isTW = t.endsWith('.TW') || t.endsWith('.TWO') || t.startsWith('B');
-                    console.log(`[Fetch] Queueing tasks for ${item.symbol} as Ticker: ${t}`);
+                    console.log(`[Fetch] Queueing task for ${item.symbol} as Ticker: ${t}`);
                     
-                    // Chart API 任務 (立即開始)
+                    // 只保留一個最穩定的 API 任務 (Chart API 通常最準且最快)
                     allTasks.push(
                         fetchWithRetry(`https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d&t=${ts}`).then(data => {
                             const p = data.chart?.result?.[0]?.meta?.regularMarketPrice;
@@ -1623,28 +1625,7 @@
                         })
                     );
 
-                    // Quote V7 API 任務 (延遲 50ms)
-                    const params = isTW ? '&lang=zh-Hant-TW&region=TW' : '&lang=en-US&region=US';
-                    allTasks.push(
-                        new Promise(r => setTimeout(r, 50)).then(() => 
-                            fetchWithRetry(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${t}${params}&t=${ts}`)
-                        ).then(data => {
-                            const p = data.quoteResponse?.result?.[0]?.regularMarketPrice;
-                            if (p > 0) return { price: p, ticker: t, source: 'QuoteV7' };
-                            throw new Error('No Quote V7 Price');
-                        })
-                    );
-
-                    // Quote V6 備援任務 (延遲 100ms)
-                    allTasks.push(
-                        new Promise(r => setTimeout(r, 100)).then(() => 
-                            fetchWithRetry(`https://query1.finance.yahoo.com/v6/finance/quote?symbols=${t}&t=${ts}`)
-                        ).then(data => {
-                            const p = data.quoteResponse?.result?.[0]?.regularMarketPrice;
-                            if (p > 0) return { price: p, ticker: t, source: 'QuoteV6' };
-                            throw new Error('No Quote V6 Price');
-                        })
-                    );
+                    // 只有在 Vercel API 失敗後，Quote API 才作為備援 (由 fetchWithRetry 內部邏輯控制)
                 }
 
                 if (allTasks.length === 0) throw new Error('No fetch tasks created');
@@ -1685,7 +1666,7 @@
 
         // 自動檢測版本並清除舊快取
         (function() {
-            const CURRENT_VERSION = '3.1.4';
+            const CURRENT_VERSION = '3.1.5';
             const lastVersion = localStorage.getItem('stocklens_version');
             if (lastVersion !== CURRENT_VERSION) {
                 console.log(`Version update: ${lastVersion} -> ${CURRENT_VERSION}`);
@@ -1696,9 +1677,11 @@
                         for (let name of names) caches.delete(name);
                     });
                 }
-                // 清除所有代理狀態，確保重新檢測
+                // 清除所有代理狀態與快取，確保重新檢測
                 for (let key in localStorage) {
-                    if (key.startsWith('proxy_')) localStorage.removeItem(key);
+                    if (key.startsWith('proxy_') || key.startsWith('stock_cache_')) {
+                        localStorage.removeItem(key);
+                    }
                 }
                 // 強制刷新以應用新版本，解決手機端快取問題
                 setTimeout(() => {
