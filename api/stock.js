@@ -31,36 +31,35 @@ export default async function handler(req, res) {
 
   // 設置較短的超時，避免 Vercel Function 整個超時
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 4500); // 4.5秒超時
+  const timeoutId = setTimeout(() => controller.abort(), 4000); // 縮短至 4 秒
 
-  for (const url of urls) {
-    try {
+  try {
+    // 使用 Promise.any 同時請求 query1 和 query2，誰快就用誰
+    const data = await Promise.any(urls.map(async (url) => {
       const response = await fetch(url, { 
         headers,
         signal: controller.signal
       });
 
       if (response.ok) {
-        const data = await response.json();
-        // 增加快取控制，緩解 Yahoo 頻率限制
-        res.setHeader('Cache-Control', 's-maxage=5, stale-while-revalidate=30');
-        clearTimeout(timeoutId);
-        return res.status(200).json(data);
-      } else if (response.status === 429) {
-        console.warn(`Yahoo rate limited (429) for ${url}`);
-        // 繼續嘗試下一個 URL
-      } else {
-        console.warn(`Yahoo returned ${response.status} for ${url}`);
+        const json = await response.json();
+        // 驗證資料有效性
+        if (type === 'chart') {
+          if (json?.chart?.result?.[0]) return json;
+        } else {
+          if (json?.quoteResponse?.result) return json;
+        }
       }
-    } catch (error) {
-      if (error.name === 'AbortError') {
-        console.error(`Fetch timeout for ${url}`);
-      } else {
-        console.error(`Error fetching from ${url}:`, error);
-      }
-    }
-  }
+      throw new Error(`Fetch failed for ${url}`);
+    }));
 
-  clearTimeout(timeoutId);
-  return res.status(500).json({ error: 'Failed to fetch data from Yahoo Finance' });
+    // 增加快取控制，緩解 Yahoo 頻率限制
+    res.setHeader('Cache-Control', 's-maxage=5, stale-while-revalidate=30');
+    clearTimeout(timeoutId);
+    return res.status(200).json(data);
+  } catch (error) {
+    clearTimeout(timeoutId);
+    console.error(`All Yahoo requests failed or timed out:`, error);
+    return res.status(502).json({ error: 'All upstream providers failed' });
+  }
 }

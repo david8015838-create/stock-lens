@@ -1506,8 +1506,8 @@
                 if (delay > 0) await new Promise(r => setTimeout(r, delay));
                 
                 const controller = new AbortController();
-                // 縮短超時時間：Vercel API 3秒，其他 4秒
-                const timeoutMs = config.name === 'Vercel-API' ? 3500 : 4500;
+                // 縮短超時時間：Vercel API 2.5秒，其他 4秒
+                const timeoutMs = config.name === 'Vercel-API' ? 2500 : 4000;
                 const timeoutId = setTimeout(() => controller.abort(), timeoutMs); 
                 
                 try {
@@ -1561,24 +1561,26 @@
                 return proxyConfigs.filter(p => p.name !== 'Direct' && (!proxyStatus[p.name] || now > proxyStatus[p.name]));
             };
 
-            // 1. 嘗試直連 (最快，如果成功就不需要代理)
+            // 1. 優先嘗試 Vercel API (自定義後端)
             try {
                 return await fetchFromProxy(proxyConfigs[0]);
             } catch (e) {
-                // 直連失敗是正常的 (CORS)，繼續嘗試代理
+                // Vercel 失敗後繼續嘗試其他代理
             }
 
             const active = getActiveProxies();
             if (active.length === 0) active.push(proxyConfigs[1], proxyConfigs[2]);
-            active.sort(() => Math.random() - 0.5);
+            // 將 Vercel 移出 active，因為剛才試過了
+            const others = active.filter(p => p.name !== 'Vercel-API');
+            others.sort(() => Math.random() - 0.5);
 
             try {
-                // 第一輪：前兩個可用代理
-                return await Promise.any(active.slice(0, 2).map((p, i) => fetchFromProxy(p, i * 400)));
+                // 第一輪：同時發送 3 個代理請求，間隔更短 (200ms)
+                return await Promise.any(others.slice(0, 3).map((p, i) => fetchFromProxy(p, i * 200)));
             } catch (e) {
                 try {
-                    // 第二輪：剩下的代理
-                    return await Promise.any(active.slice(2).map((p, i) => fetchFromProxy(p, i * 400)));
+                    // 第二輪：剩下的所有代理
+                    return await Promise.any(others.slice(3).map((p, i) => fetchFromProxy(p, i * 200)));
                 } catch (e2) {
                     throw new Error('All proxies failed');
                 }
@@ -1727,82 +1729,80 @@
             btn.innerText = "WAIT..."; btn.disabled = true;
             
             try {
-                // 1. 先更新匯率
-                await fetchFX();
+                // 並行執行：匯率更新與股票更新同步開始，不互相阻塞
+                const fxPromise = fetchFX();
                 
-                // 2. 嘗試批次更新 (Vercel API 優化)
-                btn.innerText = "SYNCING...";
-                let batchSuccessCount = 0;
-                try {
-                    // 優化批次代號清單：台股優先嘗試 .TW，減少重複請求
-                    const symbolsToFetch = portfolio.map(item => {
-                        const s = item.symbol.trim().toUpperCase();
-                        if (/^\d/.test(s)) {
-                            // 00 開頭的 ETF 或是 4 位數股票，優先 .TW
-                            if (s.startsWith('00') || s.length === 4) return `${s}.TW`;
-                            return `${s}.TW,${s}.TWO`;
-                        }
-                        return s;
-                    }).join(',');
-
-                    console.log("[Batch] Attempting batch fetch via Vercel...");
-                    // 直接調用 Vercel API 進行批次更新，設置短超時
-                    const batchData = await fetchWithRetry(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbolsToFetch}`);
+                // 股票更新邏輯
+                const stockUpdateLogic = async () => {
+                    btn.innerText = "SYNCING...";
+                    let batchSuccessCount = 0;
                     
-                    if (batchData?.quoteResponse?.result) {
-                        const results = batchData.quoteResponse.result;
-                        results.forEach(res => {
-                            const symbol = res.symbol;
-                            const price = res.regularMarketPrice;
-                            if (price > 0) {
-                                // 找尋對應的資產 (考慮台股可能有多個後綴)
-                                const baseSymbol = symbol.split('.')[0];
-                                const items = portfolio.filter(p => p.symbol.toUpperCase() === baseSymbol || p.symbol.toUpperCase() === symbol);
-                                items.forEach(item => {
-                                    if (!item.price || item.price === 0 || item.symbol.toUpperCase() === symbol || !item.priceUpdated) {
-                                        item.price = price;
-                                        item.priceUpdated = true; // 標記已更新
-                                        batchSuccessCount++;
-                                    }
-                                });
+                    // 1. 嘗試批次更新 (Vercel API 優化)
+                    try {
+                        const symbolsToFetch = portfolio.map(item => {
+                            const s = item.symbol.trim().toUpperCase();
+                            if (/^\d/.test(s)) {
+                                if (s.startsWith('00') || s.length === 4) return `${s}.TW`;
+                                return `${s}.TW,${s}.TWO`;
                             }
-                        });
-                        console.log(`[Batch] Success! Updated ${batchSuccessCount} items.`);
+                            return s;
+                        }).join(',');
+
+                        console.log("[Batch] Attempting batch fetch via Vercel...");
+                        const batchData = await fetchWithRetry(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbolsToFetch}`);
+                        
+                        if (batchData?.quoteResponse?.result) {
+                            const results = batchData.quoteResponse.result;
+                            results.forEach(res => {
+                                const symbol = res.symbol;
+                                const price = res.regularMarketPrice;
+                                if (price > 0) {
+                                    const baseSymbol = symbol.split('.')[0];
+                                    const items = portfolio.filter(p => p.symbol.toUpperCase() === baseSymbol || p.symbol.toUpperCase() === symbol);
+                                    items.forEach(item => {
+                                        if (!item.price || item.price === 0 || item.symbol.toUpperCase() === symbol || !item.priceUpdated) {
+                                            item.price = price;
+                                            item.priceUpdated = true;
+                                            batchSuccessCount++;
+                                        }
+                                    });
+                                }
+                            });
+                            console.log(`[Batch] Success! Updated ${batchSuccessCount} items.`);
+                        }
+                    } catch (e) {
+                        console.warn("[Batch] Batch fetch failed, falling back to individual updates:", e);
                     }
-                } catch (e) {
-                    console.warn("[Batch] Batch fetch failed, falling back to individual updates:", e);
-                }
 
-                // 3. 準備剩餘的更新佇列 (處理批次沒抓到的，或需要 Chart API 備援的)
-                const queue = portfolio.filter(item => !item.priceUpdated);
-                // 重置標記供下次使用
-                portfolio.forEach(p => delete p.priceUpdated);
-                
-                if (queue.length > 0) {
-                    const total = queue.length;
-                    let finished = 0;
+                    // 2. 處理剩餘的更新佇列 (使用並行 Worker)
+                    const queue = portfolio.filter(item => !item.priceUpdated);
+                    portfolio.forEach(p => delete p.priceUpdated); // 清除標記
                     
-                    const worker = async () => {
-                        while (queue.length > 0) {
-                            const item = queue.shift();
-                            if (!item) continue;
-                            try {
-                                btn.innerText = `SYNC (${finished}/${total})`;
-                                await fetchPriceAndInfo(item);
-                                // 如果是走個別更新，縮短間隔時間 (從 800+ms 降至 200+ms)
-                                await new Promise(r => setTimeout(r, 200 + Math.random() * 300));
-                            } catch (e) {
-                                console.warn(`Failed to update ${item.symbol}:`, e);
-                            } finally {
-                                finished++;
-                                render();
+                    if (queue.length > 0) {
+                        const total = queue.length;
+                        let finished = 0;
+                        const worker = async () => {
+                            while (queue.length > 0) {
+                                const item = queue.shift();
+                                if (!item) continue;
+                                try {
+                                    btn.innerText = `SYNC (${finished}/${total})`;
+                                    await fetchPriceAndInfo(item);
+                                } catch (e) {
+                                    console.warn(`Failed to update ${item.symbol}:`, e);
+                                } finally {
+                                    finished++;
+                                    render();
+                                }
                             }
-                        }
-                    };
-                    
-                    // 增加並行 Worker 數量 (從 2 增加到 4)
-                    await Promise.all([worker(), worker(), worker(), worker()]);
-                }
+                        };
+                        // 使用 4 個並行 Worker，且移除內部等待時間
+                        await Promise.all([worker(), worker(), worker(), worker()]);
+                    }
+                };
+
+                // 等待所有並行任務完成
+                await Promise.all([fxPromise, stockUpdateLogic()]);
                 
                 saveToStorage();
                 render();
