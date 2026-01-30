@@ -1422,9 +1422,9 @@
                 for (let t of tickers) {
                     try {
                         console.log(`[Fetch] Trying Price for ${t}...`);
-                        const isTW = t.endsWith('.TW') || t.endsWith('.TWO');
+                        const isTW = t.endsWith('.TW') || t.endsWith('.TWO') || t.startsWith('B');
                         
-                        // 優先嘗試 Chart API，這是最快且最穩定的價格來源
+                        // 1. 優先嘗試 Chart API (最穩定)
                         const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d&t=${Date.now()}`;
                         const chartData = await fetchWithRetry(chartUrl);
                         
@@ -1432,19 +1432,31 @@
                             const price = chartData.chart.result[0].meta.regularMarketPrice;
                             console.log(`[Fetch] Chart API Success! Price for ${t}: ${price}`);
                             item.price = price;
-                            return; // 價格抓到即回傳，不再浪費時間抓名稱
+                            return;
                         }
                         
-                        // 備援：Quote API (僅在 Chart API 失敗時執行)
+                        // 2. 備援：Quote V7 API
                         const params = isTW ? '&lang=zh-Hant-TW&region=TW' : '&lang=en-US&region=US';
                         const quoteUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${t}${params}&t=${Date.now()}`;
                         const data = await fetchWithRetry(quoteUrl);
                         
                         if (data?.quoteResponse?.result?.[0]?.regularMarketPrice > 0) {
                             const price = data.quoteResponse.result[0].regularMarketPrice;
-                            console.log(`[Fetch] Quote API Success! Price for ${t}: ${price}`);
+                            console.log(`[Fetch] Quote V7 Success! Price for ${t}: ${price}`);
                             item.price = price;
                             return; 
+                        }
+
+                        // 3. 針對債券的特殊備援：Quote V6 API (有時 V7 抓不到公債)
+                        if (isTW && (t.startsWith('B') || t.includes('B'))) {
+                            const v6Url = `https://query1.finance.yahoo.com/v6/finance/quote?symbols=${t}&t=${Date.now()}`;
+                            const v6Data = await fetchWithRetry(v6Url);
+                            if (v6Data?.quoteResponse?.result?.[0]?.regularMarketPrice > 0) {
+                                const price = v6Data.quoteResponse.result[0].regularMarketPrice;
+                                console.log(`[Fetch] Quote V6 Success! Price for ${t}: ${price}`);
+                                item.price = price;
+                                return;
+                            }
                         }
                     } catch (e) { 
                         console.warn(`Price fetch failed for ${t}:`, e); 
