@@ -1462,11 +1462,15 @@
                 const response = await fetch(finalUrl, { signal: AbortSignal.timeout(10000) });
                 if (response.ok) {
                     const data = await response.json();
-                    // 相容舊格式與新簡化格式
                     const price = data.price || 
-                                  data.chart?.result?.[0]?.meta?.regularMarketPrice || 
+                                  data.results?.[0]?.price ||
                                   data.quoteResponse?.result?.[0]?.regularMarketPrice;
                     if (price > 0) return { price, ticker };
+                } else {
+                    console.error(`API Error: ${response.status} for ${ticker}`);
+                    if (response.status === 404) {
+                        alert(`後端 API 找不到 (404)！請確認 /api/stock.js 是否部署成功。`);
+                    }
                 }
             } catch (e) {
                 console.error(`Fetch failed for ${ticker}:`, e);
@@ -1500,18 +1504,13 @@
             btn.classList.add('updating');
 
             try {
-                // 1. 同步更新匯率
                 const fxPromise = fetchFX();
-
-                // 2. 收集所有標的並轉換格式 (批次請求關鍵)
                 const symbols = portfolio.map(item => {
                     const sym = item.symbol.trim().toUpperCase();
                     if (sym.includes('.')) return sym;
-                    // 台股判斷邏輯
                     return (/^\d/.test(sym) || (sym.length >= 4 && /\d/.test(sym))) ? `${sym}.TW` : sym;
                 }).join(',');
 
-                // 3. 一次性批次請求 (加上時間戳確保絕對最新)
                 const batchUrl = `/api/stock?symbols=${encodeURIComponent(symbols)}&t=${Date.now()}`;
                 const response = await fetch(batchUrl, { signal: AbortSignal.timeout(15000) });
                 
@@ -1519,7 +1518,6 @@
                     const data = await response.json();
                     const results = data.results || [];
 
-                    // 4. 一次性更新所有資產價格
                     portfolio.forEach(item => {
                         const sym = item.symbol.trim().toUpperCase();
                         const found = results.find(r => 
@@ -1533,14 +1531,15 @@
                             item.lastUpdate = new Date().toLocaleTimeString();
                             item.error = false;
                         } else {
-                            // 如果批次沒抓到，嘗試備援抓取
                             fetchPriceAndInfo(item);
                         }
                     });
+                } else {
+                    console.error(`Batch API Error: ${response.status}`);
+                    alert(`批次更新失敗 (HTTP ${response.status})。可能是 Vercel API 資料夾結構不正確。`);
                 }
 
                 await fxPromise;
-                
                 btn.textContent = 'SUCCESS ✓';
                 setTimeout(() => {
                     btn.textContent = 'Sync';
