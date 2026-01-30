@@ -8,12 +8,16 @@ export default async function handler(req, res) {
 
   // 根據請求類型決定 URL
   let urls = [];
-  if (type === 'chart') {
+  const isBatch = symbol.includes(',');
+  
+  if (type === 'chart' && !isBatch) {
+    // Chart API 不支援批次 (逗號隔開)，僅單一代號使用
     urls = [
       `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1m&range=1d`,
       `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1m&range=1d`
     ];
   } else {
+    // 批次請求或明確指定為 quote 類型，使用 Quote API
     urls = [
       `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbol}`,
       `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${symbol}`
@@ -44,10 +48,11 @@ export default async function handler(req, res) {
       if (response.ok) {
         const json = await response.json();
         // 驗證資料有效性
-        if (type === 'chart') {
+        if (type === 'chart' && !isBatch) {
           if (json?.chart?.result?.[0]) return json;
         } else {
-          if (json?.quoteResponse?.result) return json;
+          // Quote API 即使代號錯誤也會回傳 200，但 result 會是空的
+          if (json?.quoteResponse?.result && json.quoteResponse.result.length > 0) return json;
         }
       }
       throw new Error(`Fetch failed for ${url}`);

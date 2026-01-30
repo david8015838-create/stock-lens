@@ -1723,21 +1723,21 @@
                     
                     // 1. 嘗試批次更新 (Vercel API 優化)
                     try {
-                        const symbolsToFetch = portfolio.map(item => {
+                        const symbolsToFetch = portfolio.flatMap(item => {
                             const s = item.symbol.trim().toUpperCase();
-                            if (s.includes('.')) return s; 
+                            if (s.includes('.')) return [s]; 
                             if (s.startsWith('B')) {
-                                return `${s}.TWO,${s}.TW,${s}`;
+                                return [`${s}.TWO`, `${s}.TW`, s];
                             }
                             if (/^\d/.test(s)) {
-                                return `${s}.TW,${s}.TWO`;
+                                return [`${s}.TW`, `${s}.TWO`];
                             }
-                            return s;
+                            return [s];
                         }).join(',');
                         console.log(`[Batch] Requesting symbols: ${symbolsToFetch}`);
 
                         console.log("[Batch] Attempting batch fetch via Vercel...");
-                        const batchData = await fetchWithRetry(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbolsToFetch}`);
+                        const batchData = await fetchWithRetry(`/api/stock?symbol=${symbolsToFetch}&type=quote`);
                         
                         if (batchData?.quoteResponse?.result) {
                             const results = batchData.quoteResponse.result;
