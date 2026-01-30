@@ -1003,6 +1003,7 @@
         let rapidApiKey = 'c28a529e37mshd701a238b609e33p101918jsn640a3594892c'; 
         let globalFxRate = 32.5;
         let mainChart = null, strategyChart = null, targetChart = null;
+        let GAS_API_URL = ''; // 請在此填入您的 GAS 部署網址
 
         function saveToStorage() {
             localStorage.setItem('stocklens_portfolio', JSON.stringify(portfolio));
@@ -1456,46 +1457,18 @@
         }
 
         /**
-         * 核心抓取函數：V3.3.0 批次強化版
-         * 1. 優先使用「全股票批次抓取」，一次請求解決所有股票
-         * 2. 只有在批次失敗時，才針對個別股票進行備援抓取
+         * V4.0.0 GAS 核心抓取方案
+         * 利用 Google Apps Script 作為中間層，解決 Yahoo Finance 連線驗證問題
          */
-        async function fetchWithRetry(ticker) {
-            const finalUrl = `/api/stock?ticker=${encodeURIComponent(ticker)}&t=${Date.now()}`;
-            console.log('正在單獨請求:', finalUrl);
-            try {
-                const response = await fetch(finalUrl);
-                const data = await response.json();
-                console.log('收到單獨資料:', data);
-                
-                if (response.ok) {
-                    const price = data.results?.[0]?.price || 0;
-                    if (price > 0) return { price, ticker };
-                } else {
-                    console.error(`API Error: ${response.status} for ${ticker}`, data);
-                }
-            } catch (e) {
-                console.error(`Fetch failed for ${ticker}:`, e);
+        async function fetchFromGAS(symbols) {
+            if (!GAS_API_URL) {
+                console.error("GAS_API_URL 未設定");
+                throw new Error("GAS_API_URL_MISSING");
             }
-            throw new Error('Fetch failed');
-        }
-
-        async function fetchPriceAndInfo(item) {
-            const sym = item.symbol.trim().toUpperCase();
-            // 優先嘗試原始輸入，由後端處理 .TW
-            const tickers = [sym];
-            for (let t of tickers) {
-                try {
-                    const res = await fetchWithRetry(t);
-                    if (res.price > 0) {
-                        item.price = res.price;
-                        item.lastUpdate = new Date().toLocaleTimeString();
-                        item.error = false;
-                        return;
-                    }
-                } catch (e) {}
-            }
-            item.error = true;
+            const url = `${GAS_API_URL}?symbols=${encodeURIComponent(symbols)}&t=${Date.now()}`;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            return await response.json();
         }
 
         function applyData(results) {
@@ -1516,7 +1489,7 @@
         }
 
         async function updateAllPrices() {
-            console.log("開始更新價格...");
+            console.log("GAS 方案：開始更新價格...");
             const symbols = portfolio.map(a => {
                 let s = a.symbol.trim().toUpperCase();
                 return (/^\d/.test(s) && !s.includes('.')) ? `${s}.TW` : s;
@@ -1525,43 +1498,35 @@
             if (!symbols) return;
 
             try {
-                // 1. 先試 Vercel API
-                const response = await fetch(`/api/stock?symbols=${encodeURIComponent(symbols)}&t=${Date.now()}`);
-                const data = await response.json();
+                const data = await fetchFromGAS(symbols);
                 if (data && data.results && data.results.length > 0) {
                     applyData(data.results);
-                    return;
+                    console.log("GAS 價格更新成功！");
+                } else {
+                    throw new Error("GAS 回傳資料格式錯誤或為空");
                 }
-                throw new Error("Vercel API 無有效資料");
             } catch (e) {
-                console.warn("Vercel API 失敗，切換至強效備援 (AllOrigins)...");
-                try {
-                    // 2. 換用 allorigins.win，這比 corsproxy 更穩定
-                    const targetUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&ts=${Date.now()}`;
-                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-                    
-                    const res = await fetch(proxyUrl);
-                    const json = await res.json();
-                    // allorigins 會把結果包在 contents 裡面，需要再 parse 一次 
-                    const fbData = JSON.parse(json.contents);
-                    
-                    if (fbData && fbData.quoteResponse && fbData.quoteResponse.result) {
-                        const results = fbData.quoteResponse.result.map(item => ({
-                            symbol: item.symbol,
-                            price: item.regularMarketPrice,
-                            change: item.regularMarketChangePercent
-                        }));
-                        applyData(results);
-                        console.log("備援抓取成功！");
-                    } else {
-                        throw new Error("備援格式錯誤");
+                console.error("GAS 價格更新失敗:", e);
+                const statusElem = document.getElementById('update-status');
+                if(statusElem) statusElem.innerText = "GAS 線路異常，請檢查部署網址";
+                throw e; // 拋出錯誤讓 handleRefreshClick 處理
+            }
+        }
+
+        async function fetchFX() {
+            try {
+                console.log("GAS 方案：開始更新匯率...");
+                const data = await fetchFromGAS("USDTWD=X");
+                if (data && data.results && data.results.length > 0) {
+                    const price = data.results[0].price;
+                    if (price > 0) {
+                        globalFxRate = price;
+                        console.log(`GAS 匯率更新成功: ${globalFxRate}`);
                     }
-                } catch (err) {
-                    console.error("最終備援也失敗:", err);
-                    // 顯示在畫面上而非 Alert
-                    const statusElem = document.getElementById('update-status');
-                    if(statusElem) statusElem.innerText = "所有線路忙碌中，請稍後再試";
                 }
+            } catch (e) { 
+                console.warn("GAS 匯率更新失敗，使用預設值:", e);
+                if (!globalFxRate || globalFxRate <= 0) globalFxRate = 32.5; 
             }
         }
 
@@ -1602,21 +1567,6 @@
                     }
                 }, 2000);
                 render();
-            }
-        }
-
-        async function fetchFX() {
-            try {
-                // 匯率代號
-                const ticker = "USDTWD=X";
-                const res = await fetchWithRetry(ticker);
-                if (res.price > 0) {
-                    globalFxRate = res.price;
-                    console.log(`FX Rate fetched: ${globalFxRate}`);
-                }
-            } catch (e) { 
-                console.warn("FX fetch failed, using fallback:", e);
-                if (!globalFxRate || globalFxRate <= 0) globalFxRate = 32.5; 
             }
         }
 
