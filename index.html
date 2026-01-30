@@ -1506,7 +1506,9 @@
                 if (delay > 0) await new Promise(r => setTimeout(r, delay));
                 
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), config.name === 'Direct' ? 3000 : 8000); 
+                // 縮短超時時間：Vercel API 3秒，其他 4秒
+                const timeoutMs = config.name === 'Vercel-API' ? 3500 : 4500;
+                const timeoutId = setTimeout(() => controller.abort(), timeoutMs); 
                 
                 try {
                     const finalUrl = config.fn(targetUrl);
@@ -1732,17 +1734,19 @@
                 btn.innerText = "SYNCING...";
                 let batchSuccessCount = 0;
                 try {
-                    // 將所有股票代號轉換為 Yahoo 格式
+                    // 優化批次代號清單：台股優先嘗試 .TW，減少重複請求
                     const symbolsToFetch = portfolio.map(item => {
                         const s = item.symbol.trim().toUpperCase();
                         if (/^\d/.test(s)) {
-                            // 台股優先嘗試 .TW
+                            // 00 開頭的 ETF 或是 4 位數股票，優先 .TW
+                            if (s.startsWith('00') || s.length === 4) return `${s}.TW`;
                             return `${s}.TW,${s}.TWO`;
                         }
                         return s;
                     }).join(',');
 
                     console.log("[Batch] Attempting batch fetch via Vercel...");
+                    // 直接調用 Vercel API 進行批次更新，設置短超時
                     const batchData = await fetchWithRetry(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbolsToFetch}`);
                     
                     if (batchData?.quoteResponse?.result) {
@@ -1785,8 +1789,8 @@
                             try {
                                 btn.innerText = `SYNC (${finished}/${total})`;
                                 await fetchPriceAndInfo(item);
-                                // 如果是走個別更新，仍保持間隔以避開限流
-                                await new Promise(r => setTimeout(r, 800 + Math.random() * 700));
+                                // 如果是走個別更新，縮短間隔時間 (從 800+ms 降至 200+ms)
+                                await new Promise(r => setTimeout(r, 200 + Math.random() * 300));
                             } catch (e) {
                                 console.warn(`Failed to update ${item.symbol}:`, e);
                             } finally {
@@ -1796,7 +1800,8 @@
                         }
                     };
                     
-                    await Promise.all([worker(), worker()]);
+                    // 增加並行 Worker 數量 (從 2 增加到 4)
+                    await Promise.all([worker(), worker(), worker(), worker()]);
                 }
                 
                 saveToStorage();

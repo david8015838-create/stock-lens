@@ -7,8 +7,6 @@ export default async function handler(req, res) {
   }
 
   // 根據請求類型決定 URL
-  // type='chart' 用於獲取單個代碼的詳細圖表/價格數據 (更穩定)
-  // type='quote' (預設) 用於獲取多個代碼的價格 (支援逗號分隔)
   let urls = [];
   if (type === 'chart') {
     urls = [
@@ -22,30 +20,47 @@ export default async function handler(req, res) {
     ];
   }
 
-  // 設置更真實的 User-Agent
+  // 模擬真實瀏覽器標頭
   const headers = {
-    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1',
-    'Accept': 'application/json',
-    'Referer': 'https://finance.yahoo.com/'
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+    'Referer': 'https://finance.yahoo.com/',
+    'Origin': 'https://finance.yahoo.com'
   };
+
+  // 設置較短的超時，避免 Vercel Function 整個超時
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 4500); // 4.5秒超時
 
   for (const url of urls) {
     try {
-      const response = await fetch(url, { headers });
+      const response = await fetch(url, { 
+        headers,
+        signal: controller.signal
+      });
 
       if (response.ok) {
         const data = await response.json();
-        // 增加快取控制，避免過度請求，但保持數據新鮮 (快取 10 秒)
-        res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=59');
+        // 增加快取控制，緩解 Yahoo 頻率限制
+        res.setHeader('Cache-Control', 's-maxage=5, stale-while-revalidate=30');
+        clearTimeout(timeoutId);
         return res.status(200).json(data);
       } else if (response.status === 429) {
         console.warn(`Yahoo rate limited (429) for ${url}`);
-        continue; // 嘗試下一個 URL
+        // 繼續嘗試下一個 URL
+      } else {
+        console.warn(`Yahoo returned ${response.status} for ${url}`);
       }
     } catch (error) {
-      console.error(`Error fetching from ${url}:`, error);
+      if (error.name === 'AbortError') {
+        console.error(`Fetch timeout for ${url}`);
+      } else {
+        console.error(`Error fetching from ${url}:`, error);
+      }
     }
   }
 
+  clearTimeout(timeoutId);
   return res.status(500).json({ error: 'Failed to fetch data from Yahoo Finance' });
 }
