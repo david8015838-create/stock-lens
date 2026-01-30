@@ -1468,7 +1468,6 @@
             if (!symbols) return [];
 
             const controller = new AbortController();
-            // 將超時限制延長至 30 秒，給予 Google Script 足夠的啟動時間
             const timeoutId = setTimeout(() => controller.abort(), 30000); 
 
             try {
@@ -1479,23 +1478,24 @@
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const data = await response.json();
                 
-                // 日誌追蹤：GAS Success
-                console.log('GAS Success:', data);
+                // 大神親傳：Yahoo Finance 內部接口專用解析邏輯
+                console.log("【決戰數據內容】", JSON.stringify(data, null, 2));
                 
-                // 萬能解包法：深度解析多種可能的路徑 (finance.result, finance.results, quoteResponse.result)
-                const resultData = (data.finance && data.finance.result) ? data.finance.result : 
-                                 (data.finance && data.finance.results) ? data.finance.results :
-                                 (data.quoteResponse && data.quoteResponse.result) ? data.quoteResponse.result : null;
+                // 重點：Yahoo 的資料可能藏在 finance.result 或 finance.error 裡
+                const results = (data.finance && data.finance.result) ? data.finance.result : 
+                                (data.finance && data.finance.results) ? data.finance.results :
+                                (data.quoteResponse && data.quoteResponse.result) ? data.quoteResponse.result : null;
 
-                if (resultData && Array.isArray(resultData)) {
-                    return resultData.map(item => ({
+                if (results && Array.isArray(results) && results.length > 0) {
+                    return results.map(item => ({
                         symbol: item.symbol,
                         price: item.regularMarketPrice || item.price || 0,
                         change: item.regularMarketChangePercent || 0,
+                        prevClose: item.regularMarketPreviousClose || 0,
                         name: item.shortName || item.longName || item.symbol
                     }));
                 } else {
-                    console.warn('【格式警告】萬能解包失敗，請檢查原始資料：', data);
+                    console.error("❌ 結構對接失敗，請看上方 JSON.stringify 的內容");
                     return [];
                 }
             } catch (error) {
@@ -1503,7 +1503,7 @@
                 if (error.name === 'AbortError') {
                     console.error('GAS 請求超時 (30秒限制)。Google 腳本反應過慢。');
                 } else {
-                    console.error('GAS 請求出錯:', error);
+                    console.error('❌ 解析過程出錯:', error);
                 }
                 throw error;
             }
@@ -1511,21 +1511,20 @@
 
         function applyData(results) {
             if (!results || results.length === 0) return;
-            results.forEach(asset => {
-                // 資產匹配校準：確保 0050.TW 能對應到 0050
-                const item = portfolio.find(p => {
-                    const localSymbol = p.symbol.split('.')[0].toUpperCase();
-                    const yahooSymbol = asset.symbol.split('.')[0].toUpperCase();
-                    return localSymbol === yahooSymbol;
-                });
+            results.forEach(item => {
+                const yahooSymbol = item.symbol.split('.')[0].toUpperCase();
+                // 適配當前代碼的變數名稱: portfolio
+                const asset = portfolio.find(p => p.symbol.split('.')[0].toUpperCase() === yahooSymbol);
                 
-                if (item) {
-                    item.price = asset.price || 0;
-                    item.lastUpdate = new Date().toLocaleTimeString();
-                    item.error = false;
+                if (asset) {
+                    asset.price = item.price;
+                    asset.change = item.change;
+                    asset.lastUpdate = new Date().toLocaleTimeString();
+                    asset.error = false;
+                    console.log(`✅ 成功更新 ${asset.symbol}: ${asset.price}`);
                 }
             });
-            render();
+            render(); // 強制重新渲染畫面
         }
 
         async function updateAllPrices() {
