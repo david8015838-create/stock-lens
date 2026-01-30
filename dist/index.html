@@ -1,0 +1,2703 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <!-- 禁止緩存 Meta 標籤 -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    <title>StockLens Owen</title>
+    <link rel="icon" href="data:,">
+    
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2422/2422796.png">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <style>
+        /* 手動 Preflight 樣式，避免 iOS 記憶體崩潰 */
+        *, ::before, ::after {
+            box-sizing: border-box;
+            border-width: 0;
+            border-style: solid;
+            border-color: #e5e7eb;
+        }
+        
+        /* 基礎重置 */
+        html {
+            line-height: 1.5;
+            -webkit-text-size-adjust: 100%;
+            -moz-tab-size: 4;
+            -o-tab-size: 4;
+               tab-size: 4;
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+        }
+        body { margin: 0; line-height: inherit; }
+        
+        /* 圖片優化防止閃退 */
+        img, video { max-width: 100%; height: auto; display: block; }
+        
+        /* 統一按鈕與輸入框樣式，修復禁用 preflight 後的白色外觀 */
+        button, input, select, textarea {
+            font-family: inherit;
+            font-size: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: transparent; /* 重置按鈕預設背景 */
+            border: none;
+        }
+
+        button {
+            cursor: pointer;
+            text-transform: none;
+            -webkit-appearance: button;
+            background-color: transparent;
+            background-image: none;
+        }
+
+        /* 強制修復按鈕背景，防止禁用 preflight 後出現白色預設 */
+        .bg-emerald-500 { background-color: #10b981 !important; }
+        .bg-rose-500 { background-color: #f43f5e !important; }
+        .bg-cyan-500 { background-color: #06b6d4 !important; }
+        .bg-slate-800 { background-color: #1e293b !important; }
+        .bg-amber-500 { background-color: #f59e0b !important; }
+        
+        /* 文字顏色補強 */
+        .text-black { color: #000000 !important; }
+        .text-white { color: #ffffff !important; }
+        .text-emerald-400 { color: #34d399 !important; }
+        .text-rose-400 { color: #fb7185 !important; }
+        .text-cyan-400 { color: #22d3ee !important; }
+        .text-slate-400 { color: #94a3b8 !important; }
+
+        input, select, textarea {
+            background-color: #0f172a !important; /* bg-slate-900 */
+            color: #ffffff !important;
+            border: 1px solid rgba(148, 163, 184, 0.2) !important; /* border-slate-700/20 */
+            outline: none !important;
+            -webkit-appearance: none; /* 移除 iOS 默認外觀 */
+            border-radius: 1rem; /* 預設圓角 */
+            padding: 1rem; /* 恢復基礎內邊距 */
+        }
+        
+        input:focus, select:focus {
+            border-color: #22d3ee !important; /* neon */
+            box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.25) !important;
+        }
+
+        /* 佔位符樣式 */
+        ::-moz-placeholder {
+            color: rgba(148, 163, 184, 0.5) !important;
+            opacity: 1;
+        }
+        ::placeholder {
+            color: rgba(148, 163, 184, 0.5) !important;
+            opacity: 1;
+        }
+
+        /* 移除 Chrome/Safari 的自動填充背景 */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover, 
+        input:-webkit-autofill:focus {
+            -webkit-text-fill-color: white !important;
+            -webkit-box-shadow: 0 0 0px 1000px #0f172a inset !important;
+            -webkit-transition: background-color 5000s ease-in-out 0s;
+            transition: background-color 5000s ease-in-out 0s;
+        }
+        
+        :root { --neon: #22d3ee; --bg: #0b111f; --card: #0f172a; --surface: rgba(15, 23, 42, 0.7); --nav-height: 84px; }
+        
+        html, body {
+            max-width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background:
+                radial-gradient(1200px 600px at 10% 0%, rgba(34, 211, 238, 0.08), transparent 60%),
+                radial-gradient(1200px 600px at 90% 100%, rgba(99, 102, 241, 0.08), transparent 60%),
+                var(--bg);
+            color: #e5e7eb;
+            font-family: 'Inter', -apple-system, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            margin: 0;
+            padding: 0;
+        }
+
+        body { 
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #main-content-area {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            width: 100%;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            bottom: 24px;
+            left: 20px;
+            right: 20px;
+            height: 72px;
+            background: var(--surface);
+            backdrop-filter: blur(22px);
+            -webkit-backdrop-filter: blur(22px);
+            border: 1px solid rgba(148, 163, 184, 0.12);
+            border-radius: 20px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 50;
+            box-shadow: 0 16px 36px rgba(2, 6, 23, 0.6);
+            padding-bottom: 0;
+            margin: 0 auto;
+            max-width: 560px;
+        }
+
+        .nav-item {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            color: #94a3b8;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            cursor: pointer;
+        }
+
+        .nav-item.active {
+            color: var(--neon);
+        }
+
+        .nav-item::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.5);
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(145deg, rgba(34, 211, 238, 0.15), rgba(34, 211, 238, 0.06));
+            border-radius: 12px;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            opacity: 0;
+            z-index: -1;
+        }
+
+        .nav-item.active::before {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 1;
+            box-shadow: 0 0 16px rgba(34, 211, 238, 0.18);
+        }
+
+        .nav-item svg {
+            width: 22px;
+            height: 22px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 0.6;
+        }
+
+        .nav-item.active svg {
+            opacity: 1;
+            transform: translateY(-2px);
+        }
+
+        .nav-label {
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            transition: all 0.3s;
+            opacity: 0.7;
+            transform: translateY(0);
+        }
+        
+        .nav-item.active .nav-label {
+            opacity: 1;
+            color: #fff;
+            transform: translateY(0);
+        }
+
+        .tab-content {
+            display: none;
+            height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 18px;
+            padding-top: calc(env(safe-area-inset-top, 0px) + 24px);
+            padding-bottom: calc(var(--nav-height) + 40px);
+            -webkit-overflow-scrolling: touch;
+            animation: fadeIn 0.3s ease-out;
+            /* Hide scrollbar */
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+
+        .tab-content::-webkit-scrollbar {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .neon-text { 
+            color: var(--neon);
+            text-shadow: 0 0 10px rgba(34, 211, 238, 0.35);
+            font-weight: 950;
+        }
+        .glass-card { background: var(--surface); backdrop-filter: blur(10px); border: 1px solid rgba(148, 163, 184, 0.12); }
+        
+        .scroll-container { 
+            overflow-x: auto; 
+            -webkit-overflow-scrolling: touch; 
+            max-width: 100%;
+        }
+
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+
+        input { 
+            transition: all 0.2s; 
+            background-color: #0f172a !important; 
+            border: 1px solid rgba(148, 163, 184, 0.25); 
+            color: #e5e7eb; 
+            font-size: 14px !important; 
+        }
+        input:focus { border-color: var(--neon) !important; outline: none; box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.25); }
+        
+        .btn-action:active { transform: scale(0.97); opacity: 0.9; }
+
+        #addModal, #buyModal, #sellModal, #editModal, #infoModal, #compoundModal, #confirmDeleteModal, #editTradeModal, #deleteTradeModal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 6, 23, 0.85);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        th { white-space: nowrap; font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 800; }
+        td { white-space: nowrap; }
+
+        .badge-lvrg {
+            background: rgba(244, 63, 94, 0.15);
+            color: #f43f5e;
+            border: 1px solid rgba(244, 63, 94, 0.3);
+            padding: 1px 4px;
+            border-radius: 4px;
+            font-size: 8px;
+            font-weight: 900;
+            margin-left: 4px;
+            vertical-align: middle;
+            text-transform: uppercase;
+        }
+
+        .chart-wrapper {
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+        table tbody tr:hover { background-color: rgba(148, 163, 184, 0.06); transition: background-color .2s; }
+        table tbody tr:nth-child(odd) { background-color: rgba(2, 6, 23, 0.18); }
+
+        .glass-card:hover { transform: translateY(-2px); transition: transform .25s ease; }
+        .glass-card:active { transform: translateY(0); }
+
+        .shine-title {
+            position: relative;
+            background: linear-gradient(90deg, #fff 0%, #9ae6f3 25%, #fff 50%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            background-size: 200% 100%;
+            background-position: 0% 50%;
+            animation: shineSweep 4s ease-in-out infinite;
+        }
+        @keyframes shineSweep {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
+        }
+
+        .btn-action {
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-action::after {
+            content: '';
+            position: absolute;
+            top: 0; left: -120%;
+            width: 80%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            transform: skewX(-20deg);
+            transition: left .5s ease;
+        }
+        .btn-action:hover::after { left: 120%; }
+
+        .nav-item.active { text-shadow: 0 0 12px rgba(34, 211, 238, 0.35); }
+        .nav-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            width: 30px; height: 3px;
+            background: linear-gradient(90deg, transparent, rgba(34,211,238,0.8), transparent);
+            border-radius: 999px;
+            filter: blur(0.5px);
+        }
+
+        .aurora-stage {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+        }
+        .aurora-stage .blob {
+            position: absolute;
+            width: 38vmax;
+            height: 38vmax;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.08;
+            animation: floatBlob 20s ease-in-out infinite;
+        }
+        .aurora-stage .blob.b1 { background: #22d3ee; top: -10vmax; left: -8vmax; animation-delay: 0s; }
+        .aurora-stage .blob.b2 { background: #6366f1; bottom: -10vmax; right: -12vmax; animation-delay: 5s; }
+        .aurora-stage .blob.b3 { background: #f43f5e; top: 30%; right: -10vmax; animation-delay: 10s; }
+        @keyframes floatBlob {
+            0% { transform: translate(0,0) scale(1); }
+            50% { transform: translate(4vmax,-2vmax) scale(1.05); }
+            100% { transform: translate(0,0) scale(1); }
+        }
+
+        .tab-content.active { animation: slideIn .35s ease-out; }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #334155;
+            transition: .4s;
+            border-radius: 20px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px; width: 14px;
+            left: 3px; bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #f43f5e; }
+        input:checked + .slider:before { transform: translateX(20px); }
+        
+        .switch-bond input:checked + .slider { background-color: #a855f7; }
+
+        .glowing-effect {
+            animation: glowing 1.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes glowing {
+            from { text-shadow: 0 0 5px rgba(0, 242, 255, 0.3); }
+            to { text-shadow: 0 0 20px rgba(0, 242, 255, 0.6); }
+        }
+
+        .scrolling-version-line {
+            display: inline-block;
+            animation: scrollLeft 12s linear infinite;
+            white-space: nowrap;
+        }
+
+        @keyframes scrollLeft {
+            0% { transform: translateX(100%); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateX(-100%); opacity: 0; }
+        }
+    </style>
+  <link rel="stylesheet" crossorigin href="/assets/index-CMft_sS4.css">
+</head>
+<body>
+    <div class="aurora-stage" aria-hidden="true">
+        <span class="blob b1"></span>
+        <span class="blob b2"></span>
+        <span class="blob b3"></span>
+    </div>
+    <!-- 確認刪除彈窗 -->
+    <div id="confirmDeleteModal">
+        <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-rose-500/30 p-8 shadow-2xl text-center">
+            <div class="w-16 h-16 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-rose-500/20">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="#f43f5e" viewBox="0 0 16 16">
+                    <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                    <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                </svg>
+            </div>
+            <h3 class="text-xl font-black text-rose-400 italic mb-2 uppercase tracking-widest">Confirm Delete</h3>
+            <p class="text-xs text-slate-400 mb-8 font-medium">確定要從組合中永久刪除 <span id="deleteTargetName" class="text-white font-bold"></span> 嗎？此動作無法復原。</p>
+            <div class="flex gap-3">
+                <button onclick="closeModal('confirmDeleteModal')" class="flex-1 bg-slate-800 text-slate-400 py-4 rounded-2xl font-bold btn-action uppercase text-xs">取消</button>
+                <button id="finalDeleteBtn" class="flex-1 bg-rose-500 text-white py-4 rounded-2xl font-black btn-action uppercase text-xs shadow-lg shadow-rose-500/20">確認刪除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 複利計算機彈窗 -->
+    <div id="compoundModal">
+        <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-emerald-500/30 p-8 shadow-2xl">
+            <div class="flex items-center gap-2 mb-6">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#10b981" viewBox="0 0 16 16">
+                    <path d="M12 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h8zM4 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H4z"/>
+                    <path d="M4 2.5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-7a.5.5 0 0 1-.5-.5v-2zm0 4a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm0 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm0 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm3-6a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm0 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm0 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm3-6a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm0 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-4z"/>
+                </svg>
+                <h3 class="text-xl font-black text-emerald-400 italic uppercase tracking-widest">Compound Int.</h3>
+            </div>
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">初始資金</label>
+                        <input type="number" id="compPrincipal" placeholder="0" class="w-full rounded-2xl p-4 font-mono text-white">
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">年利率 (%)</label>
+                        <input type="number" id="compRate" placeholder="例如: 7" class="w-full rounded-2xl p-4 font-mono text-white">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">投資年期</label>
+                        <input type="number" id="compYears" placeholder="例如: 10" class="w-full rounded-2xl p-4 font-mono text-white">
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">每月投入</label>
+                        <input type="number" id="compMonthly" placeholder="0" class="w-full rounded-2xl p-4 font-mono text-white">
+                    </div>
+                </div>
+                <div class="mt-6 p-5 bg-slate-900/80 rounded-3xl border border-white/5 shadow-inner">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-[10px] text-slate-500 font-bold uppercase">預估本利和</span>
+                        <span id="compResultTotal" class="text-lg font-mono font-black text-emerald-400">0</span>
+                    </div>
+                    <div class="flex justify-between items-center text-[10px]">
+                        <span class="text-slate-500">總投入本金</span>
+                        <span id="compResultPrincipal" class="text-slate-300 font-mono">0</span>
+                    </div>
+                    <div class="flex justify-between items-center text-[10px] mt-1">
+                        <span class="text-slate-500">預估獲利</span>
+                        <span id="compResultProfit" class="text-emerald-500/80 font-mono">0</span>
+                    </div>
+                    <p class="text-[8px] text-slate-600 mt-3 italic">* 每月投入從第 2 個月開始計算，採月複利計息。</p>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-8">
+                <button onclick="closeModal('compoundModal')" class="flex-1 bg-slate-800 text-slate-400 py-4 rounded-2xl font-bold btn-action uppercase text-xs">關閉</button>
+                <button onclick="calculateCompound()" class="flex-1 bg-emerald-500 text-black py-4 rounded-2xl font-black btn-action uppercase text-xs shadow-lg shadow-emerald-500/20">開始計算</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 資產管理 UI -->
+    <div id="addModal">
+        <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-cyan-500/30 p-8 shadow-2xl">
+            <h3 class="text-xl font-black text-cyan-400 italic mb-6 uppercase tracking-widest">Add Asset</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">標的代碼</label>
+                    <input type="text" id="modalSymbol" placeholder="例如: 2330 或 VOO" class="w-full rounded-2xl p-4 font-black uppercase">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">購入股數</label>
+                        <input type="number" id="modalShares" placeholder="0" class="w-full rounded-2xl p-4 font-mono">
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">購入單價</label>
+                        <input type="number" id="modalCost" placeholder="0.00" class="w-full rounded-2xl p-4 font-mono">
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-8">
+                <button onclick="closeModal('addModal')" class="flex-1 bg-slate-800 text-slate-400 py-4 rounded-2xl font-bold btn-action uppercase text-xs">取消</button>
+                <button onclick="processAddAsset()" class="flex-1 bg-cyan-500 text-black py-4 rounded-2xl font-black btn-action uppercase text-xs shadow-lg shadow-cyan-500/20">確認加入</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="buyModal">
+        <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-emerald-500/30 p-8 shadow-2xl">
+            <h3 class="text-xl font-black text-emerald-400 italic mb-6 uppercase tracking-widest">Buy Asset</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">標的代碼</label>
+                    <input type="text" id="buySymbol" placeholder="例如: 2330 或 VOO" class="w-full rounded-2xl p-4 font-black uppercase">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">買入股數</label>
+                        <input type="number" id="buyShares" placeholder="0" oninput="updateBuyModalCash()" class="w-full rounded-2xl p-4 font-mono">
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">買入單價</label>
+                        <input type="number" id="buyPrice" placeholder="0.00" oninput="updateBuyModalCash()" class="w-full rounded-2xl p-4 font-mono">
+                    </div>
+                </div>
+                <div class="p-4 bg-slate-900/50 rounded-2xl border border-white/5">
+                    <div class="flex justify-between items-center text-[10px]">
+                        <span class="text-slate-500">所需資金</span>
+                        <span id="buyRequiredCash" class="text-emerald-400 font-mono font-bold">0</span>
+                    </div>
+                    <div class="flex justify-between items-center text-[10px] mt-1">
+                        <span class="text-slate-500">現金水位</span>
+                        <span id="buyAvailableCash" class="text-slate-300 font-mono">0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-8">
+                <button onclick="closeModal('buyModal')" class="flex-1 bg-slate-800 text-slate-400 py-4 rounded-2xl font-bold btn-action uppercase text-xs">取消</button>
+                <button onclick="processBuyAsset()" class="flex-1 bg-emerald-500 text-black py-4 rounded-2xl font-black btn-action uppercase text-xs shadow-lg shadow-emerald-500/20" id="buyConfirmBtn">確認買入</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="sellModal">
+        <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-rose-500/30 p-8 shadow-2xl">
+            <h3 class="text-xl font-black text-rose-400 italic mb-6 uppercase tracking-widest">Sell Asset</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">標的代碼</label>
+                    <input type="text" id="sellSymbol" placeholder="例如: 2330 或 VOO" class="w-full rounded-2xl p-4 font-black uppercase">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">賣出股數</label>
+                        <input type="number" id="sellShares" placeholder="0" oninput="updateSellModalCash()" class="w-full rounded-2xl p-4 font-mono">
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">賣出單價</label>
+                        <input type="number" id="sellPrice" placeholder="0.00" oninput="updateSellModalCash()" class="w-full rounded-2xl p-4 font-mono">
+                    </div>
+                </div>
+                <div class="p-4 bg-slate-900/50 rounded-2xl border border-white/5">
+                    <div class="flex justify-between items-center text-[10px]">
+                        <span class="text-slate-500">獲得資金</span>
+                        <span id="sellGainCash" class="text-rose-400 font-mono font-bold">0</span>
+                    </div>
+                    <div class="flex justify-between items-center text-[10px] mt-1">
+                        <span class="text-slate-500">現金水位</span>
+                        <span id="sellCurrentCash" class="text-slate-300 font-mono">0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-8">
+                <button onclick="closeModal('sellModal')" class="flex-1 bg-slate-800 text-slate-400 py-4 rounded-2xl font-bold btn-action uppercase text-xs">取消</button>
+                <button onclick="processSellAsset()" class="flex-1 bg-rose-500 text-white py-4 rounded-2xl font-black btn-action uppercase text-xs shadow-lg shadow-rose-500/20">確認賣出</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="editModal">
+        <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-amber-500/30 p-8 shadow-2xl">
+            <h3 class="text-xl font-black text-amber-400 italic mb-6 uppercase tracking-widest" id="editModalTitle">Edit Asset</h3>
+            <input type="hidden" id="editId">
+            <div class="space-y-3">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">持有股數</label>
+                        <input type="number" id="editShares" placeholder="0" class="w-full rounded-2xl p-4 font-mono">
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">平均成本</label>
+                        <input type="number" id="editCost" placeholder="0.00" class="w-full rounded-2xl p-4 font-mono">
+                    </div>
+                </div>
+                <div>
+                    <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">質押股數</label>
+                    <input type="number" id="editPledgedShares" placeholder="0" class="w-full rounded-2xl p-4 font-mono text-amber-400">
+                </div>
+                <div class="flex items-center justify-between p-4 bg-slate-900/50 rounded-2xl border border-white/5">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] uppercase font-bold text-slate-400">不參與再平衡</span>
+                        <span class="text-[8px] text-slate-500">質押部分不計入再平衡計算</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="editExcludePledged">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="flex items-center justify-between p-4 bg-slate-900/50 rounded-2xl border border-white/5">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] uppercase font-bold text-slate-400">槓桿型標的</span>
+                        <span class="text-[8px] text-slate-500">標示後將計入策略佔比</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="editLeverage">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="flex items-center justify-between p-4 bg-slate-900/50 rounded-2xl border border-white/5">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] uppercase font-bold text-slate-400">債券型標的</span>
+                        <span class="text-[8px] text-slate-500">歸類至債券分類區塊</span>
+                    </div>
+                    <label class="switch switch-bond">
+                        <input type="checkbox" id="editIsBond">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-8">
+                <button onclick="closeModal('editModal')" class="flex-1 bg-slate-800 text-slate-400 py-4 rounded-2xl font-bold btn-action uppercase text-xs">取消</button>
+                <button onclick="processEditAsset()" class="flex-1 bg-amber-500 text-black py-4 rounded-2xl font-black btn-action uppercase text-xs shadow-lg shadow-amber-500/20">確認修改</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="infoModal">
+        <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-white/10 p-8 shadow-2xl max-h-[85vh] overflow-y-auto no-scrollbar">
+            <h3 class="text-xl font-black text-white italic mb-4 uppercase tracking-widest border-b border-white/10 pb-2">App Guide</h3>
+            <div class="space-y-6 text-xs text-slate-400 leading-relaxed font-medium">
+                <section>
+                    <h4 class="text-cyan-400 font-black uppercase mb-2 tracking-tighter">📈 資產管理</h4>
+                    <div class="space-y-2">
+                        <p><span class="text-white font-bold">● 新增部位：</span> 點擊 Portfolio 區塊的 <span class="text-cyan-500 font-bold">Add Position</span> 按鈕，輸入代號。<span class="text-amber-400 font-bold">（注意：此功能僅用於快速建立初始持股，不會產生交易紀錄）</span></p>
+                        <p><span class="text-white font-bold">● 買入/賣出：</span> 使用 <span class="text-emerald-400 font-bold">Buy</span> 或 <span class="text-rose-400 font-bold">Sell</span> 記錄交易，系統會自動計算平均成本。<span class="text-cyan-400 font-bold">（交易紀錄可點擊列表中的資產名稱查看）</span></p>
+                        <p><span class="text-white font-bold">● 即時更新：</span> 點擊 <span class="text-cyan-500 font-bold">Sync</span> 獲取最新市場價格 (Yahoo Finance)。</p>
+                    </div>
+                </section>
+                <section>
+                    <h4 class="text-amber-400 font-black uppercase mb-2 tracking-tighter">📊 數據分析</h4>
+                    <div class="space-y-2">
+                        <p><span class="text-white font-bold">● 隱私模式：</span> 點擊右上角 <span class="text-white">👁️ 眼睛圖示</span> 隱藏/顯示敏感金額數據。</p>
+                        <p><span class="text-white font-bold">● 目標配比：</span> 在列表最左側 <span class="text-cyan-500 font-bold">Target %</span> 欄位輸入您理想的資產占比。</p>
+                        <p><span class="text-white font-bold">● 缺口分析：</span> 下方圖表會顯示當前配比與目標的差距，協助您進行再平衡。</p>
+                    </div>
+                </section>
+                <section>
+                    <h4 class="text-indigo-400 font-black uppercase mb-2 tracking-tighter">💡 進階功能</h4>
+                    <div class="space-y-2">
+                        <p><span class="text-white font-bold">● 現金倉位：</span> 點擊 <span class="text-white font-bold">Cash Position</span> 區塊調整您的閒置資金。</p>
+                        <p><span class="text-white font-bold">● 槓桿與質押：</span> 編輯資產時可勾選「槓桿」或設定「質押股數」，精確追蹤資產狀況。</p>
+                        <p><span class="text-white font-bold">● 複利試算：</span> 點擊頂部 <span class="text-white font-bold">計算機圖示</span> 規劃長期投資目標。</p>
+                    </div>
+                </section>
+                <section class="pt-4 border-t border-white/10">
+                    <h4 class="text-rose-400 font-black uppercase mb-3 tracking-tighter">💾 數據管理 (遷移必用)</h4>
+                    <div class="flex gap-2">
+                        <button onclick="exportData()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-2 rounded-xl font-bold text-[10px] transition-all border border-white/10">匯出備份 (Export)</button>
+                        <button onclick="document.getElementById('importFile').click()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-2 rounded-xl font-bold text-[10px] transition-all border border-white/10">匯入還原 (Import)</button>
+                        <input type="file" id="importFile" class="hidden" accept=".json" onchange="importData(event)">
+                    </div>
+                    <p class="text-[9px] text-slate-500 mt-2 leading-tight">※ 若更換網址或設備，請先匯出數據，再於新網址匯入。</p>
+                </section>
+            </div>
+            <button onclick="closeModal('infoModal')" class="mt-8 w-full bg-cyan-500 text-black py-4 rounded-2xl font-black btn-action uppercase text-xs shadow-lg shadow-cyan-500/20">我知道了</button>
+        </div>
+    </div>
+
+    <!-- 編輯交易記錄模態框 -->
+    <div id="editTradeModal" class="modal" style="display: none;">
+        <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-amber-500/30 p-8 shadow-2xl">
+            <h3 class="text-xl font-black text-amber-400 italic mb-6 uppercase tracking-widest">編輯交易記錄</h3>
+            <div class="space-y-4">
+                <div class="text-sm text-slate-400 mb-4">
+                    <p><span class="text-white font-bold" id="editTradeSymbol"></span></p>
+                    <p class="text-xs mt-1">當前價格: <span id="editTradeCurrentPrice" class="text-cyan-400"></span></p>
+                    <p class="text-xs">當前股數: <span id="editTradeCurrentShares" class="text-cyan-400"></span></p>
+                </div>
+                <div>
+                    <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">編輯選項</label>
+                    <select id="editTradeType" class="w-full bg-slate-900/80 border border-slate-700/50 rounded-2xl px-4 py-3 text-white focus:border-amber-500/50 focus:outline-none text-sm">
+                        <option value="price">編輯價格</option>
+                        <option value="shares">編輯股數</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] uppercase font-bold text-slate-500 ml-2 mb-1 block">新數值</label>
+                    <input type="number" id="editTradeNewValue" step="0.01" class="w-full bg-slate-900/80 border border-slate-700/50 rounded-2xl px-4 py-3 text-white focus:border-amber-500/50 focus:outline-none text-sm" placeholder="輸入新數值">
+                </div>
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button onclick="closeModal('editTradeModal')" class="flex-1 bg-slate-800 text-slate-400 py-3 rounded-2xl font-bold btn-action uppercase text-xs">取消</button>
+                <button onclick="confirmEditTrade()" class="flex-1 bg-amber-500 text-black py-3 rounded-2xl font-black btn-action uppercase text-xs shadow-lg shadow-amber-500/20">確認修改</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 刪除交易記錄確認模態框 -->
+    <div id="deleteTradeModal" class="modal" style="display: none;">
+        <div class="glass-card w-full max-w-sm rounded-[2.5rem] border border-rose-500/30 p-8 shadow-2xl">
+            <h3 class="text-xl font-black text-rose-400 italic mb-6 uppercase tracking-widest">確認刪除</h3>
+            <div class="text-sm text-slate-400 mb-6">
+                <p>確定要刪除 <span class="text-white font-bold" id="deleteTradeSymbol"></span> 的交易記錄嗎？</p>
+                <p class="text-xs mt-2 text-rose-400">此操作無法復原！</p>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeModal('deleteTradeModal')" class="flex-1 bg-slate-800 text-slate-400 py-3 rounded-2xl font-bold btn-action uppercase text-xs">取消</button>
+                <button onclick="confirmDeleteTrade()" class="flex-1 bg-rose-500 text-white py-3 rounded-2xl font-black btn-action uppercase text-xs shadow-lg shadow-rose-500/20">確認刪除</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="main-content-area" class="max-w-md mx-auto w-full">
+        <div id="tab-home" class="tab-content active">
+        <header class="flex flex-col items-stretch justify-between mb-8 pt-2 gap-4 w-full">
+            <div class="flex justify-between items-center w-full">
+                <div class="brand-area">
+                    <h1 class="text-[1.8rem] sm:text-[2.1rem] font-[950] neon-text tracking-[-0.06em] leading-[0.9] shine-title pr-1">StockLens</h1>
+                    <p class="text-[10px] font-bold uppercase tracking-wider mt-1.5 ml-0.5 opacity-70">
+                        <span class="scrolling-version-line">
+                            <span class="text-slate-400">BY OWEN</span>
+                            <span class="text-slate-600 mx-1.5 font-normal">/</span>
+                            <span class="text-slate-500">V3.0 PRO</span>
+                        </span>
+                    </p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="openModal('compoundModal')" class="w-9 h-9 rounded-xl bg-slate-800/40 border border-emerald-500/20 flex items-center justify-center btn-action">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#10b981" viewBox="0 0 16 16">
+                            <path d="M12 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h8zM4 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H4z"/>
+                            <path d="M4 2.5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-7a.5.5 0 0 1-.5-.5v-2zm0 4a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm0 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm0 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm3-6a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm0 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm0 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm3-6a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm0 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-4z"/>
+                        </svg>
+                    </button>
+                    <button onclick="openModal('infoModal')" class="w-9 h-9 rounded-xl bg-slate-800/40 border border-cyan-500/20 flex items-center justify-center text-[10px] text-cyan-400 font-bold btn-action">?</button>
+                    <button onclick="togglePrivacy()" id="privacyBtn" class="w-9 h-9 rounded-xl bg-slate-800/40 border border-cyan-500/20 flex items-center justify-center text-cyan-400 btn-action">
+                        <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/><path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="glass-card px-6 py-6 rounded-[2.5rem] shadow-[0_20px_50px_rgba(2,6,23,0.5)] flex flex-col w-full border border-white/[0.06] bg-white/[0.01] backdrop-blur-xl relative overflow-hidden group">
+                <div class="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-transparent pointer-events-none"></div>
+                <div class="flex justify-between items-end mb-6 relative z-10">
+                    <div class="flex flex-col">
+                        <span class="text-[9px] text-slate-400 uppercase font-black tracking-[0.2em] mb-2 opacity-60">Total Invested</span>
+                        <div class="flex items-baseline">
+                            <span class="text-[9px] text-slate-500 font-mono mr-1.5 font-bold">TWD</span>
+                            <span id="totalCostDisplay" class="text-lg font-mono font-black text-slate-300 tracking-tighter">0</span>
+                        </div>
+                    </div>
+                    <div class="flex flex-col items-end">
+                        <span class="text-[10px] text-cyan-400/80 uppercase font-black tracking-[0.3em] mb-2">Market Value</span>
+                        <div class="flex items-baseline">
+                            <span class="text-[10px] text-slate-500 font-mono mr-2 font-bold">TWD</span>
+                            <span id="totalDisplay" class="text-[2.25rem] font-mono font-black text-white leading-none tracking-tighter drop-shadow-[0_0_10px_rgba(255,255,255,0.15)]">0</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-6 border-t border-white/[0.06] pt-5 w-full justify-end relative z-10">
+                    <div class="flex flex-col items-end">
+                        <span class="text-[8px] text-slate-500 uppercase font-black tracking-widest mb-1 opacity-50">Est. Profit</span>
+                        <span id="totalProfitDisplay" class="text-sm font-mono font-bold leading-none">0</span>
+                    </div>
+                    <div class="flex flex-col items-end min-w-[60px]">
+                        <span class="text-[8px] text-slate-500 uppercase font-black tracking-widest mb-1 opacity-50">Total Return</span>
+                        <span id="totalProfitPctDisplay" class="text-sm font-black leading-none">0%</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Portfolio 區塊 -->
+        <div class="rounded-[2.5rem] overflow-hidden mb-8 shadow-[0_25px_50px_-12px_rgba(2,6,23,0.6)] w-full border border-white/[0.08] bg-[#0f172a]/60 backdrop-blur-xl relative group">
+            <!-- 裝飾背景 -->
+            <div class="absolute inset-0 bg-gradient-to-b from-cyan-500/[0.02] to-transparent pointer-events-none"></div>
+            
+            <div class="px-6 py-6 flex flex-col gap-5 relative z-10 border-b border-white/[0.05]">
+                <div class="flex justify-between items-center w-full">
+                    <div class="flex flex-col">
+                        <h2 class="font-black text-[15px] text-white uppercase tracking-[0.25em] leading-tight">
+                            Portfolio
+                        </h2>
+                        <span class="text-[9px] text-slate-500 font-bold uppercase mt-1 tracking-widest opacity-80">Assets & Positions Control</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                    <button id="refreshBtn" onclick="handleRefreshClick()" class="bg-slate-800/80 text-cyan-400 text-[10px] px-4 py-2 rounded-xl font-black border border-white/5 btn-action uppercase tracking-tight hover:bg-cyan-500 hover:text-black transition-all duration-300">Sync</button>
+                    <span id="update-status" class="text-[8px] text-slate-500 font-bold uppercase tracking-widest ml-2"></span>
+                    <button onclick="forceHardReset()" class="bg-slate-800/50 text-slate-500 text-[8px] font-black px-2 py-2 rounded-lg border border-slate-700 uppercase tracking-tighter hover:text-rose-400 transition-all">V3.2.8 清快取</button>
+                </div>
+                </div>
+                
+                <div class="flex items-center gap-1.5 bg-slate-950/40 p-1.5 rounded-2xl border border-white/5 w-full">
+                    <button id="sell-btn" class="flex-1 bg-rose-500 text-white text-[10px] py-2.5 rounded-xl font-black btn-action uppercase tracking-tight shadow-lg shadow-rose-500/20 hover:scale-[1.02] active:scale-95 transition-all">Sell</button>
+                    <button id="buy-btn" class="flex-1 bg-emerald-500 text-black text-[10px] py-2.5 rounded-xl font-black btn-action uppercase tracking-tight shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95 transition-all">Buy</button>
+                    <button id="add-btn" class="flex-[1.5] bg-cyan-500 text-black text-[10px] py-2.5 rounded-xl font-black btn-action uppercase tracking-tight shadow-lg shadow-cyan-500/30 hover:scale-[1.02] active:scale-95 transition-all">Add Position</button>
+                </div>
+            </div>
+
+            <!-- 現金水位區塊 -->
+            <div class="mx-3 sm:mx-6 my-4 p-3 sm:p-4 bg-slate-950/30 rounded-3xl border border-white/5 flex items-center justify-between group/cash hover:border-emerald-500/30 transition-all duration-500 overflow-hidden">
+                <div class="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+                    <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 border border-emerald-500/20 flex items-center justify-center shadow-lg shadow-emerald-500/5 group-hover/cash:scale-110 transition-transform flex-shrink-0">
+                        <span class="text-emerald-400 font-black text-lg sm:text-xl leading-none">$</span>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="text-[9px] sm:text-[10px] text-slate-300 uppercase font-black tracking-widest whitespace-nowrap">Available Cash</span>
+                        <span class="hidden sm:block text-[8px] text-slate-500 font-bold uppercase tracking-tighter opacity-60">可用現金水位</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 sm:gap-3 flex-shrink min-w-0 justify-end">
+                    <span class="text-[10px] sm:text-[11px] text-slate-500 font-mono font-black opacity-40 flex-shrink-0">TWD</span>
+                    <input type="number" id="cashPosition" oninput="updateCashPosition()" value="0" class="w-24 sm:w-36 py-2 px-3 sm:px-5 text-right text-sm sm:text-base font-mono text-emerald-400 font-black rounded-xl sm:rounded-2xl bg-slate-900/50 border border-white/5 focus:border-emerald-500/40 focus:bg-slate-900 transition-all outline-none shadow-inner min-w-0">
+                </div>
+            </div>
+            
+            <div class="scroll-container no-scrollbar px-2 pb-4">
+                <table class="w-full text-left border-separate border-spacing-y-2">
+                    <thead>
+                        <tr class="text-slate-500">
+                            <th class="px-4 py-3 text-center w-14 text-[9px] uppercase font-black tracking-widest">Target</th>
+                            <th class="px-3 py-3 text-[9px] uppercase font-black tracking-widest">Asset</th>
+                            <th class="px-3 py-3 text-[9px] uppercase font-black tracking-widest">Shares</th>
+                            <th class="px-3 py-3 text-right text-[9px] uppercase font-black tracking-widest">Cost</th>
+                            <th class="px-3 py-3 text-right text-[9px] uppercase font-black tracking-widest">Price</th>
+                            <th class="px-3 py-3 text-right text-[9px] uppercase font-black tracking-widest">
+                                <span class="hidden sm:inline">Total </span>Invested
+                            </th>
+                            <th class="px-3 py-3 text-right text-[9px] uppercase font-black tracking-widest">
+                                <span class="hidden sm:inline">Market </span>Value
+                            </th>
+                            <th class="px-4 py-3 text-right text-[9px] uppercase font-black tracking-widest">P&L</th>
+                            <th class="px-4 py-3"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+                <div id="emptyState" class="p-20 text-center">
+                    <div class="w-16 h-16 bg-slate-800/20 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-white/5 shadow-inner">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="#475569" viewBox="0 0 16 16" class="opacity-40">
+                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                            <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3.5a.5.5 0 0 1-.5-.5v-4A.5.5 0 0 1 8 4z"/>
+                        </svg>
+                    </div>
+                    <p class="text-[11px] text-slate-400 font-black uppercase tracking-[0.25em]">No Assets Detected</p>
+                    <p class="text-[9px] text-slate-600 font-bold mt-2 uppercase tracking-tight">Begin by adding your first position</p>
+                </div>
+            </div>
+        </div>
+
+        </div>
+
+        <div id="tab-analysis" class="tab-content">
+        <div class="grid grid-cols-1 gap-6 mb-6 w-full">
+            <div class="glass-card p-5 rounded-[2rem] border border-slate-800/80 shadow-lg overflow-hidden w-full">
+                <div class="flex items-center justify-between mb-4 px-1">
+                    <h3 class="text-[10px] uppercase font-black text-slate-500 tracking-[0.2em]">Holdings / Strategy</h3>
+                </div>
+                <div class="flex flex-row items-center justify-center gap-2 h-[260px] w-full">
+                    <div class="w-full h-full relative" id="mainChartContainer"><canvas id="mainChart"></canvas></div>
+                    <div class="hidden w-1/2 h-full relative" id="strategyChartContainer"><canvas id="strategyChart"></canvas></div>
+                </div>
+            </div>
+            <div class="glass-card p-5 rounded-2xl shadow-[0_10px_30px_rgba(2,6,23,0.45)] w-full overflow-hidden">
+                <h3 class="text-[10px] uppercase font-bold text-cyan-500/70 mb-4 text-center tracking-[0.18em]">Target Gap Analysis</h3>
+                <div class="h-[180px] w-full chart-wrapper"><canvas id="targetChart"></canvas></div>
+            </div>
+        </div>
+
+        <!-- 總損益計算區域 -->
+        <div class="glass-card p-6 rounded-2xl mb-6 shadow-[0_10px_30px_rgba(2,6,23,0.45)] w-full">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <div>
+                            <h2 class="font-bold text-[12px] uppercase tracking-[0.1em] text-slate-300">Total P&L Analysis</h2>
+                            <p class="text-[9px] text-slate-500 font-bold mt-1 uppercase italic">總損益分析</p>
+                        </div>
+                        <button onclick="togglePnLInfo()" class="text-amber-400/80 hover:text-amber-400 transition-colors" title="說明">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="pnlInfoBox" class="hidden mt-2 p-2 bg-slate-800/50 rounded-lg border border-amber-500/30 shadow-lg">
+                        <p class="text-[7px] text-slate-400 leading-relaxed">
+                            💡 <span class="text-amber-400/80 font-bold">自動管理機制</span>：交易記錄最多保留 10 筆，超過時自動刪除最舊的記錄。已刪除記錄的損益會累計保留在總實現損益中，不會因刪除而消失。
+                        </p>
+                    </div>
+                </div>
+                <div class="flex flex-col items-end">
+                    <span class="text-[9px] font-black text-emerald-500 uppercase mb-1 tracking-widest">總實現損益</span>
+                    <span id="totalRealizedPnL" class="text-xl font-mono font-black text-emerald-500">0</span>
+                    <span class="text-[7px] text-slate-500 mt-1 font-bold">含歷史累計</span>
+                </div>
+            </div>
+        </div>
+        </div>
+
+        <div id="tab-advice" class="tab-content">
+        <div class="glass-card p-6 rounded-2xl mb-20 shadow-[0_10px_30px_rgba(2,6,23,0.45)] w-full">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h2 class="font-bold text-[12px] uppercase tracking-[0.1em] text-slate-300">資產再平衡</h2>
+                    <p class="text-[9px] text-slate-500 font-bold mt-1 uppercase italic">（建議一年一次）</p>
+                </div>
+                <div class="flex flex-col items-end">
+                    <span class="text-[9px] font-black text-emerald-500 uppercase mb-1 tracking-widest">可用現金</span>
+                    <span id="availableCashDisplay" class="text-lg font-mono font-black text-emerald-500">0</span>
+                </div>
+            </div>
+            <div id="adviceContainer" class="space-y-3 min-h-[40px]"></div>
+            <button onclick="triggerAdvice()" class="mt-6 w-full bg-cyan-500 text-black text-xs py-4 rounded-xl font-black uppercase btn-action shadow-xl shadow-cyan-500/10">Calculate Trade Orders</button>
+        </div>
+        </div>
+
+        <div id="tab-history" class="tab-content">
+        <div class="glass-card p-6 rounded-2xl mb-20 shadow-[0_10px_30px_rgba(2,6,23,0.45)] w-full">
+            <h2 class="font-bold text-[12px] uppercase tracking-[0.1em] text-slate-300 mb-6">Trade History</h2>
+            <div id="tradeHistoryContainer" class="space-y-3 overflow-y-auto no-scrollbar" style="display:block;">
+                <div id="tradeHistoryList" class="space-y-2"></div>
+                <div id="noTradesMessage" class="text-center py-4 text-[9px] text-slate-500 uppercase tracking-widest">尚無交易記錄</div>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <script>
+        Chart.register(ChartDataLabels);
+        let portfolio = JSON.parse(localStorage.getItem('stocklens_portfolio')) || [];
+        let isPrivacyOn = JSON.parse(localStorage.getItem('stocklens_privacy')) || false;
+        let isUpdatingGlobal = false;
+        let isCoolingDown = false; 
+        let coolingTimer = null;
+        let cashPosition = parseFloat(localStorage.getItem('stocklens_cashPosition')) || 0;
+        let tradeHistory = JSON.parse(localStorage.getItem('stocklens_tradeHistory')) || [];
+        let accumulatedRealizedPnL = parseFloat(localStorage.getItem('stocklens_accumulatedPnL')) || 0;
+        let rapidApiKey = 'c28a529e37mshd701a238b609e33p101918jsn640a3594892c'; 
+        let globalFxRate = 32.5;
+        let mainChart = null, strategyChart = null, targetChart = null;
+        let GAS_API_URL = import.meta.env.VITE_GAS_URL || ''; // 使用環境變數隔離 GAS 網址
+
+        function saveToStorage() {
+            localStorage.setItem('stocklens_portfolio', JSON.stringify(portfolio));
+            localStorage.setItem('stocklens_privacy', JSON.stringify(isPrivacyOn));
+            localStorage.setItem('stocklens_cashPosition', cashPosition.toString());
+            localStorage.setItem('stocklens_tradeHistory', JSON.stringify(tradeHistory));
+            localStorage.setItem('stocklens_accumulatedPnL', accumulatedRealizedPnL.toString());
+        }
+
+        function loadFromStorage() {
+            document.getElementById('cashPosition').value = cashPosition;
+            const cashDisplay = document.getElementById('availableCashDisplay');
+            if (cashDisplay) {
+                cashDisplay.textContent = formatVal(cashPosition, 2, true);
+            }
+            updatePrivacyUI();
+        }
+
+        function formatVal(val, decimals = 0, sensitive = false) {
+            if (isPrivacyOn && sensitive) return '***';
+            return Number(val).toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+        }
+
+        function updateCashPosition() {
+            cashPosition = parseFloat(document.getElementById('cashPosition').value) || 0;
+            saveToStorage();
+            finalizeUpdate();
+        }
+
+        function togglePrivacy() {
+            isPrivacyOn = !isPrivacyOn;
+            saveToStorage();
+            updatePrivacyUI();
+            finalizeUpdate();
+            render();
+        }
+
+        /* 數據管理：匯出 */
+        function exportData() {
+            try {
+                console.log('Exporting data...');
+                // 確保匯出最完整的資料結構
+                const data = {
+                    portfolio: portfolio,           // 持有股票細項 (含 id, symbol, name, shares, cost, target, category 等)
+                    cashPosition: cashPosition,     // 現金水位
+                    tradeHistory: tradeHistory,     // 交易紀錄
+                    accumulatedRealizedPnL: accumulatedRealizedPnL, // 累計已實現損益
+                    isPrivacyOn: isPrivacyOn,       // 隱私設定
+                    globalFxRate: globalFxRate,     // 匯率參考
+                    version: typeof CURRENT_VERSION !== 'undefined' ? CURRENT_VERSION : '3.0',
+                    exportDate: new Date().toLocaleString()
+                };
+
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `stocklens_full_backup_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 100);
+
+                alert('✅ 數據已完完整整地匯出！\n\n包含：\n- ' + portfolio.length + ' 筆持股明細\n- ' + tradeHistory.length + ' 筆交易紀錄\n- 現金水位與目標比例\n\n請妥善保存下載的 JSON 檔案。');
+                console.log('Export successful:', data);
+            } catch (error) {
+                console.error('Export failed:', error);
+                alert('❌ 匯出失敗: ' + error.message);
+            }
+        }
+
+        /* 數據管理：匯入 */
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    console.log('Importing data...');
+                    const data = JSON.parse(e.target.result);
+                    
+                    if (confirm('⚠️ 匯入將會完全覆蓋目前的數據，確定要繼續嗎？')) {
+                        // 恢復所有欄位
+                        portfolio = data.portfolio || [];
+                        cashPosition = data.cashPosition || 0;
+                        tradeHistory = data.tradeHistory || [];
+                        accumulatedRealizedPnL = data.accumulatedRealizedPnL || 0;
+                        isPrivacyOn = data.isPrivacyOn || false;
+                        if (data.globalFxRate) globalFxRate = data.globalFxRate;
+
+                        saveToStorage();
+                        updatePrivacyUI();
+                        
+                        // 更新 UI 上的現金水位輸入框
+                        const cashInput = document.getElementById('cashPosition');
+                        if (cashInput) cashInput.value = Math.round(cashPosition);
+                        
+                        finalizeUpdate();
+                        render();
+                        alert('🎉 數據已成功恢復！');
+                    }
+                } catch (err) {
+                    alert('❌ 匯入失敗：檔案格式不正確或已損壞');
+                    console.error('Import error:', err);
+                }
+            };
+            reader.readAsText(file);
+            // 重置 input 以便下次觸發
+            event.target.value = '';
+        }
+
+        function updatePrivacyUI() {
+            const icon = document.getElementById('eye-icon');
+            const cashInput = document.getElementById('cashPosition');
+            if (isPrivacyOn) {
+                icon.innerHTML = `<path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7.028 7.028 0 0 0-2.79.588l.77.771A5.944 5.944 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.134 13.134 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755-.165.165-.337.328-.517.486l.708.709z"/><path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.828 2.829l.823.822zm-4.143 4.143c-1.701-1.518-2.641-3.238-2.641-3.238s3-5.5 8-5.5a7.028 7.028 0 0 1 2.79-.588l-.77-.771A5.944 5.944 0 0 0 8 14.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 0 1.172 8c.058-.087.122-.183.195-.288.335.48.83-1.12 1.465-1.755.165-.165-.337.328-.517.486l-.708-.709z"/><path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/><line x1="1" y1="1" x2="15" y2="15" stroke="currentColor" stroke-width="2"/>`;
+                if (cashInput) {
+                    cashInput.style.color = 'transparent';
+                    cashInput.style.textShadow = '0 0 10px rgba(52, 211, 153, 0.6)';
+                }
+            } else {
+                icon.innerHTML = `<path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/><path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/>`;
+                if (cashInput) {
+                    cashInput.style.color = '';
+                    cashInput.style.textShadow = '';
+                }
+            }
+        }
+
+        function openModal(id) {
+            const m = document.getElementById(id);
+            if (!m) return;
+            m.style.display = 'flex';
+            if (id === 'buyModal') {
+                updateBuyModalCash();
+            } else if (id === 'sellModal') {
+                updateSellModalCash();
+            }
+        }
+
+        function updateBuyModalCash() {
+            const availableCashEl = document.getElementById('buyAvailableCash');
+            const requiredCashEl = document.getElementById('buyRequiredCash');
+            const confirmBtn = document.getElementById('buyConfirmBtn');
+
+            availableCashEl.textContent = formatVal(cashPosition, 0, true);
+
+            const shares = parseFloat(document.getElementById('buyShares').value) || 0;
+            const price = parseFloat(document.getElementById('buyPrice').value) || 0;
+            const required = shares * price;
+            requiredCashEl.textContent = formatVal(required, 0, true);
+
+            if (required > cashPosition) {
+                confirmBtn.disabled = true;
+                confirmBtn.classList.add('opacity-50');
+            } else {
+                confirmBtn.disabled = false;
+                confirmBtn.classList.remove('opacity-50');
+            }
+        }
+
+        function updateSellModalCash() {
+            const currentCashEl = document.getElementById('sellCurrentCash');
+            const gainCashEl = document.getElementById('sellGainCash');
+
+            currentCashEl.textContent = formatVal(cashPosition, 0, true);
+
+            const shares = parseFloat(document.getElementById('sellShares').value) || 0;
+            const price = parseFloat(document.getElementById('sellPrice').value) || 0;
+            const gain = shares * price;
+            gainCashEl.textContent = formatVal(gain, 0, true);
+        }
+        function closeModal(id) { 
+            document.getElementById(id).style.display = 'none'; 
+            if (id !== 'compoundModal' && id !== 'confirmDeleteModal') {
+                const inputs = document.getElementById(id).querySelectorAll('input');
+                inputs.forEach(i => { if(i.type === 'checkbox') i.checked = false; else i.value = ''; });
+            }
+        }
+
+        function calculateCompound() {
+            const P = parseFloat(document.getElementById('compPrincipal').value) || 0;
+            const annualRate = parseFloat(document.getElementById('compRate').value) || 0;
+            const years = parseFloat(document.getElementById('compYears').value) || 0;
+            const monthlyContribution = parseFloat(document.getElementById('compMonthly').value) || 0;
+            const monthlyRate = (annualRate / 100) / 12;
+            const months = years * 12;
+            let total = P;
+            let totalInvested = P;
+            for (let m = 1; m <= months; m++) {
+                if (m > 1) { total += monthlyContribution; totalInvested += monthlyContribution; }
+                total *= (1 + monthlyRate);
+            }
+            document.getElementById('compResultTotal').innerText = formatVal(Math.round(total), 0, false);
+            document.getElementById('compResultPrincipal').innerText = formatVal(Math.round(totalInvested), 0, false);
+            document.getElementById('compResultProfit').innerText = formatVal(Math.round(total - totalInvested), 0, false);
+        }
+
+        function openEditModal(id) {
+            const item = portfolio.find(p => p.id === id);
+            if (!item) return;
+            document.getElementById('editId').value = item.id;
+            document.getElementById('editShares').value = item.shares;
+            document.getElementById('editCost').value = item.cost;
+            document.getElementById('editPledgedShares').value = item.pledgedShares || 0;
+            document.getElementById('editLeverage').checked = !!item.isLeverage;
+            document.getElementById('editIsBond').checked = (item.category === 'BOND');
+            document.getElementById('editExcludePledged').checked = !!item.excludePledged;
+            document.getElementById('editModalTitle').innerText = `Edit ${item.symbol}`;
+            openModal('editModal');
+        }
+
+        function processEditAsset() {
+            const id = parseInt(document.getElementById('editId').value);
+            const shares = parseFloat(document.getElementById('editShares').value) || 0;
+            const cost = parseFloat(document.getElementById('editCost').value) || 0;
+            const pledgedShares = parseFloat(document.getElementById('editPledgedShares').value) || 0;
+            const isLvrg = document.getElementById('editLeverage').checked;
+            const isBond = document.getElementById('editIsBond').checked;
+            const excludePledged = document.getElementById('editExcludePledged').checked;
+
+            if (pledgedShares > shares) {
+                alert('質押股數不能大於持有股數！');
+                return;
+            }
+
+            if (shares <= 0) {
+                if (confirm('確定要將此資產移除嗎？剩餘價值將加入現金水位。')) {
+                    const item = portfolio.find(p => p.id === id);
+                    if (item) {
+                        const remainingValue = item.shares * item.price * (item.currency === 'USD' ? globalFxRate : 1);
+                        cashPosition += remainingValue;
+                    }
+                    triggerDeleteConfirm(id);
+                }
+            } else {
+                const item = portfolio.find(p => p.id === id);
+                if (item) {
+                    const oldValue = item.shares * item.cost;
+                    const newValue = shares * cost;
+                    const valueDiff = newValue - oldValue;
+
+                    if (item.shares > 0 && Math.abs(valueDiff) > 0.01) {
+                        const action = valueDiff > 0 ? '增加' : '減少';
+                        const confirmMsg = `編輯將使總成本${action} ${formatVal(Math.abs(valueDiff), 0, false)} TWD，是否同步調整現金水位？`;
+                        if (confirm(confirmMsg)) {
+                            cashPosition -= valueDiff;
+                        }
+                    }
+
+                    item.shares = shares;
+                    item.cost = cost;
+                    item.pledgedShares = pledgedShares;
+                    item.excludePledged = excludePledged;
+                    item.isLeverage = isLvrg;
+                    if (isBond) {
+                        item.category = 'BOND';
+                    } else if (item.category === 'BOND') {
+                        const info = getCategoryInfo(item.symbol, item.name);
+                        item.category = info.cat === 'BOND' ? (/^\d/.test(item.symbol) ? 'TW' : 'US') : info.cat;
+                    }
+                    saveToStorage();
+                    render();
+                }
+            }
+            closeModal('editModal');
+        }
+
+        async function processAddAsset() {
+            const sym = document.getElementById('modalSymbol').value.trim().toUpperCase();
+            const shares = parseFloat(document.getElementById('modalShares').value) || 0;
+            const cost = parseFloat(document.getElementById('modalCost').value) || 0;
+            if (!sym || shares <= 0) return;
+
+            // 1. 立即關閉彈窗並清空輸入，防止重複點擊
+            closeModal('addModal');
+            
+            const existingIndex = portfolio.findIndex(p => p.symbol === sym);
+            if (existingIndex !== -1) {
+                const p = portfolio[existingIndex];
+                p.cost = ( (p.shares * p.cost) + (shares * cost) ) / (p.shares + shares);
+                p.shares += shares;
+                saveToStorage(); 
+                render();
+            } else {
+                const info = getCategoryInfo(sym);
+                const newId = portfolio.length > 0 ? Math.max(...portfolio.map(i => i.id)) + 1 : 1;
+                const newItem = { id: newId, symbol: sym, name: "", category: info.cat, isLeverage: info.isLeverage, currency: info.cur, shares, cost, target: 0, price: 0 };
+                portfolio.push(newItem);
+                saveToStorage(); 
+                render();
+                
+                // 2. 在後台更新價格，不阻塞 UI
+                try {
+                    await updateSinglePrice(newItem);
+                    saveToStorage(); 
+                    render();
+                } catch (e) {
+                    console.error("Initial fetch failed:", e);
+                }
+            }
+        }
+
+        function processBuyAsset() {
+            const sym = document.getElementById('buySymbol').value.trim().toUpperCase();
+            const sharesToBuy = parseFloat(document.getElementById('buyShares').value) || 0;
+            const buyPrice = parseFloat(document.getElementById('buyPrice').value) || 0;
+            if (!sym || sharesToBuy <= 0 || buyPrice <= 0) return;
+
+            const requiredCash = sharesToBuy * buyPrice;
+            
+            // 检查现金水位是否足够
+            if (requiredCash > cashPosition) {
+                alert(`無法買入！\n原因：現金水位不足。\n\n需要金額：${formatVal(requiredCash, 0, false)} TWD\n可用現金：${formatVal(cashPosition, 0, false)} TWD\n不足金額：${formatVal(requiredCash - cashPosition, 0, false)} TWD\n\n請先增加現金水位或減少買入數量。`);
+                return;
+            }
+
+            // 1. 立即關閉彈窗，防止重複點擊
+            closeModal('buyModal');
+
+            const existingIndex = portfolio.findIndex(p => p.symbol === sym);
+            if (existingIndex !== -1) {
+                const p = portfolio[existingIndex];
+                const totalCost = (p.shares * p.cost + sharesToBuy * buyPrice) / (p.shares + sharesToBuy);
+                p.cost = totalCost;
+                p.shares += sharesToBuy;
+                p.isUpdating = true; // 即使是現有股票，買入後也同步更新價格
+                updateSinglePrice(p);
+            } else {
+                const info = getCategoryInfo(sym);
+                const newId = portfolio.length > 0 ? Math.max(...portfolio.map(i => i.id)) + 1 : 1;
+                const newItem = {
+                    id: newId,
+                    symbol: sym,
+                    name: "",
+                    category: info.cat,
+                    isLeverage: info.isLeverage,
+                    currency: info.cur,
+                    shares: sharesToBuy,
+                    cost: buyPrice,
+                    target: 0,
+                    price: 0,
+                    isUpdating: true // 標記為更新中
+                };
+                portfolio.push(newItem);
+                saveToStorage(); 
+                render();
+                
+                // 在後台更新價格
+                updateSinglePrice(newItem).catch(e => console.error("Initial buy fetch failed:", e));
+            }
+
+            const trade = {
+                id: Date.now(),
+                type: 'buy',
+                symbol: sym,
+                shares: sharesToBuy,
+                price: buyPrice,
+                amount: requiredCash,
+                timestamp: new Date().toISOString()
+            };
+            tradeHistory.push(trade);
+            manageTradeHistoryLimit();
+
+            cashPosition -= requiredCash;
+            
+            // 更新现金水位显示
+            const cashInput = document.getElementById('cashPosition');
+            if (cashInput) {
+                cashInput.value = Math.round(cashPosition);
+            }
+            const cashDisplay = document.getElementById('availableCashDisplay');
+            if (cashDisplay) {
+                animateNumber(cashDisplay, cashPosition, 1000, true, 0, '');
+            }
+            
+            saveToStorage();
+            render();
+            closeModal('buyModal');
+            renderTradeHistory();
+        }
+
+        function processSellAsset() {
+            const sym = document.getElementById('sellSymbol').value.trim().toUpperCase();
+            const sharesToSell = parseFloat(document.getElementById('sellShares').value) || 0;
+            const sellPrice = parseFloat(document.getElementById('sellPrice').value) || 0;
+            if (!sym || sharesToSell <= 0 || sellPrice <= 0) return;
+
+            const existingIndex = portfolio.findIndex(p => p.symbol === sym);
+            
+            // 检查是否持有该股票
+            if (existingIndex === -1) {
+                alert(`無法賣出！\n原因：您目前沒有持有 ${sym} 這支股票。\n\n請先買入或使用「新增」功能添加此股票。`);
+                return;
+            }
+
+            const p = portfolio[existingIndex];
+            
+            // 检查卖出股数是否超过持有数量
+            if (sharesToSell > p.shares) {
+                alert(`無法賣出！\n原因：賣出股數 (${sharesToSell}) 超過持有數量 (${p.shares})。\n\n請輸入不超過 ${p.shares} 股的數量。`);
+                return;
+            }
+
+            const gainCash = sharesToSell * sellPrice;
+            const realizedPnL = gainCash - (sharesToSell * p.cost);
+
+            const trade = {
+                id: Date.now(),
+                type: 'sell',
+                symbol: sym,
+                shares: sharesToSell,
+                price: sellPrice,
+                amount: gainCash,
+                avgCost: p.cost,
+                realizedPnL: realizedPnL,
+                timestamp: new Date().toISOString()
+            };
+            tradeHistory.push(trade);
+            manageTradeHistoryLimit();
+
+            cashPosition += gainCash;
+
+            if (sharesToSell >= p.shares) {
+                triggerDeleteConfirm(p.id);
+            } else {
+                p.shares -= sharesToSell;
+                if (p.pledgedShares && p.pledgedShares > p.shares) {
+                    p.pledgedShares = p.shares;
+                }
+                saveToStorage(); 
+                render();
+            }
+            
+            // 更新现金水位显示
+            const cashInput = document.getElementById('cashPosition');
+            if (cashInput) {
+                cashInput.value = Math.round(cashPosition);
+            }
+            const cashDisplay = document.getElementById('availableCashDisplay');
+            if (cashDisplay) {
+                animateNumber(cashDisplay, cashPosition, 1000, true, 0, '');
+            }
+            
+            closeModal('sellModal');
+            renderTradeHistory();
+        }
+
+        /**
+         * V4.0.0 GAS 核心抓取方案
+         * 利用 Google Apps Script 作為中間層，解決 Yahoo Finance 連線驗證問題
+         */
+        async function fetchFromGAS(symbols) {
+            if (!GAS_API_URL) {
+                console.error("GAS_API_URL 未設定");
+                throw new Error("GAS_API_URL_MISSING");
+            }
+            if (!symbols) return [];
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); 
+
+            try {
+                // 使用搜尋建議接口的新 URL 格式
+                const url = GAS_API_URL + "?symbols=" + encodeURIComponent(symbols) + "&t=" + Date.now();
+                const response = await fetch(url, { signal: controller.signal });
+                clearTimeout(timeoutId);
+
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                
+                console.log("【GAS 原始數據】", data);
+
+                // 解析新結構：資料主要在 data.quotes 中
+                let results = [];
+                if (data.quotes && Array.isArray(data.quotes)) {
+                    results = data.quotes;
+                } else if (data.finance && data.finance.result) {
+                    if (Array.isArray(data.finance.result)) {
+                        if (data.finance.result[0] && data.finance.result[0].quotes) {
+                            results = data.finance.result[0].quotes;
+                        } else {
+                            results = data.finance.result;
+                        }
+                    } else {
+                        results = [data.finance.result];
+                    }
+                } else if (data.quoteResponse && data.quoteResponse.result) {
+                    results = data.quoteResponse.result;
+                }
+
+                if (results && Array.isArray(results)) {
+                    return results.map(item => {
+                        const extractNum = (val) => {
+                            if (val === null || val === undefined) return 0;
+                            if (typeof val === 'object') return val.raw !== undefined ? val.raw : (val.value !== undefined ? val.value : 0);
+                            return parseFloat(val) || 0;
+                        };
+
+                        // 針對新 chart 接口結構優化
+                        const price = extractNum(item.price) || extractNum(item.regularMarketPrice) || 0;
+                        const prevClose = extractNum(item.prevClose) || extractNum(item.previousClose) || 0;
+                        
+                        // 如果有價格與昨收，則計算漲跌幅
+                        let change = 0;
+                        if (price > 0 && prevClose > 0) {
+                            change = ((price - prevClose) / prevClose) * 100;
+                        } else {
+                            change = extractNum(item.regularMarketChangePercent) || extractNum(item.changePercent) || 0;
+                        }
+                        
+                        console.log(`[解析成功] ${item.symbol}: 價格=${price}, 昨收=${prevClose}, 漲跌=${change.toFixed(2)}%`);
+
+                        return {
+                            symbol: item.symbol,
+                            price: price,
+                            prevClose: prevClose,
+                            change: change,
+                            name: item.shortName || item.longName || item.symbol
+                        };
+                    });
+                } else {
+                    console.warn("無法解析 quotes 陣列，原始資料：", data);
+                    return [];
+                }
+            } catch (error) {
+                clearTimeout(timeoutId);
+                if (error.name === 'AbortError') {
+                    console.error('GAS 請求超時 (30秒限制)。Google 腳本反應過慢。');
+                } else {
+                    console.error('❌ 解析過程出錯:', error);
+                }
+                throw error;
+            }
+        }
+
+        function applyData(results) {
+            if (!results || results.length === 0) {
+                console.warn("applyData: 沒有收到任何結果");
+                return;
+            }
+            
+            console.log(`開始匹配 ${results.length} 筆資料到持股清單 (portfolio)...`);
+            
+            results.forEach(item => {
+                if (!item.symbol) return;
+                
+                // 尋找匹配的資產 (使用 includes 進行匹配，確保如 0050.TW 能對上 0050)
+                const asset = portfolio.find(a => {
+                    const yahooSymbol = item.symbol.toUpperCase();
+                    const localSymbol = a.symbol.toUpperCase();
+                    return yahooSymbol.includes(localSymbol);
+                });
+                
+                if (asset && item.price) {
+                    asset.price = item.price;
+                    asset.change = item.change || 0;
+                    asset.lastUpdate = new Date().toLocaleTimeString();
+                    asset.error = false;
+                    asset.isUpdating = false; // 更新完成，解除等待狀態
+                    console.log(`✅ [匹配成功] 資產:${asset.symbol} <-> Yahoo:${item.symbol} | 價格:${asset.price}`);
+                } else {
+                    console.log(`ℹ️ [未匹配] Yahoo 回傳 ${item.symbol}，但持股清單中找不到對應代號或價格為空`);
+                }
+            });
+            
+            // 只要有資料就執行計算並重繪
+            finalizeUpdate();
+            render(); 
+            console.log("✅ 介面已重繪完成 (finalizeUpdate + render)");
+        }
+
+        async function updateAllPrices() {
+            if (!portfolio || portfolio.length === 0) {
+                console.log("資產清單為空，跳過更新。");
+                return;
+            }
+            
+            console.log("GAS 方案：開始更新價格...");
+            // 統一設置更新狀態
+            portfolio.forEach(a => a.isUpdating = true);
+            render();
+
+            const symbols = portfolio.map(a => {
+                let s = a.symbol.trim().toUpperCase();
+                return (/^\d/.test(s) && !s.includes('.')) ? `${s}.TW` : s;
+            }).filter(s => s).join(',');
+
+            if (!symbols) return;
+
+            try {
+                const results = await fetchFromGAS(symbols);
+                if (results && results.length > 0) {
+                    applyData(results);
+                    console.log("GAS 價格更新成功！");
+                } else {
+                    console.warn("GAS 回傳資料為空，請檢查 Console 的【格式警告】日誌");
+                }
+            } catch (e) {
+                console.error("GAS 價格更新失敗:", e);
+                const statusElem = document.getElementById('update-status');
+                if(statusElem) statusElem.innerText = "GAS 線路異常或請求超時";
+                throw e;
+            }
+        }
+
+        async function fetchFX() {
+            try {
+                console.log("GAS 方案：開始更新匯率 (USDTWD=X)...");
+                const results = await fetchFromGAS("USDTWD=X");
+                if (results && results.length > 0) {
+                    const price = results[0].price;
+                    if (price > 0) {
+                        globalFxRate = price;
+                        console.log(`GAS 匯率更新成功: ${globalFxRate}`);
+                        return;
+                    }
+                }
+                
+                // Fallback for different currency symbol if first one fails
+                console.log("嘗試備用匯率代號 (TWD=X)...");
+                const resultsFallback = await fetchFromGAS("TWD=X");
+                if (resultsFallback && resultsFallback.length > 0) {
+                    const price = resultsFallback[0].price;
+                    if (price > 0) {
+                        // TWD=X might return 1/32.5 or 32.5 depending on Yahoo's mood
+                        // Usually TWD=X is USD to TWD
+                        globalFxRate = price;
+                        console.log(`GAS 備用匯率更新成功: ${globalFxRate}`);
+                    }
+                }
+            } catch (e) { 
+                console.warn("GAS 匯率更新失敗，使用預設值:", e);
+                if (!globalFxRate || globalFxRate <= 0) globalFxRate = 32.5; 
+            }
+        }
+
+        async function updateSinglePrice(item) {
+            const sym = item.symbol.trim().toUpperCase();
+            const symbolToFetch = (/^\d/.test(sym) && !sym.includes('.')) ? `${sym}.TW` : sym;
+            try {
+                const results = await fetchFromGAS(symbolToFetch);
+                if (results && results.length > 0) {
+                    applyData(results);
+                }
+            } catch (e) {
+                console.error(`Update single price failed for ${sym}:`, e);
+            }
+        }
+
+        async function handleRefreshClick() {
+            console.log('Sync clicked');
+            if (isUpdatingGlobal || isCoolingDown) return;
+            
+            if (!portfolio || portfolio.length === 0) {
+                alert('目前沒有任何資產可以更新。');
+                return;
+            }
+            
+            isUpdatingGlobal = true;
+            isCoolingDown = true; // 啟動冷卻
+            const btn = document.getElementById('refreshBtn');
+            const statusElem = document.getElementById('update-status');
+            const originalText = 'Sync';
+            
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = 'SYNCING...';
+                btn.classList.add('updating');
+            }
+            if (statusElem) statusElem.innerText = "";
+
+            try {
+                const fxPromise = fetchFX();
+                await updateAllPrices();
+                await fxPromise;
+                
+                if (btn) btn.textContent = 'SUCCESS ✓';
+            } catch (error) {
+                console.error("Sync Error:", error);
+                if (btn) btn.textContent = 'ERROR';
+            } finally {
+                isUpdatingGlobal = false;
+                
+                // 倒數計時冷卻
+                let countdown = 10;
+                const timer = setInterval(() => {
+                    countdown--;
+                    if (btn) btn.textContent = `WAIT (${countdown}s)`;
+                    
+                    if (countdown <= 0) {
+                        clearInterval(timer);
+                        isCoolingDown = false;
+                        if (btn) {
+                            btn.disabled = false;
+                            btn.textContent = originalText;
+                            btn.classList.remove('updating');
+                        }
+                    }
+                }, 1000);
+                
+                render();
+            }
+        }
+
+        function getCategoryInfo(symbol, name = "") {
+            const s = symbol.toUpperCase().trim();
+            const n = name.toUpperCase();
+            const leverageKeywords = ['2X', '3X', 'BULL', 'BEAR', 'ULTRA', 'PROSHARES', 'SOXL', 'TQQQ', 'SQQQ', '00631L', '00632R', '00670L', 'TSLL', 'SSO', 'UPRO', 'QLD'];
+            const isLvrg = leverageKeywords.some(k => s.endsWith(k) || s.includes(k)) || /正2|正3|反1|槓桿|LEVERAGE/.test(n) || (s.length > 4 && s.endsWith('L')); 
+            const bondKeywords = ['BND', 'TLT', 'AGG', '00937B', '00687B', '00679B'];
+            const isBond = bondKeywords.some(k => s.includes(k)) || /^\d+B$/.test(s) || n.includes('BOND');
+            if (isBond) return { cat: 'BOND', cur: (/^[A-Z]/.test(s) ? 'USD' : 'TWD'), isLeverage: isLvrg };
+            if (/^\d/.test(s)) return { cat: 'TW', cur: 'TWD', isLeverage: isLvrg };
+            return { cat: 'US', cur: 'USD', isLeverage: isLvrg };
+        }
+
+        function updateVal(id, field, val) {
+            const item = portfolio.find(i => i.id === id);
+            if (item) { item[field] = parseFloat(val) || 0; saveAndRefresh(); }
+        }
+
+        function triggerDeleteConfirm(id) {
+            const item = portfolio.find(p => p.id === id);
+            if (!item) return;
+            document.getElementById('deleteTargetName').innerText = `${item.symbol}`;
+            const btn = document.getElementById('finalDeleteBtn');
+            btn.onclick = () => {
+                portfolio = portfolio.filter(p => p.id !== id);
+                saveToStorage();
+                closeModal('confirmDeleteModal');
+                render();
+            };
+            openModal('confirmDeleteModal');
+        }
+
+        function saveAndRefresh() { saveToStorage(); finalizeUpdate(); }
+
+        function finalizeUpdate(startFromOne = false) {
+            let totalMarketTWD = 0, totalCostTWD = 0;
+            portfolio.forEach(item => {
+                const fx = item.currency === 'USD' ? globalFxRate : 1;
+                item.currentValTWD = (item.shares || 0) * (item.price || 0) * fx;
+                item.costValTWD = (item.shares || 0) * (item.cost || 0) * fx;
+                totalMarketTWD += item.currentValTWD;
+                totalCostTWD += item.costValTWD;
+
+                const pledged = item.pledgedShares || 0;
+                const unpledged = item.shares - pledged;
+
+                const updateRow = (suffix, shareCount) => {
+                    const val = shareCount * (item.price || 0) * fx;
+                    const costVal = shareCount * (item.cost || 0) * fx;
+                    
+                    const cstEl = document.getElementById(`cst${suffix}`);
+                    const priEl = document.getElementById(`pri${suffix}`);
+                    const invEl = document.getElementById(`inv${suffix}`);
+                    const mktEl = document.getElementById(`mkt${suffix}`);
+                    const prfEl = document.getElementById(`prf${suffix}`);
+
+                    if (cstEl) animateNumber(cstEl, item.cost || 0, 1000, false, 2, '');
+                    if (priEl) {
+                        if (item.isUpdating) {
+                            priEl.innerText = "WAIT...";
+                        } else {
+                            animateNumber(priEl, item.price || 0, 1000, false, 2, '');
+                        }
+                    }
+                    if (invEl) animateNumber(invEl, costVal, 1000, true, 0, '');
+                    if (mktEl) animateNumber(mktEl, val, 1000, true, 0, '');
+                    if (prfEl) {
+                        const diff = val - costVal;
+                        const pct = costVal > 0 ? (diff / costVal * 100).toFixed(2) : '0.00';
+                        const isUp = diff >= 0;
+                        const colorClass = isUp ? 'text-rose-500' : 'text-emerald-500';
+
+                        const profitDiv = prfEl.querySelector('div:first-child') || document.createElement('div');
+                        const pctDiv = prfEl.querySelector('div:last-child') || document.createElement('div');
+
+                        if (!prfEl.contains(profitDiv)) prfEl.appendChild(profitDiv);
+                        if (!prfEl.contains(pctDiv)) prfEl.appendChild(pctDiv);
+
+                        profitDiv.className = `${colorClass} font-black text-xs`;
+                        pctDiv.className = `${colorClass} font-bold text-[9px] opacity-80`;
+
+                        animateNumber(profitDiv, Math.round(diff), 1000, true, 0, isUp ? '+' : '');
+                        animateNumber(pctDiv, parseFloat(pct), 1000, false, 2, (isUp ? '+' : '') + '%');
+                    }
+                };
+
+                if (unpledged > 0) updateRow(`-${item.id}`, unpledged);
+                if (pledged > 0) updateRow(`-pledged-${item.id}`, pledged);
+            });
+            const grandTotal = totalMarketTWD + cashPosition;
+            const totalProfit = totalMarketTWD - totalCostTWD;
+            const totalProfitPct = totalCostTWD > 0 ? (totalProfit / totalCostTWD * 100).toFixed(2) : 0;
+            
+            const totalCostEl = document.getElementById('totalCostDisplay');
+            const totalDisplayEl = document.getElementById('totalDisplay');
+            
+            if (totalCostEl) {
+                if (startFromOne) {
+                    totalCostEl.innerText = formatVal(1, 0, true);
+                }
+                animateNumber(totalCostEl, totalCostTWD, 1500, true, 0, '', true);
+            }
+            if (totalDisplayEl) {
+                if (startFromOne) {
+                    totalDisplayEl.innerText = formatVal(1, 0, true);
+                }
+                animateNumber(totalDisplayEl, grandTotal, 1500, true, 0, '', true);
+            }
+            const pDisp = document.getElementById('totalProfitDisplay');
+            const pctDisp = document.getElementById('totalProfitPctDisplay');
+            animateNumber(pDisp, Math.round(totalProfit), 1500, true, 0, totalProfit > 0 ? '+' : '');
+            pDisp.className = `text-sm font-mono font-bold leading-none ${totalProfit >= 0 ? 'text-rose-500' : 'text-emerald-500'}`;
+            animateNumber(pctDisp, parseFloat(totalProfitPct), 1500, false, 2, (totalProfit > 0 ? '+' : '') + '%');
+            pctDisp.className = `text-sm font-black font-bold leading-none ${totalProfit >= 0 ? 'text-rose-500' : 'text-emerald-500'}`;
+            const cashDisplay = document.getElementById('availableCashDisplay');
+            if (cashDisplay) {
+                animateNumber(cashDisplay, cashPosition, 1000, true, 0, '');
+            }
+            drawMainCharts(grandTotal, cashPosition);
+            drawTargetChart();
+        }
+
+        function render() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            if (portfolio.length === 0) { document.getElementById('emptyState').classList.remove('hidden'); finalizeUpdate(); return; }
+            document.getElementById('emptyState').classList.add('hidden');
+            
+            const cats = { TW: '台股 TAIPEI', US: '美股 US STOCK', BOND: '債券 BONDS', PLEDGED: '質押 PLEDGED' };
+            
+            const getDisplayItems = () => {
+                let displayItems = [];
+                portfolio.forEach(item => {
+                    const pledged = item.pledgedShares || 0;
+                    const unpledged = item.shares - pledged;
+                    if (unpledged > 0) {
+                        displayItems.push({ ...item, isVirtual: false, displayShares: unpledged, displayCategory: item.category });
+                    }
+                    if (pledged > 0) {
+                        displayItems.push({ ...item, isVirtual: true, displayShares: pledged, displayCategory: 'PLEDGED' });
+                    }
+                });
+                return displayItems;
+            };
+
+            const allItems = getDisplayItems();
+
+            for (let k in cats) {
+                const itemsInCat = allItems.filter(i => i.displayCategory === k);
+                if (itemsInCat.length === 0) continue;
+                const catTotalTWD = itemsInCat.reduce((sum, item) => {
+                    const fx = item.currency === 'USD' ? globalFxRate : 1;
+                    return sum + (item.displayShares || 0) * (item.price || 0) * fx;
+                }, 0);
+                const sortedItems = itemsInCat.sort((a, b) => (a.isLeverage !== b.isLeverage) ? (a.isLeverage ? 1 : -1) : (b.displayShares * b.price) - (a.displayShares * a.price));
+                tbody.innerHTML += `
+                    <tr>
+                        <td colspan="9" class="px-4 py-4">
+                            <div class="flex items-center justify-between bg-slate-800/40 rounded-2xl px-5 py-3 border border-white/[0.03] shadow-sm">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.5)]"></span>
+                                    <span class="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">${cats[k]}</span>
+                                </div>
+                                <span class="text-[10px] font-mono font-black text-cyan-400/80 tracking-tight bg-cyan-500/5 px-3 py-1 rounded-lg border border-cyan-500/10">${formatVal(catTotalTWD, 0, true)} <span class="text-[8px] opacity-60 ml-0.5">TWD</span></span>
+                            </div>
+                        </td>
+                    </tr>`;
+                sortedItems.forEach(item => {
+                    const idSuffix = item.isVirtual ? `-pledged-${item.id}` : `-${item.id}`;
+                    tbody.innerHTML += `
+                        <tr class="group/row hover:bg-white/[0.02] transition-colors duration-300">
+                            <td class="px-4 py-4 text-center">
+                                <div class="relative inline-block">
+                                    <input type="number" oninput="updateVal(${item.id}, 'target', this.value)" value="${item.target}" 
+                                        class="w-12 py-2 pr-4 text-center text-[11px] text-cyan-400 font-black rounded-xl bg-slate-950/40 border border-white/5 focus:border-cyan-500/40 focus:outline-none transition-all" 
+                                        ${item.isVirtual ? 'disabled' : ''}>
+                                    <span class="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-cyan-400/60 font-black pointer-events-none">%</span>
+                                </div>
+                            </td>
+                            <td class="px-3 py-4">
+                                <div class="flex flex-col">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-[12px] font-black uppercase text-white tracking-tight">${item.symbol}</span>
+                                        ${item.isLeverage ? '<span class="px-1.5 py-0.5 rounded-md bg-rose-500/10 text-rose-500 text-[7px] font-black border border-rose-500/20">LVRG</span>' : ''}
+                                        ${item.isVirtual ? '<span class="px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-500 text-[7px] font-black border border-amber-500/20">PLEDGE</span>' : ''}
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-3 py-4 text-[11px] font-mono text-slate-300 font-black">${formatVal(item.displayShares, 0, true)}</td>
+                            <td class="px-3 py-4 text-right text-[11px] font-mono text-slate-500 font-bold" id="cst${idSuffix}">--</td>
+                            <td class="px-3 py-4 text-right text-[11px] font-mono text-cyan-400 font-black" id="pri${idSuffix}">--</td>
+                            <td class="px-2 sm:px-3 py-4 text-right text-[11px] font-mono text-slate-600 font-bold" id="inv${idSuffix}">0</td>
+                            <td class="px-2 sm:px-3 py-4 text-right relative">
+                                <div class="absolute inset-y-1.5 right-1 left-1 bg-white/[0.005] rounded-xl border border-white/[0.03] pointer-events-none"></div>
+                                <div id="mkt${idSuffix}" class="text-[11px] font-mono text-slate-100 font-black relative z-10 transition-all duration-300 origin-right">0</div>
+                            </td>
+                    <td class="px-4 py-4 text-right" id="prf${idSuffix}"></td>
+                            <td class="px-4 py-4">
+                                <div class="flex items-center justify-end gap-1">
+                                    <button onclick="openEditModal(${item.id})" class="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-800/50 text-amber-500/60 hover:text-amber-400 hover:bg-slate-800 transition-all">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>
+                                    </button>
+                                    ${!item.isVirtual ? `<button onclick="triggerDeleteConfirm(${item.id})" class="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-800/50 text-rose-500/60 hover:text-rose-500 hover:bg-slate-800 transition-all">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                                            <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                                            <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                                        </svg>
+                                    </button>` : ''}
+                                </div>
+                            </td>
+                        </tr>`;
+                });
+            }
+            finalizeUpdate();
+        }
+
+        function drawMainCharts(total, extraCash) {
+            if (total <= 0) { if (mainChart) mainChart.destroy(); if (strategyChart) strategyChart.destroy(); return; }
+            const hasLvrg = portfolio.some(i => i.isLeverage);
+            const sCont = document.getElementById('strategyChartContainer'), mCont = document.getElementById('mainChartContainer');
+            if (hasLvrg) { sCont.classList.remove('hidden'); mCont.classList.replace('w-full', 'w-1/2'); }
+            else { sCont.classList.add('hidden'); mCont.classList.replace('w-1/2', 'w-full'); }
+            const catOrder = ['TW', 'US', 'BOND'], catLabels = { TW: '台股', US: '美股', BOND: '債券' }, catColors = { TW: 'rgba(6,182,212,0.5)', US: 'rgba(59,130,246,0.5)', BOND: 'rgba(168,85,247,0.5)', CASH: 'rgba(71,85,105,0.4)' };
+            let inData = [], inLabels = [], inBG = [], outData = [], outLabels = [], outBG = [];
+            catOrder.forEach(cat => {
+                const items = portfolio.filter(i => i.category === cat && i.currentValTWD > 0).sort((a,b)=>b.currentValTWD-a.currentValTWD);
+                if (items.length > 0) {
+                    inData.push(items.reduce((s,i)=>s+i.currentValTWD,0)); inLabels.push(catLabels[cat]); inBG.push(catColors[cat]);
+                    items.forEach((item, idx) => {
+                        outData.push(item.currentValTWD); outLabels.push(item.symbol);
+                        const hue = cat==='TW'?190:(cat==='US'?210:270);
+                        outBG.push(`hsla(${hue}, 60%, ${45 + (idx%4)*8}%, 0.8)`);
+                    });
+                }
+            });
+            if (cashPosition > 0) {
+                inData.push(cashPosition); inLabels.push('現金'); inBG.push(catColors.CASH);
+                outData.push(cashPosition); outLabels.push('CASH'); outBG.push('rgba(71,85,105,0.6)');
+            }
+            if (mainChart) mainChart.destroy();
+            mainChart = new Chart(document.getElementById('mainChart').getContext('2d'), {
+                type: 'doughnut',
+                data: { datasets: [{ data: outData, backgroundColor: outBG, borderWidth: 1, borderColor: '#0b0f1a', weight: 2, datalabels: { color: '#fff', font: { size: 7, weight: '800' }, formatter: (v, ctx) => (v/total*100) > 5 ? `${outLabels[ctx.dataIndex]}\n${(v/total*100).toFixed(0)}%` : '', textAlign: 'center' } }, { data: inData, backgroundColor: inBG, borderWidth: 1, borderColor: '#0b0f1a', weight: 1, datalabels: { color: '#fff', font: { size: 9, weight: '900' }, formatter: (v, ctx) => (v/total*100) > 10 ? `${inLabels[ctx.dataIndex]}` : '' } }] },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '35%', plugins: { legend: { display: false } } }
+            });
+            if (hasLvrg) {
+                let spot = portfolio.filter(i => !i.isLeverage && i.category !== 'BOND').reduce((a,b)=>a+b.currentValTWD,0);
+                let lvrg = portfolio.filter(i=>i.isLeverage).reduce((a,b)=>a+b.currentValTWD,0);
+                let bond = portfolio.filter(i=>i.category==='BOND').reduce((a,b)=>a+b.currentValTWD,0);
+                let cash = cashPosition;
+                const sD = [spot, lvrg, bond, cash].filter(v=>v>0);
+                const sL = ['原型', '槓桿', '債券', '現金'].filter((_,i)=>[spot,lvrg,bond,cash][i]>0);
+                const sC = ['rgba(6,182,212,0.7)','rgba(244,63,94,0.8)','rgba(168,85,247,0.7)', 'rgba(71,85,105,0.6)'].filter((_,i)=>[spot,lvrg,bond,cash][i]>0);
+                if (strategyChart) strategyChart.destroy();
+                strategyChart = new Chart(document.getElementById('strategyChart').getContext('2d'), {
+                    type: 'doughnut',
+                    data: { labels: sL, datasets: [{ data: sD, backgroundColor: sC, borderWidth: 2, borderColor: '#0b0f1a' }] },
+                    options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { display: false }, datalabels: { color: '#fff', font: { size: 10, weight: '900' }, formatter: (v, ctx) => (v/total*100) > 5 ? `${sL[ctx.dataIndex]}\n${(v/total*100).toFixed(0)}%` : '' } } }
+                });
+            }
+        }
+
+        function drawTargetChart() {
+            if (portfolio.length === 0) { if (targetChart) targetChart.destroy(); return; }
+            const activeAssets = portfolio.filter(i => i.target > 0); 
+            const sumTargetUnits = activeAssets.reduce((a, b) => a + (b.target || 0), 0);
+            
+            const getEffectiveVal = (asset) => {
+                let val = asset.currentValTWD || 0;
+                if (asset.excludePledged && asset.pledgedShares > 0) {
+                    const fx = asset.currency === 'USD' ? globalFxRate : 1;
+                    const pledgedVal = asset.pledgedShares * (asset.price || 0) * fx;
+                    val = Math.max(0, val - pledgedVal);
+                }
+                return val;
+            };
+
+            const currentSelectedMarketTotal = activeAssets.reduce((a, b) => a + getEffectiveVal(b), 0);
+
+            if (targetChart) targetChart.destroy();
+            if (activeAssets.length === 0) return;
+            targetChart = new Chart(document.getElementById('targetChart').getContext('2d'), {
+                type: 'bar',
+                data: { 
+                    labels: activeAssets.map(i => i.symbol), 
+                    datasets: [
+                        { label: '實際', data: activeAssets.map(i => currentSelectedMarketTotal > 0 ? (getEffectiveVal(i) / currentSelectedMarketTotal * 100).toFixed(2) : 0), backgroundColor: 'rgba(0,242,255,0.6)', borderRadius: 6, datalabels: { color: '#00f2ff', anchor: 'end', align: 'top' } }, 
+                        { label: '目標', data: activeAssets.map(i => sumTargetUnits > 0 ? (i.target / sumTargetUnits * 100).toFixed(2) : 0), backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 6, borderColor: 'rgba(255,255,255,0.15)', borderWidth: 1, datalabels: { color: '#64748b', anchor: 'end', align: 'top', offset: -15 } }
+                    ] 
+                },
+                options: { 
+                    responsive: true, maintainAspectRatio: false, layout: { padding: { top: 25 } },
+                    scales: { x: { ticks: { color: '#64748b', font: { size: 9, weight: '900' } }, grid: { display: false } }, y: { display: false } }, 
+                    plugins: { legend: { display: false }, datalabels: { font: { size: 9, weight: 'bold' }, formatter: (v) => v + '%' } } 
+                }
+            });
+        }
+
+        function triggerAdvice() {
+            const container = document.getElementById('adviceContainer');
+            const available_cash = cashPosition;
+
+            const cashDisplay = document.getElementById('availableCashDisplay');
+            animateNumber(cashDisplay, available_cash, 1000, true, 2, '');
+
+            const rebalance_assets_orig = portfolio.filter(i => i.target > 0);
+            if (rebalance_assets_orig.length === 0) {
+                container.innerHTML = `<div class="text-center py-4 text-[9px] text-slate-500 uppercase tracking-widest">請先在目標%欄位輸入比例</div>`;
+                return;
+            }
+
+            // Create simulation objects to respect excludePledged
+            let rebalance_assets = rebalance_assets_orig.map(asset => {
+                const fx = asset.currency === 'USD' ? globalFxRate : 1;
+                let val = asset.currentValTWD;
+                if (asset.excludePledged && asset.pledgedShares > 0) {
+                    const pledgedVal = asset.pledgedShares * (asset.price || 0) * fx;
+                    val = Math.max(0, val - pledgedVal);
+                }
+                return {
+                    ...asset, 
+                    currentValTWD: val 
+                };
+            });
+
+            const total_target_units = rebalance_assets.reduce((sum, asset) => sum + asset.target, 0);
+            let current_total_value = rebalance_assets.reduce((sum, asset) => sum + asset.currentValTWD, 0);
+            let remaining_cash = available_cash;
+            let trades = [];
+
+            while (remaining_cash > 100 && rebalance_assets.some(asset => {
+                const target_ratio = asset.target / total_target_units;
+                const target_value = (current_total_value + remaining_cash) * target_ratio;
+                const gap = target_value - asset.currentValTWD;
+                return gap > 100;
+            })) {
+                const assets_with_gap = rebalance_assets.map(asset => {
+                    const target_ratio = asset.target / total_target_units;
+                    const target_value = (current_total_value + remaining_cash) * target_ratio;
+                    const gap = target_value - asset.currentValTWD;
+                    return { asset, gap, target_value };
+                }).filter(item => item.gap > 100)
+                .sort((a, b) => b.gap - a.gap);
+
+                if (assets_with_gap.length === 0) break;
+
+                const target_asset = assets_with_gap[0];
+                const fx = target_asset.asset.currency === 'USD' ? globalFxRate : 1;
+                const unitPriceTWD = target_asset.asset.price * fx;
+
+                if (unitPriceTWD <= 0) break;
+
+                const max_buy_value = Math.min(target_asset.gap, remaining_cash);
+                const shares_to_buy = Math.floor(max_buy_value / unitPriceTWD);
+
+                if (shares_to_buy <= 0) break;
+
+                const buy_amount = shares_to_buy * unitPriceTWD;
+
+                trades.push({
+                    asset_id: target_asset.asset.symbol,
+                    action: 'buy',
+                    shares: shares_to_buy,
+                    amountTWD: buy_amount,
+                    reason: '使用現金補足目標差距'
+                });
+
+                target_asset.asset.currentValTWD += buy_amount;
+                current_total_value += buy_amount;
+                remaining_cash -= buy_amount;
+            }
+
+            const final_total_value = current_total_value + remaining_cash;
+            let rebalance_result = rebalance_assets.map(asset => {
+                const target_ratio = asset.target / total_target_units;
+                const target_value = final_total_value * target_ratio;
+                const adjustment = target_value - asset.currentValTWD;
+                const fx = asset.currency === 'USD' ? globalFxRate : 1;
+                const unitPriceTWD = asset.price * fx;
+                const share_adjustment = unitPriceTWD > 0 ? Math.floor(Math.abs(adjustment) / unitPriceTWD) : 0;
+                return {
+                    asset_id: asset.symbol,
+                    current_value: asset.currentValTWD,
+                    target_ratio: target_ratio,
+                    target_value: target_value,
+                    adjustment: adjustment,
+                    action: adjustment > 1 ? "buy" : (adjustment < -1 ? "sell" : "hold"),
+                    shares: share_adjustment,
+                    amountTWD: share_adjustment * unitPriceTWD
+                };
+            });
+
+            const additional_trades = rebalance_result.filter(r => r.shares > 0).map(res => ({
+                asset_id: res.asset_id,
+                action: res.action,
+                shares: res.shares,
+                amountTWD: res.amountTWD,
+                reason: '再平衡調整'
+            }));
+
+            const all_trades = [...trades, ...additional_trades];
+
+            container.innerHTML = '';
+            if (all_trades.length === 0) {
+                container.innerHTML = `<div class="text-center py-4 text-[9px] text-slate-500 uppercase tracking-widest">配置已達平衡，無需交易</div>`;
+                return;
+            }
+
+            all_trades.sort((a, b) => (a.action === 'sell' ? -1 : 1)).forEach(trade => {
+                const isBuy = trade.action === 'buy';
+                const div = document.createElement('div');
+                div.className = `p-4 rounded-2xl border ${isBuy ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-rose-500/20 bg-rose-500/5'} flex justify-between items-center shadow-sm`;
+                div.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center font-black text-[10px] ${isBuy ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}\">${isBuy ? '買' : '賣'}</div>
+                        <div>
+                            <span class="text-[10px] font-black text-white uppercase tracking-wider">${trade.asset_id}</span>
+                            <div class="text-[8px] text-slate-500 font-bold mt-0.5">${trade.reason}</div>
+                            <div class="text-[9px] text-slate-500 font-bold uppercase">金額 ${formatVal(Math.round(trade.amountTWD), 0, true)} TWD</div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="font-black ${isBuy?'text-emerald-400':'text-rose-400'} text-xs uppercase italic tracking-tighter">${isBuy?'+':'-'} ${formatVal(trade.shares, 0, true)} 股</span>
+                    </div>`;
+                container.appendChild(div);
+            });
+        }
+
+        function toggleTradeHistory() {
+            const container = document.getElementById('tradeHistoryContainer');
+            container.classList.toggle('hidden');
+            if (!container.classList.contains('hidden')) {
+                renderTradeHistory();
+            }
+        }
+
+        function togglePnLInfo() {
+            const infoBox = document.getElementById('pnlInfoBox');
+            infoBox.classList.toggle('hidden');
+        }
+
+        function manageTradeHistoryLimit() {
+            const MAX_RECORDS = 100;
+            if (tradeHistory.length > MAX_RECORDS) {
+                // 刪除最舊的記錄（保留最新的 100 條）
+                const removedRecords = tradeHistory.splice(0, tradeHistory.length - MAX_RECORDS);
+                
+                // 将被删除记录的已实现损益累加到总累计值
+                removedRecords.forEach(trade => {
+                    if (trade.realizedPnL !== undefined && trade.realizedPnL !== null) {
+                        accumulatedRealizedPnL += trade.realizedPnL;
+                    }
+                });
+                
+                saveToStorage();
+            }
+        }
+
+        function renderTradeHistory() {
+            const listEl = document.getElementById('tradeHistoryList');
+            const noTradesEl = document.getElementById('noTradesMessage');
+            const totalPnLEl = document.getElementById('totalRealizedPnL');
+
+            listEl.innerHTML = '';
+
+            if (tradeHistory.length === 0) {
+                noTradesEl.classList.remove('hidden');
+                totalPnLEl.textContent = '0';
+                return;
+            }
+
+            noTradesEl.classList.add('hidden');
+
+            let totalRealizedPnL = accumulatedRealizedPnL;
+            tradeHistory.forEach(trade => {
+                if (trade.type === 'sell') {
+                    totalRealizedPnL += trade.realizedPnL || 0;
+                }
+            });
+
+            totalPnLEl.textContent = formatVal(Math.round(totalRealizedPnL), 0, true);
+            totalPnLEl.className = `text-lg font-mono font-black ${totalRealizedPnL >= 0 ? 'text-emerald-500' : 'text-rose-500'}`;
+
+            const sortedTrades = tradeHistory.slice().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            sortedTrades.forEach((trade, displayIndex) => {
+                let originalIndex = tradeHistory.findIndex(t => t.id === trade.id);
+                if (originalIndex === -1) {
+                    originalIndex = tradeHistory.findIndex(t => 
+                        t.symbol === trade.symbol && 
+                        t.type === trade.type && 
+                        t.shares === trade.shares && 
+                        t.price === trade.price &&
+                        t.timestamp === trade.timestamp
+                    );
+                }
+                if (originalIndex === -1) {
+                    console.warn('無法找到交易記錄索引', trade);
+                    return;
+                }
+                const tradeDiv = document.createElement('div');
+                const isSell = trade.type === 'sell';
+                const pnlColor = trade.realizedPnL >= 0 ? 'text-emerald-500' : 'text-rose-500';
+
+                tradeDiv.className = `p-3 rounded-xl border ${isSell ? 'border-rose-500/20 bg-rose-500/5' : 'border-emerald-500/20 bg-emerald-500/5'} flex justify-between items-center shadow-sm`;
+                tradeDiv.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-6 h-6 rounded-full flex items-center justify-center font-black text-[8px] ${isSell ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'}">${isSell ? '賣' : '買'}</div>
+                        <div>
+                            <span class="text-[9px] font-black text-white uppercase">${trade.symbol}</span>
+                            <div class="text-[7px] text-slate-500 font-bold mt-0.5">
+                                ${new Date(trade.timestamp).toLocaleDateString('zh-TW')} ${trade.shares}股 @ ${formatVal(trade.price, 2, false)}
+                            </div>
+                            ${isSell ? `<div class="text-[7px] ${pnlColor} font-bold">實現損益: ${formatVal(Math.round(trade.realizedPnL), 0, true)}</div>` : ''}
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[8px] font-bold text-slate-400">${formatVal(Math.round(trade.amount), 0, true)} TWD</span>
+                        <button class="edit-trade-btn text-amber-500/60 hover:text-amber-400 btn-action p-1" title="編輯" data-index="${originalIndex}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
+                            </svg>
+                        </button>
+                        <button class="delete-trade-btn text-rose-500/60 hover:text-rose-400 btn-action p-1" title="刪除" data-index="${originalIndex}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                                <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                            </svg>
+                        </button>
+                    </div>`;
+
+                listEl.appendChild(tradeDiv);
+                
+                const editBtn = tradeDiv.querySelector('.edit-trade-btn');
+                const deleteBtn = tradeDiv.querySelector('.delete-trade-btn');
+                
+                if (editBtn) {
+                    editBtn.addEventListener('click', () => {
+                        const idx = parseInt(editBtn.getAttribute('data-index'));
+                        editTradePrompt(idx);
+                    });
+                }
+                
+                if (deleteBtn) {
+                    deleteBtn.addEventListener('click', () => {
+                        const idx = parseInt(deleteBtn.getAttribute('data-index'));
+                        deleteTradePrompt(idx);
+                    });
+                }
+            });
+        }
+
+        let currentEditTradeIndex = -1;
+
+        function editTradePrompt(index) {
+            if (index < 0 || index >= tradeHistory.length) {
+                return;
+            }
+            
+            const trade = tradeHistory[index];
+            if (!trade) {
+                return;
+            }
+
+            currentEditTradeIndex = index;
+            document.getElementById('editTradeSymbol').textContent = trade.symbol;
+            document.getElementById('editTradeCurrentPrice').textContent = formatVal(trade.price, 2, false);
+            document.getElementById('editTradeCurrentShares').textContent = formatVal(trade.shares, 0, false);
+            document.getElementById('editTradeNewValue').value = '';
+            document.getElementById('editTradeType').value = 'price';
+            
+            openModal('editTradeModal');
+        }
+
+        function confirmEditTrade() {
+            if (currentEditTradeIndex < 0 || currentEditTradeIndex >= tradeHistory.length) {
+                return;
+            }
+
+            const trade = tradeHistory[currentEditTradeIndex];
+            const editType = document.getElementById('editTradeType').value;
+            const newValue = parseFloat(document.getElementById('editTradeNewValue').value);
+
+            if (isNaN(newValue) || newValue <= 0) {
+                return;
+            }
+
+            if (editType === 'shares') {
+                editTradeShares(currentEditTradeIndex, newValue);
+            } else {
+                editTrade(currentEditTradeIndex, newValue);
+            }
+
+            closeModal('editTradeModal');
+            currentEditTradeIndex = -1;
+        }
+
+        let currentDeleteTradeIndex = -1;
+
+        function deleteTradePrompt(index) {
+            const trade = tradeHistory[index];
+            if (!trade) return;
+
+            currentDeleteTradeIndex = index;
+            document.getElementById('deleteTradeSymbol').textContent = `${trade.symbol} (${trade.type === 'sell' ? '賣出' : '買入'})`;
+            
+            openModal('deleteTradeModal');
+        }
+
+        function confirmDeleteTrade() {
+            if (currentDeleteTradeIndex >= 0 && currentDeleteTradeIndex < tradeHistory.length) {
+                deleteTrade(currentDeleteTradeIndex);
+            }
+            closeModal('deleteTradeModal');
+            currentDeleteTradeIndex = -1;
+        }
+
+        function editTrade(index, newPrice) {
+            const trade = tradeHistory[index];
+            if (!trade) return;
+
+            const oldAmount = trade.amount;
+            trade.price = newPrice;
+            trade.amount = trade.shares * newPrice;
+
+            if (trade.type === 'buy') {
+                const asset = portfolio.find(p => p.symbol === trade.symbol);
+                if (asset) {
+                    asset.cost = newPrice;
+                    asset.currentValTWD = asset.shares * newPrice * (asset.currency === 'USD' ? globalFxRate : 1);
+                }
+                cashPosition -= (trade.amount - oldAmount);
+            }
+            else if (trade.type === 'sell') {
+                trade.realizedPnL = trade.amount - (trade.shares * trade.avgCost);
+                cashPosition += (trade.amount - oldAmount);
+            }
+
+            const cashDisplay = document.getElementById('availableCashDisplay');
+            if (cashDisplay) {
+                animateNumber(cashDisplay, cashPosition, 1000, true, 2, '');
+            }
+            saveToStorage();
+            render();
+            renderTradeHistory();
+        }
+
+        function deleteTrade(index) {
+            const trade = tradeHistory[index];
+            if (!trade) return;
+
+            if (trade.type === 'buy') {
+                cashPosition += trade.amount;
+                const asset = portfolio.find(p => p.symbol === trade.symbol);
+                if (asset && asset.shares >= trade.shares) {
+                    asset.shares -= trade.shares;
+                    if (asset.pledgedShares && asset.pledgedShares > asset.shares) {
+                        asset.pledgedShares = Math.max(0, asset.shares);
+                    }
+                    if (asset.shares <= 0) {
+                        portfolio = portfolio.filter(p => p.id !== asset.id);
+                    }
+                }
+            } else if (trade.type === 'sell') {
+                cashPosition -= trade.amount;
+                const asset = portfolio.find(p => p.symbol === trade.symbol);
+                if (asset) {
+                    asset.shares += trade.shares;
+                }
+            }
+
+            tradeHistory.splice(index, 1);
+            const cashDisplay = document.getElementById('availableCashDisplay');
+            if (cashDisplay) {
+                animateNumber(cashDisplay, cashPosition, 1000, true, 2, '');
+            }
+            saveToStorage();
+            render();
+            renderTradeHistory();
+        }
+
+        function editTradeShares(index, newShares) {
+            const trade = tradeHistory[index];
+            if (!trade) return;
+
+            const oldAmount = trade.amount;
+            const oldShares = trade.shares;
+            trade.shares = newShares;
+            trade.amount = trade.shares * trade.price;
+
+            if (trade.type === 'buy') {
+                const asset = portfolio.find(p => p.symbol === trade.symbol);
+                if (asset) {
+                    const shareDiff = newShares - oldShares;
+                    asset.shares += shareDiff;
+                    if (asset.pledgedShares && asset.pledgedShares > asset.shares) {
+                        asset.pledgedShares = Math.max(0, asset.shares);
+                    }
+                    if (asset.shares <= 0) {
+                        portfolio = portfolio.filter(p => p.id !== asset.id);
+                    }
+                }
+                cashPosition -= (trade.amount - oldAmount);
+            }
+            else if (trade.type === 'sell') {
+                const asset = portfolio.find(p => p.symbol === trade.symbol);
+                if (asset) {
+                    const shareDiff = oldShares - newShares;
+                    asset.shares += shareDiff;
+                    if (asset.pledgedShares && asset.pledgedShares > asset.shares) {
+                        asset.pledgedShares = Math.max(0, asset.shares);
+                    }
+                }
+                trade.realizedPnL = trade.amount - (trade.shares * trade.avgCost);
+                cashPosition += (trade.amount - oldAmount);
+            }
+
+            const cashDisplay = document.getElementById('availableCashDisplay');
+            if (cashDisplay) {
+                animateNumber(cashDisplay, cashPosition, 1000, true, 2, '');
+            }
+            saveToStorage();
+            render();
+            renderTradeHistory();
+        }
+
+        function animateNumber(element, targetValue, duration = 1500, isSensitive = false, decimals = 0, suffix = '', applyGlowing = false) {
+            if (!element) return;
+            
+            let currentText = element.innerText || element.textContent || '0';
+            const startValue = parseFloat(currentText.replace(/[^\d.+\-]/g, '').replace(/,/g, '')) || 0;
+            const startTime = Date.now();
+
+            if (applyGlowing) {
+                element.classList.add('glowing-effect');
+            }
+
+            function updateNumber() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+
+                const currentValue = startValue + (targetValue - startValue) * easeProgress;
+                const isFinal = progress === 1;
+                const valToFormat = isFinal ? targetValue : currentValue;
+                
+                let formattedValue;
+                const sign = (valToFormat > 0 && suffix.includes('+')) ? '+' : '';
+                
+                if (suffix.includes('%')) {
+                    formattedValue = sign + valToFormat.toFixed(decimals) + '%';
+                } else if (suffix.startsWith('+') || suffix.startsWith('-')) {
+                    formattedValue = sign + formatVal(valToFormat, decimals, isSensitive);
+                } else {
+                    formattedValue = formatVal(valToFormat, decimals, isSensitive) + suffix;
+                }
+
+                element.innerText = formattedValue;
+
+                // 自動縮放邏輯
+                if (element.id.startsWith('mkt-') || element.id.startsWith('inv-')) {
+                    const cleanVal = formattedValue.replace(/,/g, '');
+                    const length = cleanVal.length;
+                    if (length > 9) element.style.fontSize = '8px';
+                    else if (length > 7) element.style.fontSize = '9px';
+                    else element.style.fontSize = '11px';
+                } else if (applyGlowing && element.id === 'totalDisplay') {
+                    const cleanVal = formattedValue.replace(/,/g, '');
+                    const length = cleanVal.length;
+                    if (length > 12) element.style.fontSize = '1.2rem';
+                    else if (length > 10) element.style.fontSize = '1.5rem';
+                    else element.style.fontSize = '1.875rem';
+                }
+
+                if (progress < 1) {
+                    requestAnimationFrame(updateNumber);
+                } else {
+                    if (applyGlowing) {
+                        setTimeout(() => {
+                            element.classList.remove('glowing-effect');
+                        }, 100);
+                    }
+                }
+            }
+
+            updateNumber();
+        }
+
+        window.onload = async () => {
+            // 1. 強制註銷所有 Service Worker
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    for (let registration of registrations) {
+                        registration.unregister();
+                    }
+                });
+            }
+
+            loadFromStorage();
+            render();
+            renderTradeHistory();
+
+            // 2. 僅在啟動時自動執行一次更新
+            if (portfolio.length > 0) {
+                console.log("🚀 Startup auto-update initiated...");
+                try {
+                    // 並行更新匯率與所有價格
+                    const fxPromise = fetchFX();
+                    const pricePromise = updateAllPrices();
+                    
+                    await Promise.all([fxPromise, pricePromise]);
+                    
+                    saveToStorage();
+                    render();
+                } catch (error) {
+                    console.error("Startup update failed:", error);
+                } finally {
+                    finalizeUpdate(false);
+                }
+            }
+        };
+        function switchTab(tabId, sourceEl) {
+            document.querySelectorAll('.tab-content').forEach(el => {
+                el.classList.remove('active');
+                el.style.display = '';
+            });
+            document.getElementById(tabId).classList.add('active');
+            
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            if (sourceEl) {
+                sourceEl.classList.add('active');
+            } else {
+                const navEl = document.querySelector(`.bottom-nav .nav-item[onclick*="${tabId}"]`);
+                if (navEl) navEl.classList.add('active');
+            }
+
+            if (tabId === 'tab-analysis') {
+                setTimeout(() => {
+                    if (mainChart) mainChart.resize();
+                    if (strategyChart) strategyChart.resize();
+                    if (targetChart) targetChart.resize();
+                }, 10);
+            }
+        }
+        function initSwipeNavigation() {
+            const contentArea = document.getElementById('main-content-area');
+            if (!contentArea) return;
+            let startX = 0;
+            let startY = 0;
+            let skipSwipe = false;
+            const minDist = 120;
+            const edgeZone = 28;
+            const slopeRatio = 0.6;
+            const tabOrder = ['tab-home', 'tab-analysis', 'tab-advice', 'tab-history'];
+            contentArea.addEventListener('touchstart', (e) => {
+                const t = e.touches[0];
+                startX = t.clientX;
+                startY = t.clientY;
+                const w = window.innerWidth || contentArea.clientWidth || 0;
+                skipSwipe = !((startX <= edgeZone) || (startX >= w - edgeZone));
+            }, { passive: true });
+            contentArea.addEventListener('touchmove', (e) => {
+                if (skipSwipe) return;
+                const t = e.touches[0];
+                const diffX = t.clientX - startX;
+                const diffY = t.clientY - startY;
+                if (Math.abs(diffY) > Math.abs(diffX) * slopeRatio) {
+                    skipSwipe = true;
+                }
+            }, { passive: true });
+            contentArea.addEventListener('touchend', (e) => {
+                const t = e.changedTouches && e.changedTouches[0];
+                if (!t) return;
+                const diffX = t.clientX - startX;
+                const diffY = t.clientY - startY;
+                if (skipSwipe) return;
+                if (Math.abs(diffX) <= Math.abs(diffY) * slopeRatio || Math.abs(diffX) < minDist) return;
+                const activeTabEl = document.querySelector('.tab-content.active');
+                if (!activeTabEl) return;
+                const currentIndex = tabOrder.indexOf(activeTabEl.id);
+                if (diffX > 0 && currentIndex > 0) {
+                    const nextTab = tabOrder[currentIndex - 1];
+                    const navEl = document.querySelector(`.bottom-nav .nav-item[onclick*="${nextTab}"]`);
+                    switchTab(nextTab, navEl);
+                } else if (diffX < 0 && currentIndex < tabOrder.length - 1) {
+                    const nextTab = tabOrder[currentIndex + 1];
+                    const navEl = document.querySelector(`.bottom-nav .nav-item[onclick*="${nextTab}"]`);
+                    switchTab(nextTab, navEl);
+                }
+            }, { passive: true });
+        }
+        window.addEventListener('load', initSwipeNavigation);
+        
+        // 修正：補上缺失的 forceHardReset 函數並清理快取
+        function forceHardReset() {
+            if (confirm('確定要強制清空緩存並重置嗎？這將會清除所有本地數據！')) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
+
+        // 全域暴露函數，修復 Vite 模組作用域問題
+        window.openModal = openModal;
+        window.closeModal = closeModal;
+        window.processAddAsset = processAddAsset;
+        window.processBuyAsset = processBuyAsset;
+        window.processSellAsset = processSellAsset;
+        window.processEditAsset = processEditAsset;
+        window.updateBuyModalCash = updateBuyModalCash;
+        window.updateSellModalCash = updateSellModalCash;
+        window.calculateCompound = calculateCompound;
+        window.openEditModal = openEditModal;
+        window.exportData = exportData;
+        window.importData = importData;
+        window.confirmEditTrade = confirmEditTrade;
+        window.confirmDeleteTrade = confirmDeleteTrade;
+        window.togglePrivacy = togglePrivacy;
+        window.handleRefreshClick = handleRefreshClick;
+        window.forceHardReset = forceHardReset;
+        window.updateCashPosition = updateCashPosition;
+        window.togglePnLInfo = togglePnLInfo;
+        window.triggerAdvice = triggerAdvice;
+        window.updateVal = updateVal;
+        window.triggerDeleteConfirm = triggerDeleteConfirm;
+        window.switchTab = switchTab;
+        window.toggleTradeHistory = toggleTradeHistory;
+        window.saveToStorage = saveToStorage;
+        window.render = render;
+        window.updateAllPrices = updateAllPrices;
+        window.fetchFX = fetchFX;
+        window.updateSinglePrice = updateSinglePrice;
+        window.finalizeUpdate = finalizeUpdate;
+        window.formatVal = formatVal;
+        window.animateNumber = animateNumber;
+        window.getCategoryInfo = getCategoryInfo;
+        window.renderTradeHistory = renderTradeHistory;
+        window.manageTradeHistoryLimit = manageTradeHistoryLimit;
+        window.editTradePrompt = editTradePrompt;
+        window.deleteTradePrompt = deleteTradePrompt;
+        window.editTrade = editTrade;
+        window.deleteTrade = deleteTrade;
+        window.editTradeShares = editTradeShares;
+
+        // 使用 Event Listeners 綁定主要按鈕（更專業的作法）
+        document.addEventListener('DOMContentLoaded', () => {
+            const addBtn = document.getElementById('add-btn');
+            const buyBtn = document.getElementById('buy-btn');
+            const sellBtn = document.getElementById('sell-btn');
+
+            if (addBtn) addBtn.addEventListener('click', () => openModal('addModal'));
+            if (buyBtn) buyBtn.addEventListener('click', () => openModal('buyModal'));
+            if (sellBtn) sellBtn.addEventListener('click', () => openModal('sellModal'));
+        });
+
+        // 修正：全域錯誤捕捉，幫助手機端診斷
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error('Global Error:', message, 'at', source, lineno, colno);
+            // alert('系統錯誤: ' + message + '\n行號: ' + lineno);
+            return false;
+        };
+    </script>
+    <nav class="bottom-nav">
+        <div class="nav-item active" onclick="switchTab('tab-home', this)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M8.707 1.5a1 1 0 0 0-1.414 0L.646 8.146a.5.5 0 0 0 .708.708L2 8.207V13.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V8.207l.646.647a.5.5 0 0 0 .708-.708L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293L8.707 1.5ZM13 13.5A1.5 1.5 0 0 1 11.5 15h-9A1.5 1.5 0 0 1 1 13.5V8.207l.646.647a.5.5 0 0 0 .708-.708L8 2.207l5.646 5.647a.5.5 0 0 0 .708.708l.646-.647V13.5Z"/>
+            </svg>
+            <span class="nav-label">Home</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('tab-analysis', this)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M0 0h1v15h15v1H0V0Zm10 3.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V4.9l-3.613 4.417a.5.5 0 0 1-.74.037L7.06 6.767l-3.656 5.027a.5.5 0 0 1-.808-.588l4-5.5a.5.5 0 0 1 .758-.06l2.609 2.61L13.445 4H10.5a.5.5 0 0 1-.5-.5Z"/>
+            </svg>
+            <span class="nav-label">Analysis</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('tab-advice', this)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2zM8 1.918l-.797.161A4.002 4.002 0 0 0 4 6c0 .628-.134 2.197-.459 3.742-.16.767-.376 1.566-.663 2.258h10.244c-.287-.692-.502-1.49-.663-2.258C12.134 8.197 12 6.628 12 6a4.002 4.002 0 0 0-3.203-3.92L8 1.917zM14.22 12c.223.447.481.801.78 1H1c.299-.199.557-.553.78-1C2.68 10.2 3 6.88 3 6c0-2.42 1.72-4.44 4.005-4.901a1 1 0 1 1 1.99 0A5.002 5.002 0 0 1 13 6c0 .88.32 4.2 1.22 6z"/>
+            </svg>
+            <span class="nav-label">Advice</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('tab-history', this)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M8.515 1.019A7 7 0 0 0 8 1V0a8 8 0 0 1 .589.022l-.074.997zm2.004.45a7.003 7.003 0 0 0-.985-.299l.219-.976c.383.086.76.2 1.126.342l-.36.933zm1.37.71a7.01 7.01 0 0 0-.439-.27l.493-.87a8.025 8.025 0 0 1 .979.654l-.615.789a6.996 6.996 0 0 0-.418-.302zm1.834 1.79a6.99 6.99 0 0 0-.653-.796l.724-.69c.27.285.52.59.747.91l-.818.576zm.744 1.352a7.08 7.08 0 0 0-.214-.468l.893-.45a7.976 7.976 0 0 1 .45 1.088l-.95.313a7.023 7.023 0 0 0-.179-.483zm.53 2.507a6.991 6.991 0 0 0-.1-1.025l.985-.17c.067.386.106.778.116 1.17l-1 .025zm-.131 1.538c.033-.17.06-.339.081-.51l.993.123a7.957 7.957 0 0 1-.23 1.155l-.964-.267c.046-.165.086-.332.12-.501zm-.952 2.379c.184-.29.346-.594.486-.908l.914.405c-.16.36-.345.706-.555 1.038l-.845-.535zm-.964 1.205c.122-.122.239-.248.35-.378l.758.653a8.073 8.073 0 0 1-.401.432l-.707-.707z"/>
+                <path d="M8 1a7 7 0 1 0 4.95 11.95l.707.707A8.001 8.001 0 1 1 8 0v1z"/>
+                <path d="M7.5 3a.5.5 0 0 1 .5.5v5.21l3.248 1.856a.5.5 0 0 1-.496.868l-3.5-2A.5.5 0 0 1 7 9V3.5a.5.5 0 0 1 .5-.5z"/>
+            </svg>
+            <span class="nav-label">History</span>
+        </div>
+    </nav>
+</body>
+</html>

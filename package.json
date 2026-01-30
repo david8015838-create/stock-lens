@@ -1,6 +1,7 @@
 {
   "name": "stock-lens",
   "version": "4.0.0",
+  "type": "module",
   "description": "Stock Lens - Yahoo Finance Portfolio Tracker",
   "main": "index.html",
   "scripts": {
@@ -12,6 +13,7 @@
     "autoprefixer": "^10.4.17",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
+    "vercel": "^50.9.6",
     "vite": "^5.1.4"
   }
 }

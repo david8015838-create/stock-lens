@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Lens 資料救援</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f4f4f9; color: #333; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { font-size: 1.5rem; margin-bottom: 20px; }
+        .alert { background: #e3f2fd; border-left: 5px solid #2196f3; padding: 15px; margin-bottom: 20px; font-weight: bold; }
+        textarea { width: 100%; height: 300px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 14px; margin-bottom: 20px; box-sizing: border-box; }
+        button { background: #2196f3; color: white; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; }
+        button:hover { background: #1976d2; }
+        button:active { background: #1565c0; }
+        .status { margin-top: 10px; text-align: center; color: green; font-weight: bold; display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Stock Lens 資料救援</h1>
+        <div class="alert">
+            檢測到您的舊版持股數據，請複製後前往 [Vercel 網址] 匯入。
+        </div>
+        <textarea id="dataArea" readonly placeholder="正在提取資料..."></textarea>
+        <button id="copyBtn">一鍵複製資料</button>
+        <div id="statusMsg" class="status">已複製到剪貼簿！</div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const dataArea = document.getElementById('dataArea');
+            const copyBtn = document.getElementById('copyBtn');
+            const statusMsg = document.getElementById('statusMsg');
+
+            // 提取 localStorage 資料
+            const exportData = {
+                portfolio: JSON.parse(localStorage.getItem('stocklens_portfolio')) || [],
+                privacy: JSON.parse(localStorage.getItem('stocklens_privacy')) || false,
+                cashPosition: parseFloat(localStorage.getItem('stocklens_cashPosition')) || 0,
+                tradeHistory: JSON.parse(localStorage.getItem('stocklens_tradeHistory')) || [],
+                accumulatedPnL: parseFloat(localStorage.getItem('stocklens_accumulatedPnL')) || 0,
+                version: '4.0.0-rescue',
+                exportDate: new Date().toISOString()
+            };
+
+            const jsonStr = JSON.stringify(exportData, null, 2);
+            dataArea.value = jsonStr;
+
+            // 複製功能
+            copyBtn.addEventListener('click', () => {
+                dataArea.select();
+                document.execCommand('copy');
+                
+                statusMsg.style.display = 'block';
+                setTimeout(() => {
+                    statusMsg.style.display = 'none';
+                }, 2000);
+            });
+        });
+    </script>
+</body>
+</html>

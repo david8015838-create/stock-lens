@@ -847,9 +847,9 @@
                 </div>
                 
                 <div class="flex items-center gap-1.5 bg-slate-950/40 p-1.5 rounded-2xl border border-white/5 w-full">
-                    <button onclick="openModal('sellModal')" class="flex-1 bg-rose-500 text-white text-[10px] py-2.5 rounded-xl font-black btn-action uppercase tracking-tight shadow-lg shadow-rose-500/20 hover:scale-[1.02] active:scale-95 transition-all">Sell</button>
-                    <button onclick="openModal('buyModal')" class="flex-1 bg-emerald-500 text-black text-[10px] py-2.5 rounded-xl font-black btn-action uppercase tracking-tight shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95 transition-all">Buy</button>
-                    <button onclick="openModal('addModal')" class="flex-[1.5] bg-cyan-500 text-black text-[10px] py-2.5 rounded-xl font-black btn-action uppercase tracking-tight shadow-lg shadow-cyan-500/30 hover:scale-[1.02] active:scale-95 transition-all">Add Position</button>
+                    <button id="sell-btn" class="flex-1 bg-rose-500 text-white text-[10px] py-2.5 rounded-xl font-black btn-action uppercase tracking-tight shadow-lg shadow-rose-500/20 hover:scale-[1.02] active:scale-95 transition-all">Sell</button>
+                    <button id="buy-btn" class="flex-1 bg-emerald-500 text-black text-[10px] py-2.5 rounded-xl font-black btn-action uppercase tracking-tight shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95 transition-all">Buy</button>
+                    <button id="add-btn" class="flex-[1.5] bg-cyan-500 text-black text-[10px] py-2.5 rounded-xl font-black btn-action uppercase tracking-tight shadow-lg shadow-cyan-500/30 hover:scale-[1.02] active:scale-95 transition-all">Add Position</button>
                 </div>
             </div>
 
@@ -981,7 +981,7 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
         Chart.register(ChartDataLabels);
         let portfolio = JSON.parse(localStorage.getItem('stocklens_portfolio')) || [];
         let isPrivacyOn = JSON.parse(localStorage.getItem('stocklens_privacy')) || false;
@@ -994,7 +994,16 @@
         let rapidApiKey = 'c28a529e37mshd701a238b609e33p101918jsn640a3594892c'; 
         let globalFxRate = 32.5;
         let mainChart = null, strategyChart = null, targetChart = null;
-        let GAS_API_URL = import.meta.env.VITE_GAS_URL || ''; // 使用環境變數隔離 GAS 網址
+        
+        // 取得 GAS 網址，增加相容性檢查
+        const getGasUrl = () => {
+            try {
+                return import.meta.env.VITE_GAS_URL || '';
+            } catch (e) {
+                return '';
+            }
+        };
+        let GAS_API_URL = getGasUrl();
 
         function saveToStorage() {
             localStorage.setItem('stocklens_portfolio', JSON.stringify(portfolio));
@@ -2604,6 +2613,59 @@
                 location.reload();
             }
         }
+
+        // 全域暴露函數，修復 Vite 模組作用域問題
+        window.openModal = openModal;
+        window.closeModal = closeModal;
+        window.processAddAsset = processAddAsset;
+        window.processBuyAsset = processBuyAsset;
+        window.processSellAsset = processSellAsset;
+        window.processEditAsset = processEditAsset;
+        window.updateBuyModalCash = updateBuyModalCash;
+        window.updateSellModalCash = updateSellModalCash;
+        window.calculateCompound = calculateCompound;
+        window.openEditModal = openEditModal;
+        window.exportData = exportData;
+        window.importData = importData;
+        window.confirmEditTrade = confirmEditTrade;
+        window.confirmDeleteTrade = confirmDeleteTrade;
+        window.togglePrivacy = togglePrivacy;
+        window.handleRefreshClick = handleRefreshClick;
+        window.forceHardReset = forceHardReset;
+        window.updateCashPosition = updateCashPosition;
+        window.togglePnLInfo = togglePnLInfo;
+        window.triggerAdvice = triggerAdvice;
+        window.updateVal = updateVal;
+        window.triggerDeleteConfirm = triggerDeleteConfirm;
+        window.switchTab = switchTab;
+        window.toggleTradeHistory = toggleTradeHistory;
+        window.saveToStorage = saveToStorage;
+        window.render = render;
+        window.updateAllPrices = updateAllPrices;
+        window.fetchFX = fetchFX;
+        window.updateSinglePrice = updateSinglePrice;
+        window.finalizeUpdate = finalizeUpdate;
+        window.formatVal = formatVal;
+        window.animateNumber = animateNumber;
+        window.getCategoryInfo = getCategoryInfo;
+        window.renderTradeHistory = renderTradeHistory;
+        window.manageTradeHistoryLimit = manageTradeHistoryLimit;
+        window.editTradePrompt = editTradePrompt;
+        window.deleteTradePrompt = deleteTradePrompt;
+        window.editTrade = editTrade;
+        window.deleteTrade = deleteTrade;
+        window.editTradeShares = editTradeShares;
+
+        // 使用 Event Listeners 綁定主要按鈕（更專業的作法）
+        document.addEventListener('DOMContentLoaded', () => {
+            const addBtn = document.getElementById('add-btn');
+            const buyBtn = document.getElementById('buy-btn');
+            const sellBtn = document.getElementById('sell-btn');
+
+            if (addBtn) addBtn.addEventListener('click', () => openModal('addModal'));
+            if (buyBtn) buyBtn.addEventListener('click', () => openModal('buyModal'));
+            if (sellBtn) sellBtn.addEventListener('click', () => openModal('sellModal'));
+        });
 
         // 修正：全域錯誤捕捉，幫助手機端診斷
         window.onerror = function(message, source, lineno, colno, error) {
