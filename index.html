@@ -1595,7 +1595,7 @@
 
         // 自動檢測版本並清除舊快取
         (function() {
-            const CURRENT_VERSION = '3.2.0';
+            const CURRENT_VERSION = '3.2.1';
             const lastVersion = localStorage.getItem('stocklens_version');
             if (lastVersion !== CURRENT_VERSION) {
                 console.log(`Version update: ${lastVersion} -> ${CURRENT_VERSION}`);
@@ -1612,7 +1612,7 @@
                         localStorage.removeItem(key);
                     }
                 }
-                // 3. 強制刷新以應用純 Vercel 架構
+                // 3. 強制刷新以應用「全量並行」架構
                 setTimeout(() => {
                     const url = new URL(window.location.href);
                     url.searchParams.set('v', CURRENT_VERSION);
@@ -1632,7 +1632,7 @@
             const now = Date.now();
             if (now - lastSyncTime < SYNC_COOLDOWN) {
                 const remaining = Math.ceil((SYNC_COOLDOWN - (now - lastSyncTime)) / 1000);
-                alert(`請稍候 ${remaining} 秒再進行更新，頻繁更新會導致代理伺服器封鎖您的連線。`);
+                alert(`請稍候 ${remaining} 秒再進行更新，頻繁更新會導致 Yahoo 封鎖您的連線。`);
                 return;
             }
 
@@ -1640,97 +1640,27 @@
             const originalText = btn.innerText;
             
             isSyncing = true;
-            btn.innerText = "WAIT..."; btn.disabled = true;
+            btn.innerText = "SYNCING..."; btn.disabled = true;
             
             try {
-                // 並行執行：匯率更新與股票更新同步開始，不互相阻塞
+                // 1. 並行執行：匯率更新
                 const fxPromise = fetchFX();
                 
-                // 股票更新邏輯
-                const stockUpdateLogic = async () => {
-                    btn.innerText = "SYNCING...";
-                    let batchSuccessCount = 0;
-                    
-                    // 1. 嘗試批次更新 (Vercel API 優化)
-                    try {
-                        const symbolsToFetch = portfolio.flatMap(item => {
-                            const s = item.symbol.trim().toUpperCase();
-                            if (s.includes('.')) return [s]; 
-                            if (s.startsWith('B')) {
-                                return [`${s}.TWO`, `${s}.TW`, s];
-                            }
-                            if (/^\d/.test(s)) {
-                                return [`${s}.TW`, `${s}.TWO`];
-                            }
-                            return [s];
-                        }).join(',');
-                        console.log(`[Batch] Requesting symbols: ${symbolsToFetch}`);
+                // 2. 股票更新：採用「全量並行」策略
+                // 不再分批次，不再使用 Worker 佇列，而是讓瀏覽器直接發出所有請求
+                // 由於我們使用了自己的 Vercel API，瀏覽器不會因為並行請求過多而卡死
+                const stockPromises = portfolio.map(item => fetchPriceAndInfo(item));
 
-                        console.log("[Batch] Attempting batch fetch via Vercel...");
-                        const batchData = await fetchWithRetry(`/api/stock?symbol=${symbolsToFetch}&type=quote`);
-                        
-                        if (batchData?.quoteResponse?.result) {
-                            const results = batchData.quoteResponse.result;
-                            results.forEach(res => {
-                                const symbol = res.symbol;
-                                const price = res.regularMarketPrice;
-                                if (price > 0) {
-                                    const baseSymbol = symbol.split('.')[0];
-                                    const items = portfolio.filter(p => p.symbol.toUpperCase() === baseSymbol || p.symbol.toUpperCase() === symbol);
-                                    items.forEach(item => {
-                                        if (!item.price || item.price === 0 || item.symbol.toUpperCase() === symbol || !item.priceUpdated) {
-                                            item.price = price;
-                                            item.priceUpdated = true;
-                                            batchSuccessCount++;
-                                        }
-                                    });
-                                }
-                            });
-                            console.log(`[Batch] Success! Updated ${batchSuccessCount} items.`);
-                        }
-                    } catch (e) {
-                        console.warn("[Batch] Batch fetch failed, falling back to individual updates:", e);
-                    }
-
-                    // 2. 處理剩餘的更新佇列 (使用並行 Worker)
-                    const queue = portfolio.filter(item => !item.priceUpdated);
-                    portfolio.forEach(p => delete p.priceUpdated); // 清除標記
-                    
-                    if (queue.length > 0) {
-                        const total = queue.length;
-                        let finished = 0;
-                        const worker = async () => {
-                            while (queue.length > 0) {
-                                const item = queue.shift();
-                                if (!item) continue;
-                                try {
-                                    btn.innerText = `SYNC (${finished}/${total})`;
-                                    await fetchPriceAndInfo(item);
-                                } catch (e) {
-                                    console.warn(`Failed to update ${item.symbol}:`, e);
-                                } finally {
-                                    finished++;
-                                    render();
-                                }
-                            }
-                        };
-                        // 使用 6 個並行 Worker，且移除內部等待時間
-                        await Promise.all([worker(), worker(), worker(), worker(), worker(), worker()]);
-                    }
-                };
-
-                // 等待所有並行任務完成
-                await Promise.all([fxPromise, stockUpdateLogic()]);
+                // 3. 等待所有並行任務完成
+                await Promise.all([fxPromise, ...stockPromises]);
                 
                 saveToStorage();
                 render();
                 finalizeUpdate(true);
                 lastSyncTime = Date.now();
 
-                // 增加手機端 UI 回饋
-                if (window.navigator.vibrate) {
-                    window.navigator.vibrate(50);
-                }
+                // 手機端 UI 回饋
+                if (window.navigator.vibrate) window.navigator.vibrate(50);
                 
                 btn.innerText = "SUCCESS ✓";
                 btn.classList.add('text-emerald-400');
