@@ -1452,140 +1452,58 @@
         }
 
         /**
-         * 核心抓取函數：採用「代理競爭 (Race)」模式
-         * 同時向多個代理發送請求，誰快就用誰，大幅縮短等待時間
+         * 核心抓取函數：100% 透過 Vercel API 進行
+         * 移除所有不穩定的第三方代理，確保連線品質與速度
          */
-        /**
-         * 代理狀態管理：實作冷卻機制 (Cooldown)
-         * 避免對已經回傳 403 或 429 的代理進行無謂請求
-         */
-        const proxyStatus = {}; 
-
         async function fetchWithRetry(url) {
-            // 從 URL 中判斷是 quote 還是 chart API
+            // 從 URL 中判斷參數
             const isChart = url.includes('/v8/finance/chart/');
             let ticker = '';
+            let type = isChart ? 'chart' : 'quote';
             
             if (isChart) {
-                // 從 /chart/SYMBOL 中提取 SYMBOL
                 const parts = url.split('/');
                 ticker = parts[parts.indexOf('chart') + 1].split('?')[0];
             } else {
-                // 從 symbols=SYMBOL 中提取 SYMBOL
                 const urlParams = new URLSearchParams(url.split('?')[1]);
                 ticker = urlParams.get('symbols');
+                type = urlParams.get('type') || 'quote';
             }
 
-            // 自動在 query1 和 query2 之間切換以分散壓力
-            const urls = [
-                url,
-                url.replace('query1.finance.yahoo.com', 'query2.finance.yahoo.com')
-            ];
-            const targetUrl = urls[Math.floor(Math.random() * urls.length)];
+            // 如果是直接呼叫 /api/stock，則不重複封裝
+            const finalUrl = url.startsWith('/api/') ? url : `/api/stock?symbol=${ticker}&type=${type}`;
 
-            const proxyConfigs = [
-                { 
-                    name: 'Vercel-API', 
-                    fn: (u) => `/api/stock?symbol=${ticker}${isChart ? '&type=chart' : ''}` 
-                }, // 優先嘗試自己的後端
-                { name: 'Direct', fn: (u) => u },
-                { name: 'AllOrigins-Raw', fn: (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
-                { name: 'CodeTabs', fn: (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
-                { name: 'CORSProxy-IO', fn: (u) => `https://corsproxy.io/?${encodeURIComponent(u)}` },
-                { name: 'AllOrigins-Get', fn: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}` },
-                { name: 'CORS-Proxy-Htmldriven', fn: (u) => `https://cors-proxy.htmldriven.com/?url=${encodeURIComponent(u)}` },
-                { name: 'ThingProxy', fn: (u) => `https://thingproxy.freeboard.io/fetch/${u}` }
-            ];
-
-            const fetchFromProxy = async (config, delay = 0) => {
-                const now = Date.now();
-                if (proxyStatus[config.name] && now < proxyStatus[config.name]) {
-                    throw new Error(`${config.name} cooling`);
-                }
-                if (delay > 0) await new Promise(r => setTimeout(r, delay));
+            const attempt = async (retryCount = 0) => {
                 const controller = new AbortController();
-                // 極速超時：Vercel API 5秒 (包含冷啟動)，其他代理 4秒
-                const timeoutMs = config.name === 'Vercel-API' ? 5000 : 4000;
-                const timeoutId = setTimeout(() => controller.abort(), timeoutMs); 
+                const timeoutMs = 6000; // Vercel API 統一給予 6 秒超時
+                const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
                 try {
-                    const finalUrl = config.fn(targetUrl);
                     const response = await fetch(finalUrl, { 
                         signal: controller.signal,
                         cache: 'no-store'
                     });
-                    if (response.status === 429 || response.status === 403) {
-                        proxyStatus[config.name] = Date.now() + 15000; // 稍微縮短冷卻
-                        throw new Error(`Status ${response.status}`);
-                    }
+
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    let text = await response.text();
-                    if (!text || text.length < 20) throw new Error('Empty');
-                    let data;
-                    try {
-                        data = JSON.parse(text);
-                        if (data && data.contents) {
-                            const inner = data.contents;
-                            data = typeof inner === 'string' && inner.trim().startsWith('{') ? JSON.parse(inner) : inner;
-                        }
-                    } catch (e) {
-                        if (text.trim().startsWith('{')) data = JSON.parse(text);
-                        else throw new Error('Not JSON');
-                    }
+                    
+                    const data = await response.json();
                     if (data && (data.quoteResponse || data.chart)) {
-                        console.log(`[Fetch] Winner: ${config.name}`);
                         return data;
                     }
-                    throw new Error('Invalid Data');
+                    throw new Error('Invalid Data from Vercel');
                 } catch (err) {
-                    if (err.name === 'AbortError' || err.message.includes('HTTP')) {
-                        proxyStatus[config.name] = Date.now() + 3000; // 縮短失敗鎖定
+                    if (retryCount < 1 && err.name !== 'AbortError') {
+                        console.warn(`[Vercel] Attempt failed, retrying... (${err.message})`);
+                        await new Promise(r => setTimeout(r, 500));
+                        return attempt(retryCount + 1);
                     }
-                    if (config.name === 'Direct') throw new Error('CORS/Blocked');
                     throw err;
                 } finally {
                     clearTimeout(timeoutId);
                 }
             };
 
-            const getActiveProxies = () => {
-                const now = Date.now();
-                return proxyConfigs.filter(p => p.name !== 'Direct' && (!proxyStatus[p.name] || now > proxyStatus[p.name]));
-            };
-
-            const active = getActiveProxies();
-            const vercel = active.find(p => p.name === 'Vercel-API');
-            const others = active.filter(p => p.name !== 'Vercel-API');
-            others.sort(() => Math.random() - 0.5);
-
-            // 採用「單一請求，失敗才切換」策略，並針對 Vercel 增加冷啟動重試
-            try {
-                if (vercel) {
-                    try {
-                        return await fetchFromProxy(vercel);
-                    } catch (err) {
-                        // 如果 Vercel 失敗且不是被主動 abort，嘗試一次冷啟動重試
-                        if (err.name !== 'AbortError') {
-                            console.warn("[Fetch] Vercel failed, retrying once for cold start...");
-                            return await fetchFromProxy(vercel, 500); // 延遲 500ms 重試
-                        }
-                        throw err;
-                    }
-                }
-                throw new Error('Vercel skipped');
-            } catch (e) {
-                // Vercel 失敗或被跳過，嘗試第一個代理
-                try {
-                    if (others.length > 0) {
-                        return await fetchFromProxy(others[0]);
-                    }
-                    throw new Error('No proxies');
-                } catch (e2) {
-                    // 第一個代理也失敗，最後才啟動剩餘代理的並行競爭 (極限備援)
-                    const remaining = others.slice(1, 3); // 限制只嘗試 2 個備援
-                    if (remaining.length === 0) throw new Error('All proxies failed');
-                    return await Promise.any(remaining.map((p, i) => fetchFromProxy(p, i * 200)));
-                }
-            }
+            return await attempt();
         }
 
         async function fetchPriceAndInfo(item) {
@@ -1677,27 +1595,27 @@
 
         // 自動檢測版本並清除舊快取
         (function() {
-            const CURRENT_VERSION = '3.1.6';
+            const CURRENT_VERSION = '3.2.0';
             const lastVersion = localStorage.getItem('stocklens_version');
             if (lastVersion !== CURRENT_VERSION) {
                 console.log(`Version update: ${lastVersion} -> ${CURRENT_VERSION}`);
                 localStorage.setItem('stocklens_version', CURRENT_VERSION);
-                // 1. 清除 Cache Storage (最徹底的清除方式)
+                // 1. 清除 Cache Storage
                 if ('caches' in window) {
                     caches.keys().then(names => {
                         return Promise.all(names.map(name => caches.delete(name)));
                     });
                 }
-                // 2. 清除所有代理狀態與舊快取
+                // 2. 清除所有舊的代理狀態與快取
                 for (let key in localStorage) {
                     if (key.startsWith('proxy_') || key.startsWith('stock_cache_')) {
                         localStorage.removeItem(key);
                     }
                 }
-                // 3. 強制刷新以應用新版本
+                // 3. 強制刷新以應用純 Vercel 架構
                 setTimeout(() => {
                     const url = new URL(window.location.href);
-                    url.searchParams.set('v', CURRENT_VERSION); // 加上版本號避免 CDN 快取
+                    url.searchParams.set('v', CURRENT_VERSION);
                     url.searchParams.set('t', Date.now());
                     window.location.replace(url.href);
                 }, 500);
@@ -1710,9 +1628,6 @@
 
         async function handleRefreshClick() {
             if (portfolio.length === 0 || isSyncing) return;
-            
-            // 每次更新開始前，清除所有代理的錯誤鎖定狀態，給 Vercel 一個全新的機會
-            for (let key in proxyStatus) delete proxyStatus[key];
             
             const now = Date.now();
             if (now - lastSyncTime < SYNC_COOLDOWN) {
