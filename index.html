@@ -1460,30 +1460,50 @@
          * V4.0.0 GAS 核心抓取方案
          * 利用 Google Apps Script 作為中間層，解決 Yahoo Finance 連線驗證問題
          */
-        async function fetchFromGAS(symbols) {
+        async function fetchFromGAS(symbols, retryCount = 1) {
             if (!GAS_API_URL) {
                 console.error("GAS_API_URL 未設定");
                 throw new Error("GAS_API_URL_MISSING");
             }
-            // 根據用戶要求，確保 URL 結構正確
-            const url = GAS_API_URL + "?symbols=" + encodeURIComponent(symbols) + "&t=" + Date.now();
-            const response = await fetch(url);
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const data = await response.json();
-            
-            // 日誌追蹤：GAS Success
-            console.log('GAS Success:', data);
-            
-            // 精準拆包：確保使用 data.quoteResponse.result
-            if (data && data.quoteResponse && data.quoteResponse.result) {
-                return data.quoteResponse.result.map(item => ({
-                    symbol: item.symbol,
-                    price: item.regularMarketPrice,
-                    change: item.regularMarketChangePercent,
-                    name: item.shortName || item.longName
-                }));
+            if (!symbols) return [];
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒超時
+
+            try {
+                const url = GAS_API_URL + "?symbols=" + encodeURIComponent(symbols) + "&t=" + Date.now();
+                const response = await fetch(url, { signal: controller.signal });
+                clearTimeout(timeoutId);
+
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                
+                // 日誌追蹤：GAS Success
+                console.log('GAS Success:', data);
+                
+                // 精準拆包：確保使用 data.quoteResponse.result
+                if (data && data.quoteResponse && data.quoteResponse.result) {
+                    return data.quoteResponse.result.map(item => ({
+                        symbol: item.symbol,
+                        price: item.regularMarketPrice,
+                        change: item.regularMarketChangePercent,
+                        name: item.shortName || item.longName
+                    }));
+                } else {
+                    console.warn('【格式警告】原始資料：', data);
+                    return [];
+                }
+            } catch (error) {
+                clearTimeout(timeoutId);
+                if (error.name === 'AbortError' || error.message.includes('timeout')) {
+                    console.error(`GAS 請求超時 (retry: ${retryCount})`);
+                    if (retryCount > 0) {
+                        console.log('正在嘗試重發請求...');
+                        return fetchFromGAS(symbols, retryCount - 1);
+                    }
+                }
+                throw error;
             }
-            return [];
         }
 
         function applyData(results) {
@@ -1506,11 +1526,16 @@
         }
 
         async function updateAllPrices() {
+            if (!portfolio || portfolio.length === 0) {
+                console.log("資產清單為空，跳過更新。");
+                return;
+            }
+            
             console.log("GAS 方案：開始更新價格...");
             const symbols = portfolio.map(a => {
                 let s = a.symbol.trim().toUpperCase();
                 return (/^\d/.test(s) && !s.includes('.')) ? `${s}.TW` : s;
-            }).join(',');
+            }).filter(s => s).join(',');
 
             if (!symbols) return;
 
@@ -1520,12 +1545,12 @@
                     applyData(results);
                     console.log("GAS 價格更新成功！");
                 } else {
-                    throw new Error("GAS 回傳資料為空，請檢查 Console 的【大神調試】日誌");
+                    console.warn("GAS 回傳資料為空，請檢查 Console 的【格式警告】日誌");
                 }
             } catch (e) {
                 console.error("GAS 價格更新失敗:", e);
                 const statusElem = document.getElementById('update-status');
-                if(statusElem) statusElem.innerText = "GAS 線路異常，請檢查部署網址";
+                if(statusElem) statusElem.innerText = "GAS 線路異常或請求超時";
                 throw e;
             }
         }
@@ -1565,6 +1590,10 @@
             if (isUpdatingGlobal) return;
             if (isCoolingDown) {
                 alert('系統冷卻中，請稍候再試。');
+                return;
+            }
+            if (!portfolio || portfolio.length === 0) {
+                alert('目前沒有任何資產可以更新。');
                 return;
             }
             
