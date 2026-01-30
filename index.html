@@ -850,7 +850,7 @@
                     </div>
                     <div class="flex items-center gap-2">
                     <button id="refreshBtn" onclick="handleRefreshClick()" class="bg-slate-800/80 text-cyan-400 text-[10px] px-4 py-2 rounded-xl font-black border border-white/5 btn-action uppercase tracking-tight hover:bg-cyan-500 hover:text-black transition-all duration-300">Sync</button>
-                    <button onclick="forceHardReset()" class="bg-slate-800/50 text-slate-500 text-[8px] font-black px-2 py-2 rounded-lg border border-slate-700 uppercase tracking-tighter hover:text-rose-400 transition-all">V3.2.7 清快取</button>
+                    <button onclick="forceHardReset()" class="bg-slate-800/50 text-slate-500 text-[8px] font-black px-2 py-2 rounded-lg border border-slate-700 uppercase tracking-tighter hover:text-rose-400 transition-all">V3.2.8 清快取</button>
                 </div>
                 </div>
                 
@@ -1452,46 +1452,47 @@
         }
 
         /**
-         * 核心抓取函數：100% 透過 Vercel API 進行
-         * 移除所有不穩定的第三方代理，確保連線品質與速度
+         * 核心抓取函數：V3.2.8 強化版
+         * 1. 使用 AbortController 確保舊手機相容性
+         * 2. 單一請求 Vercel，由後端進行多重嘗試
+         * 3. 失敗時自動切換至瀏覽器端直接代理 (CORS Proxy)
          */
-        async function fetchWithRetry(url) {
-            const isChart = url.includes('/v8/finance/chart/');
-            let ticker = '';
-            let type = isChart ? 'chart' : 'quote';
-            
-            if (isChart) {
-                const parts = url.split('/');
-                ticker = parts[parts.indexOf('chart') + 1].split('?')[0];
-            } else {
-                const urlParams = new URLSearchParams(url.split('?')[1]);
-                ticker = urlParams.get('symbol') || urlParams.get('symbols');
-                type = urlParams.get('type') || 'quote';
-            }
-
-            const finalUrl = url.startsWith('/api/') ? url : `/api/stock?symbol=${encodeURIComponent(ticker)}&type=${type}`;
+        async function fetchWithRetry(ticker) {
+            const finalUrl = `/api/stock?symbol=${encodeURIComponent(ticker)}`;
 
             const attempt = async (retryCount = 0) => {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 12000);
+
                 try {
-                    const response = await fetch(finalUrl, { signal: AbortSignal.timeout(10000) });
+                    const response = await fetch(finalUrl, { signal: controller.signal });
                     if (response.ok) {
                         const data = await response.json();
-                        if (data && (data.quoteResponse || data.chart || data.quoteSummary)) return data;
+                        const price = data.chart?.result?.[0]?.meta?.regularMarketPrice || 
+                                      data.quoteResponse?.result?.[0]?.regularMarketPrice ||
+                                      data.quoteSummary?.result?.[0]?.price?.regularMarketPrice;
+                        
+                        if (price > 0) return { price, ticker };
                     }
                     throw new Error(`Vercel Fail ${response.status}`);
                 } catch (err) {
-                    if (ticker && !ticker.includes(',')) {
-                        try {
-                            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(`https://query2.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1m&range=1d`)}`;
-                            const resp = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
-                            if (resp.ok) {
-                                const data = await resp.json();
-                                if (data?.chart?.result?.[0]) return data;
-                            }
-                        } catch (proxyErr) {}
+                    // 備援方案：瀏覽器端直接透過代理抓取 (繞過 Vercel)
+                    try {
+                        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(`https://query2.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1m&range=1d`)}`;
+                        const resp = await fetch(proxyUrl);
+                        if (resp.ok) {
+                            const d = await resp.json();
+                            const p = d?.chart?.result?.[0]?.meta?.regularMarketPrice;
+                            if (p > 0) return { price: p, ticker };
+                        }
+                    } catch (proxyErr) {
+                        console.error('Proxy fallback failed:', proxyErr);
                     }
+
                     if (retryCount < 1) return attempt(retryCount + 1);
                     throw err;
+                } finally {
+                    clearTimeout(timeoutId);
                 }
             };
             return await attempt();
@@ -1501,25 +1502,18 @@
             const rawSymbol = item.symbol.trim().toUpperCase();
             let tickers = [];
             
-            // 預處理：精確識別各類資產 (台股、台債、槓桿型、美股、美債)
             if (rawSymbol.includes('.')) {
                 tickers = [rawSymbol];
             } else if (/^\d/.test(rawSymbol) || rawSymbol.startsWith('B')) {
-                // 台股 (2330), 台債 (B00001), 槓桿型 (00631L), 債券 ETF (00772B)
+                // 台股處理
                 if (rawSymbol.startsWith('B')) {
-                    // 台債 (櫃買中心為主)
-                    tickers = [`${rawSymbol}.TWO`, `${rawSymbol}.TW`, rawSymbol];
+                    tickers = [`${rawSymbol}.TWO`, `${rawSymbol}.TW`];
                 } else if (rawSymbol.endsWith('B') || rawSymbol.length >= 6) {
-                    // 債券型 ETF (如 00772B) 或 槓桿/反向 ETF (如 00631L, 00632R)
-                    // 這些通常在 .TW 或 .TWO 都有可能，且 Yahoo 有時對 6 碼代號較嚴格
                     tickers = [`${rawSymbol}.TW`, `${rawSymbol}.TWO`];
-                    // 如果是 00830 這種 5 碼但以 00 開頭的 ETF，也適用此邏輯
                 } else {
-                    // 普通台股 (2330)
                     tickers = [`${rawSymbol}.TW`, `${rawSymbol}.TWO`];
                 }
             } else {
-                // 美股 (VOO, AAPL), 美債 ETF (TLT, BND)
                 tickers = [rawSymbol];
             }
             
@@ -1527,57 +1521,20 @@
             render(); 
             
             try {
-                const ts = Date.now();
-                const allTasks = [];
+                // 並發嘗試可能的代號 (如 .TW 與 .TWO)，但每個代號只發一次請求
+                const results = await Promise.allSettled(tickers.map(t => fetchWithRetry(t)));
+                const success = results.find(r => r.status === 'fulfilled');
 
-                for (let t of tickers) {
-                    const isTW = t.endsWith('.TW') || t.endsWith('.TWO') || t.startsWith('B');
-                    console.log(`[Fetch] Queueing task for ${item.symbol} as Ticker: ${t}`);
-                    
-                    // 策略 1: Chart API (通常有即時價格)
-                    allTasks.push(
-                        fetchWithRetry(`https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1m&range=1d&t=${ts}`).then(data => {
-                            const p = data.chart?.result?.[0]?.meta?.regularMarketPrice;
-                            if (p > 0) return { price: p, ticker: t, source: 'Chart' };
-                            throw new Error('No Chart Price');
-                        })
-                    );
-
-                    // 策略 2: Quote API (對美股更穩定，且包含更多欄位)
-                    allTasks.push(
-                        fetchWithRetry(`/api/stock?symbol=${t}&type=quote`).then(data => {
-                            const result = data.quoteResponse?.result?.[0];
-                            const p = result?.regularMarketPrice;
-                            if (p > 0) return { price: p, ticker: t, source: 'Quote' };
-                            throw new Error('No Quote Price');
-                        })
-                    );
-
-                    // 策略 3: V10 QuoteSummary API (美股最後防線)
-                    allTasks.push(
-                        fetchWithRetry(`/api/stock?symbol=${t}&type=quoteSummary`).then(data => {
-                            const p = data.quoteSummary?.result?.[0]?.price?.regularMarketPrice?.raw;
-                            if (p > 0) return { price: p, ticker: t, source: 'Summary' };
-                            throw new Error('No Summary Price');
-                        })
-                    );
-                }
-
-                if (allTasks.length === 0) throw new Error('No fetch tasks created');
-                console.log(`[Fetch] Total parallel tasks for ${item.symbol}: ${allTasks.length}`);
-
-                // 全並行競爭：只要任一個組合成功就立刻返回
-                const winner = await Promise.any(allTasks);
-                if (winner && winner.price > 0) {
-                    console.log(`[Fetch] Winner Ticker: ${winner.ticker}, Price: ${winner.price}, Source: ${winner.source}`);
-                    item.price = winner.price;
-                    // 在 UI 上暫時標註來源，方便診斷 (可選)
-                    // item.lastSource = winner.source; 
+                if (success) {
+                    item.price = success.value.price;
+                    item.lastUpdate = new Date().toLocaleTimeString();
+                    item.error = false;
                 } else {
-                    throw new Error('No valid price found');
+                    throw new Error('All attempts failed');
                 }
             } catch (e) {
-                console.error(`[Fetch] All strategies failed for ${item.symbol}:`, e);
+                console.error(`[Fetch] Final fail for ${item.symbol}:`, e);
+                item.error = true;
             } finally {
                 item.isUpdating = false;
                 render();
@@ -1603,7 +1560,7 @@
                 
                 // 3. 加上時間戳與版本號強制重新整理
                 const url = new URL(window.location.href);
-                const CURRENT_VERSION = '3.2.7';
+                const CURRENT_VERSION = '3.2.8';
                 url.searchParams.set('v', CURRENT_VERSION);
                 url.searchParams.set('t', Date.now());
                 window.location.replace(url.href);
@@ -1612,7 +1569,7 @@
 
         // 自動檢測版本並清除舊快取
         (function() {
-            const CURRENT_VERSION = '3.2.7';
+            const CURRENT_VERSION = '3.2.8';
             const lastVersion = localStorage.getItem('stocklens_version');
             if (lastVersion !== CURRENT_VERSION) {
                 console.log(`Version update: ${lastVersion} -> ${CURRENT_VERSION}`);

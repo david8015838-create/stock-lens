@@ -1,60 +1,47 @@
 
 export default async function handler(req, res) {
-  const { symbol, type } = req.query;
-  
+  const { symbol } = req.query;
   if (!symbol) return res.status(400).json({ error: 'Symbol required' });
 
-  // 簡化 URL 構造，優先使用最穩定的 query2
-  let urls = [];
-  if (type === 'chart') {
-    urls = [
-      `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1m&range=1d`,
-      `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1m&range=1d`
-    ];
-  } else if (type === 'quoteSummary') {
-    urls = [
-      `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${symbol}?modules=price`,
-      `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${symbol}?modules=price`
-    ];
-  } else {
-    urls = [
-      `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${symbol}`,
-      `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbol}`
-    ];
-  }
+  // 定義多重備援路徑
+  const urls = [
+    { url: `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1m&range=1d`, type: 'chart' },
+    { url: `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1m&range=1d`, type: 'chart' },
+    { url: `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${symbol}`, type: 'quote' },
+    { url: `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbol}`, type: 'quote' },
+    { url: `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${symbol}?modules=price`, type: 'quoteSummary' }
+  ];
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  const headers = {
+    'Accept': '*/*',
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+  };
 
-  try {
-    // 循序嘗試，避免並發導致的集體被封
-    for (const url of urls) {
-      try {
-        const response = await fetch(url, {
-          headers: {
-            'Accept': '*/*',
-            'User-Agent': 'PostmanRuntime/7.32.3' // 使用較通用的 UA
-          },
-          signal: controller.signal
-        });
+  for (const item of urls) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000); // 每個請求給 4 秒
 
-        if (response.ok) {
-          const json = await response.json();
-          // 基礎驗證
-          if (type === 'chart' && json?.chart?.result?.[0]) return res.status(200).json(json);
-          if (type === 'quoteSummary' && json?.quoteSummary?.result?.[0]) return res.status(200).json(json);
-          if (json?.quoteResponse?.result?.length > 0) return res.status(200).json(json);
+    try {
+      const response = await fetch(item.url, { headers, signal: controller.signal });
+      if (response.ok) {
+        const json = await response.json();
+        // 驗證資料有效性
+        if (item.type === 'chart' && json?.chart?.result?.[0]?.meta?.regularMarketPrice) {
+          return res.status(200).json(json);
         }
-      } catch (e) {
-        console.error(`Failed: ${url}`, e.message);
+        if (item.type === 'quote' && json?.quoteResponse?.result?.[0]?.regularMarketPrice) {
+          return res.status(200).json(json);
+        }
+        if (item.type === 'quoteSummary' && json?.quoteSummary?.result?.[0]?.price?.regularMarketPrice) {
+          return res.status(200).json(json);
+        }
       }
+    } catch (e) {
+      console.error(`Provider failed: ${item.url}`, e.message);
+    } finally {
+      clearTimeout(timeout);
     }
-    
-    throw new Error('All providers failed');
-  } catch (error) {
-    clearTimeout(timeoutId);
-    return res.status(502).json({ error: 'Fetch failed', details: error.message });
-  } finally {
-    clearTimeout(timeoutId);
   }
+
+  return res.status(502).json({ error: 'All Yahoo providers failed for ' + symbol });
 }
