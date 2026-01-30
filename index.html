@@ -1595,7 +1595,7 @@
 
         // 自動檢測版本並清除舊快取
         (function() {
-            const CURRENT_VERSION = '3.2.1';
+            const CURRENT_VERSION = '3.2.2';
             const lastVersion = localStorage.getItem('stocklens_version');
             if (lastVersion !== CURRENT_VERSION) {
                 console.log(`Version update: ${lastVersion} -> ${CURRENT_VERSION}`);
@@ -1612,7 +1612,7 @@
                         localStorage.removeItem(key);
                     }
                 }
-                // 3. 強制刷新以應用「全量並行」架構
+                // 3. 強制刷新以應用最新的 UI 邏輯
                 setTimeout(() => {
                     const url = new URL(window.location.href);
                     url.searchParams.set('v', CURRENT_VERSION);
