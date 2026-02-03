@@ -17,10 +17,6 @@ export default async function handler(req, res) {
     .filter(t => t.length > 0)
     .map(sym => {
       if (sym.includes('.')) return sym;
-      // 優先處理債券 ETF (00xxxB) -> .TWO
-      if (/^00\d+B$/.test(sym)) {
-        return `${sym}.TWO`;
-      }
       // 台股代碼自動補全 (同時嘗試 .TW 和 .TWO 以覆蓋上市與上櫃)
       if (/^\d/.test(sym) || (sym.length >= 4 && /\d/.test(sym))) {
         return [`${sym}.TW`, `${sym}.TWO`];
