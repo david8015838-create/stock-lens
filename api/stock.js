@@ -63,7 +63,7 @@ export default async function handler(req, res) {
 
     const results = resultArr.map(item => ({
       symbol: item.symbol,
-      price: item.regularMarketPrice,
+      price: item.regularMarketPrice || item.regularMarketPreviousClose,
       change: item.regularMarketChangePercent,
       name: item.shortName || item.longName
     }));
