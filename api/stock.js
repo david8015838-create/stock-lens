@@ -17,6 +17,10 @@ export default async function handler(req, res) {
     .filter(t => t.length > 0)
     .map(sym => {
       if (sym.includes('.')) return sym;
+      // 優先處理債券 ETF (00xxxB) -> .TWO
+      if (/^00\d+B$/.test(sym)) {
+        return `${sym}.TWO`;
+      }
       // 台股代碼自動補全 .TW (支援純數字 2330 或 數字+L 如 00631L)
       if (/^\d/.test(sym) || (sym.length >= 4 && /\d/.test(sym))) {
         return `${sym}.TW`;

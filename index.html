@@ -1593,7 +1593,11 @@
 
             const symbols = portfolio.map(a => {
                 let s = a.symbol.trim().toUpperCase();
-                return (/^\d/.test(s) && !s.includes('.')) ? `${s}.TW` : s;
+                if (s.includes('.')) return s;
+                // 債券ETF (00xxxB) -> .TWO
+                if (/^00\d+B$/.test(s)) return `${s}.TWO`;
+                // 一般台股 -> .TW
+                return /^\d/.test(s) ? `${s}.TW` : s;
             }).filter(s => s).join(',');
 
             if (!symbols) return;
@@ -1647,7 +1651,11 @@
 
         async function updateSinglePrice(item) {
             const sym = item.symbol.trim().toUpperCase();
-            const symbolToFetch = (/^\d/.test(sym) && !sym.includes('.')) ? `${sym}.TW` : sym;
+            let symbolToFetch = sym;
+            if (!sym.includes('.')) {
+                if (/^00\d+B$/.test(sym)) symbolToFetch = `${sym}.TWO`;
+                else if (/^\d/.test(sym)) symbolToFetch = `${sym}.TW`;
+            }
             try {
                 const results = await fetchFromGAS(symbolToFetch);
                 if (results && results.length > 0) {
