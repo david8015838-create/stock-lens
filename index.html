@@ -1598,8 +1598,6 @@
             const symbols = portfolio.map(a => {
                 let s = a.symbol.trim().toUpperCase();
                 if (s.includes('.')) return s;
-                // 債券ETF (00xxxB) -> .TWO
-                if (/^00\d+B$/.test(s)) return `${s}.TWO`;
                 // 一般台股 -> 同時嘗試 .TW (上市) 和 .TWO (上櫃)
                 return /^\d/.test(s) ? `${s}.TW,${s}.TWO` : s;
             }).filter(s => s).join(',');
