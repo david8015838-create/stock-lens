@@ -1565,6 +1565,10 @@
                 if (asset && item.price) {
                     asset.price = item.price;
                     asset.change = item.change || 0;
+                    // 如果名稱為空，嘗試自動填入
+                    if (!asset.name && item.name) {
+                        asset.name = item.name;
+                    }
                     asset.lastUpdate = new Date().toLocaleTimeString();
                     asset.error = false;
                     asset.isUpdating = false; // 更新完成，解除等待狀態
