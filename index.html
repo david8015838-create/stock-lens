@@ -1959,6 +1959,13 @@
                 });
             }
             finalizeUpdate();
+            
+            // 自動刷新建議頁面
+            const adviceTab = document.getElementById('tab-advice');
+            if (adviceTab && adviceTab.classList.contains('active')) {
+                // 使用 setTimeout 避免與其他 UI 更新衝突，確保數據已是最新的
+                setTimeout(() => triggerAdvice(), 100);
+            }
         }
 
         function drawMainCharts(total, extraCash) {
@@ -2046,9 +2053,22 @@
         function triggerAdvice() {
             const container = document.getElementById('adviceContainer');
             const available_cash = cashPosition;
+            if (!container) return;
+
+            // 增加 5% 的再平衡緩衝閾值，避免微小波動導致頻繁交易
+            const DRIFT_THRESHOLD = 0.05; 
 
             const cashDisplay = document.getElementById('availableCashDisplay');
-            animateNumber(cashDisplay, available_cash, 1000, true, 2, '');
+            if (cashDisplay) {
+                // 讀取當前顯示數值
+                const currentDisplay = parseFloat((cashDisplay.textContent || '0').replace(/[^\d.-]/g, '')) || 0;
+                // 只有在數值變化大於 1 時才播放動畫，避免頻繁閃爍
+                if (Math.abs(currentDisplay - available_cash) > 1) {
+                    animateNumber(cashDisplay, available_cash, 1000, true, 2, '');
+                } else {
+                    cashDisplay.textContent = formatVal(available_cash, 2, true);
+                }
+            }
 
             const rebalance_assets_orig = portfolio.filter(i => i.target > 0);
             if (rebalance_assets_orig.length === 0) {
@@ -2075,19 +2095,18 @@
             let remaining_cash = available_cash;
             let trades = [];
 
-            while (remaining_cash > 100 && rebalance_assets.some(asset => {
-                const target_ratio = asset.target / total_target_units;
-                const target_value = (current_total_value + remaining_cash) * target_ratio;
-                const gap = target_value - asset.currentValTWD;
-                return gap > 100;
-            })) {
+            // Phase 1: 使用現金補足差距
+            // 只有當缺口大於目標價值的 5% 時才進行補足，以減少交易次數
+            while (remaining_cash > 100) {
                 const assets_with_gap = rebalance_assets.map(asset => {
                     const target_ratio = asset.target / total_target_units;
                     const target_value = (current_total_value + remaining_cash) * target_ratio;
                     const gap = target_value - asset.currentValTWD;
-                    return { asset, gap, target_value };
-                }).filter(item => item.gap > 100)
-                .sort((a, b) => b.gap - a.gap);
+                    // 增加閾值判斷：缺口必須大於目標值的 5% 且大於 100 TWD
+                    const threshold = Math.max(100, target_value * DRIFT_THRESHOLD);
+                    return { asset, gap, target_value, threshold };
+                }).filter(item => item.gap > item.threshold)
+                .sort((a, b) => b.gap - a.gap); // 優先處理缺口最大的
 
                 if (assets_with_gap.length === 0) break;
 
@@ -2097,6 +2116,7 @@
 
                 if (unitPriceTWD <= 0) break;
 
+                // 買入金額不超過缺口，也不超過現金
                 const max_buy_value = Math.min(target_asset.gap, remaining_cash);
                 const shares_to_buy = Math.floor(max_buy_value / unitPriceTWD);
 
@@ -2104,12 +2124,15 @@
 
                 const buy_amount = shares_to_buy * unitPriceTWD;
 
+                // 再次檢查：如果買入金額太小（小於總資產的極小比例），可能不值得交易
+                // 但因為已經過了 5% 缺口檢查，這裡通常是可以交易的
+                
                 trades.push({
                     asset_id: target_asset.asset.symbol,
                     action: 'buy',
                     shares: shares_to_buy,
                     amountTWD: buy_amount,
-                    reason: '使用現金補足目標差距'
+                    reason: `現金買入 (偏移 ${(target_asset.gap / target_asset.target_value * 100).toFixed(1)}%)`
                 });
 
                 target_asset.asset.currentValTWD += buy_amount;
@@ -2118,22 +2141,36 @@
             }
 
             const final_total_value = current_total_value + remaining_cash;
+            
+            // Phase 2: 資產再平衡 (賣出過多，買入過少)
             let rebalance_result = rebalance_assets.map(asset => {
                 const target_ratio = asset.target / total_target_units;
                 const target_value = final_total_value * target_ratio;
                 const adjustment = target_value - asset.currentValTWD;
                 const fx = asset.currency === 'USD' ? globalFxRate : 1;
                 const unitPriceTWD = asset.price * fx;
-                const share_adjustment = unitPriceTWD > 0 ? Math.floor(Math.abs(adjustment) / unitPriceTWD) : 0;
+                
+                // 閾值檢查：只有當偏移量超過目標值的 5% 時，才建議交易
+                // 這能有效防止 "賣A買A" 的反覆操作
+                const threshold = target_value * DRIFT_THRESHOLD;
+                let action = "hold";
+                
+                if (Math.abs(adjustment) > threshold) {
+                    action = adjustment > 0 ? "buy" : "sell";
+                }
+
+                const share_adjustment = (unitPriceTWD > 0 && action !== "hold") ? Math.floor(Math.abs(adjustment) / unitPriceTWD) : 0;
+                
                 return {
                     asset_id: asset.symbol,
                     current_value: asset.currentValTWD,
                     target_ratio: target_ratio,
                     target_value: target_value,
                     adjustment: adjustment,
-                    action: adjustment > 1 ? "buy" : (adjustment < -1 ? "sell" : "hold"),
+                    action: action,
                     shares: share_adjustment,
-                    amountTWD: share_adjustment * unitPriceTWD
+                    amountTWD: share_adjustment * unitPriceTWD,
+                    drift_pct: (adjustment / target_value * 100).toFixed(1)
                 };
             });
 
@@ -2142,14 +2179,18 @@
                 action: res.action,
                 shares: res.shares,
                 amountTWD: res.amountTWD,
-                reason: '再平衡調整'
+                reason: `再平衡 (偏移 ${res.drift_pct}%)`
             }));
 
             const all_trades = [...trades, ...additional_trades];
 
             container.innerHTML = '';
             if (all_trades.length === 0) {
-                container.innerHTML = `<div class="text-center py-4 text-[9px] text-slate-500 uppercase tracking-widest">配置已達平衡，無需交易</div>`;
+                container.innerHTML = `
+                    <div class="text-center py-6">
+                        <div class="text-[9px] text-slate-500 uppercase tracking-widest mb-2">配置在容許範圍內 (${(DRIFT_THRESHOLD*100).toFixed(0)}%)</div>
+                        <div class="text-[8px] text-slate-600 font-bold">無需進行交易</div>
+                    </div>`;
                 return;
             }
 
@@ -2595,6 +2636,11 @@
                 el.style.display = '';
             });
             document.getElementById(tabId).classList.add('active');
+            
+            // 如果切換到建議分頁，自動觸發計算
+            if (tabId === 'tab-advice') {
+                setTimeout(() => triggerAdvice(), 50);
+            }
             
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
             if (sourceEl) {
