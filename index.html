@@ -1157,7 +1157,12 @@
 
             const shares = parseFloat(document.getElementById('buyShares').value) || 0;
             const price = parseFloat(document.getElementById('buyPrice').value) || 0;
-            const required = shares * price;
+            
+            const sym = document.getElementById('buySymbol').value.trim().toUpperCase();
+            const info = getCategoryInfo(sym);
+            const fx = info.cur === 'USD' ? globalFxRate : 1;
+            
+            const required = shares * price * fx;
             requiredCashEl.textContent = formatVal(required, 0, true);
 
             if (required > cashPosition) {
@@ -1177,7 +1182,18 @@
 
             const shares = parseFloat(document.getElementById('sellShares').value) || 0;
             const price = parseFloat(document.getElementById('sellPrice').value) || 0;
-            const gain = shares * price;
+            
+            const sym = document.getElementById('sellSymbol').value.trim().toUpperCase();
+            const existingIndex = portfolio.findIndex(p => p.symbol === sym);
+            let fx = 1;
+            if (existingIndex !== -1) {
+                fx = portfolio[existingIndex].currency === 'USD' ? globalFxRate : 1;
+            } else {
+                const info = getCategoryInfo(sym);
+                fx = info.cur === 'USD' ? globalFxRate : 1;
+            }
+
+            const gain = shares * price * fx;
             gainCashEl.textContent = formatVal(gain, 0, true);
         }
         function closeModal(id) { 
@@ -1234,44 +1250,46 @@
                 return;
             }
 
+            const item = portfolio.find(p => p.id === id);
+            if (!item) return;
+
+            const fx = item.currency === 'USD' ? globalFxRate : 1;
+
             if (shares <= 0) {
                 if (confirm('確定要將此資產移除嗎？剩餘價值將加入現金水位。')) {
-                    const item = portfolio.find(p => p.id === id);
-                    if (item) {
-                        const remainingValue = item.shares * item.price * (item.currency === 'USD' ? globalFxRate : 1);
-                        cashPosition += remainingValue;
-                    }
+                    const remainingValue = item.shares * item.price * fx;
+                    cashPosition += remainingValue;
                     triggerDeleteConfirm(id);
                 }
             } else {
-                const item = portfolio.find(p => p.id === id);
-                if (item) {
-                    const oldValue = item.shares * item.cost;
-                    const newValue = shares * cost;
-                    const valueDiff = newValue - oldValue;
+                const oldValueOriginal = item.shares * item.cost;
+                const newValueOriginal = shares * cost;
+                
+                // 計算總成本差異（台幣）
+                const valueDiffOriginal = newValueOriginal - oldValueOriginal;
+                const valueDiff = valueDiffOriginal * fx;
 
-                    if (item.shares > 0 && Math.abs(valueDiff) > 0.01) {
-                        const action = valueDiff > 0 ? '增加' : '減少';
-                        const confirmMsg = `編輯將使總成本${action} ${formatVal(Math.abs(valueDiff), 0, false)} TWD，是否同步調整現金水位？`;
-                        if (confirm(confirmMsg)) {
-                            cashPosition -= valueDiff;
-                        }
+                if (Math.abs(valueDiff) > 0.01) {
+                    const action = valueDiff > 0 ? '增加' : '減少';
+                    const confirmMsg = `編輯將使總成本${action} ${formatVal(Math.abs(valueDiff), 0, true)} TWD，是否同步調整現金水位？`;
+                    if (confirm(confirmMsg)) {
+                        cashPosition -= valueDiff;
                     }
-
-                    item.shares = shares;
-                    item.cost = cost;
-                    item.pledgedShares = pledgedShares;
-                    item.excludePledged = excludePledged;
-                    item.isLeverage = isLvrg;
-                    if (isBond) {
-                        item.category = 'BOND';
-                    } else if (item.category === 'BOND') {
-                        const info = getCategoryInfo(item.symbol, item.name);
-                        item.category = info.cat === 'BOND' ? (/^\d/.test(item.symbol) ? 'TW' : 'US') : info.cat;
-                    }
-                    saveToStorage();
-                    render();
                 }
+
+                item.shares = shares;
+                item.cost = cost;
+                item.pledgedShares = pledgedShares;
+                item.excludePledged = excludePledged;
+                item.isLeverage = isLvrg;
+                if (isBond) {
+                    item.category = 'BOND';
+                } else if (item.category === 'BOND') {
+                    const info = getCategoryInfo(item.symbol, item.name);
+                    item.category = info.cat === 'BOND' ? (/^\d/.test(item.symbol) ? 'TW' : 'US') : info.cat;
+                }
+                saveToStorage();
+                render();
             }
             closeModal('editModal');
         }
@@ -1317,7 +1335,10 @@
             const buyPrice = parseFloat(document.getElementById('buyPrice').value) || 0;
             if (!sym || sharesToBuy <= 0 || buyPrice <= 0) return;
 
-            const requiredCash = sharesToBuy * buyPrice;
+            const info = getCategoryInfo(sym);
+            const fx = info.cur === 'USD' ? globalFxRate : 1;
+            const requiredCashOriginal = sharesToBuy * buyPrice;
+            const requiredCash = requiredCashOriginal * fx;
             
             // 检查现金水位是否足够
             if (requiredCash > cashPosition) {
@@ -1337,7 +1358,6 @@
                 p.isUpdating = true; // 即使是現有股票，買入後也同步更新價格
                 updateSinglePrice(p);
             } else {
-                const info = getCategoryInfo(sym);
                 const newId = portfolio.length > 0 ? Math.max(...portfolio.map(i => i.id)) + 1 : 1;
                 const newItem = {
                     id: newId,
@@ -1366,7 +1386,7 @@
                 symbol: sym,
                 shares: sharesToBuy,
                 price: buyPrice,
-                amount: requiredCash,
+                amount: requiredCash, // TWD
                 timestamp: new Date().toISOString()
             };
             tradeHistory.push(trade);
@@ -1412,8 +1432,11 @@
                 return;
             }
 
-            const gainCash = sharesToSell * sellPrice;
-            const realizedPnL = gainCash - (sharesToSell * p.cost);
+            const fx = p.currency === 'USD' ? globalFxRate : 1;
+            const gainCashOriginal = sharesToSell * sellPrice;
+            const gainCash = gainCashOriginal * fx;
+            const realizedPnL_Original = gainCashOriginal - (sharesToSell * p.cost);
+            const realizedPnL = realizedPnL_Original * fx;
 
             const trade = {
                 id: Date.now(),
@@ -2343,20 +2366,30 @@
             const trade = tradeHistory[index];
             if (!trade) return;
 
+            let fx = 1;
+            const asset = portfolio.find(p => p.symbol === trade.symbol);
+            if (asset) {
+                fx = asset.currency === 'USD' ? globalFxRate : 1;
+            } else {
+                 const info = getCategoryInfo(trade.symbol);
+                 fx = info.cur === 'USD' ? globalFxRate : 1;
+            }
+
             const oldAmount = trade.amount;
             trade.price = newPrice;
-            trade.amount = trade.shares * newPrice;
+            const newAmountOriginal = trade.shares * newPrice;
+            trade.amount = newAmountOriginal * fx;
 
             if (trade.type === 'buy') {
-                const asset = portfolio.find(p => p.symbol === trade.symbol);
                 if (asset) {
                     asset.cost = newPrice;
-                    asset.currentValTWD = asset.shares * newPrice * (asset.currency === 'USD' ? globalFxRate : 1);
+                    asset.currentValTWD = asset.shares * asset.price * fx;
                 }
                 cashPosition -= (trade.amount - oldAmount);
             }
             else if (trade.type === 'sell') {
-                trade.realizedPnL = trade.amount - (trade.shares * trade.avgCost);
+                const realizedPnL_Original = newAmountOriginal - (trade.shares * trade.avgCost);
+                trade.realizedPnL = realizedPnL_Original * fx;
                 cashPosition += (trade.amount - oldAmount);
             }
 
@@ -2407,13 +2440,23 @@
             const trade = tradeHistory[index];
             if (!trade) return;
 
+            let fx = 1;
+            const asset = portfolio.find(p => p.symbol === trade.symbol);
+            if (asset) {
+                fx = asset.currency === 'USD' ? globalFxRate : 1;
+            } else {
+                 const info = getCategoryInfo(trade.symbol);
+                 fx = info.cur === 'USD' ? globalFxRate : 1;
+            }
+
             const oldAmount = trade.amount;
             const oldShares = trade.shares;
             trade.shares = newShares;
-            trade.amount = trade.shares * trade.price;
+            
+            const newAmountOriginal = trade.shares * trade.price;
+            trade.amount = newAmountOriginal * fx;
 
             if (trade.type === 'buy') {
-                const asset = portfolio.find(p => p.symbol === trade.symbol);
                 if (asset) {
                     const shareDiff = newShares - oldShares;
                     asset.shares += shareDiff;
@@ -2427,7 +2470,6 @@
                 cashPosition -= (trade.amount - oldAmount);
             }
             else if (trade.type === 'sell') {
-                const asset = portfolio.find(p => p.symbol === trade.symbol);
                 if (asset) {
                     const shareDiff = oldShares - newShares;
                     asset.shares += shareDiff;
@@ -2435,7 +2477,10 @@
                         asset.pledgedShares = Math.max(0, asset.shares);
                     }
                 }
-                trade.realizedPnL = trade.amount - (trade.shares * trade.avgCost);
+                
+                const realizedPnL_Original = newAmountOriginal - (trade.shares * trade.avgCost);
+                trade.realizedPnL = realizedPnL_Original * fx;
+                
                 cashPosition += (trade.amount - oldAmount);
             }
 
